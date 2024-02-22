@@ -1,5 +1,5 @@
 ### Custom
-!/data/examples/
+/data/processed
 *.tif.aux.xml
 
 ### Python
