@@ -1,6 +1,6 @@
 import osmnx
 
-from src.reachability_design import get_network_for_project_area
+from src.models.reachability_design import get_network_for_project_area
 import geopandas
 from settings import Config
 

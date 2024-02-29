@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-from src.raster_to_graph import raster_to_graph_nx, GraphNetwork
+from src.util.raster_to_graph import raster_to_graph_nx, GraphNetwork
 
 
 def test_array_to_graph_small_example():

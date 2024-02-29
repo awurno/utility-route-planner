@@ -8,6 +8,7 @@ class Config:
     LOG_LEVEL = int(os.environ.get("LOG_LEVEL", logging.INFO))
     RASTER_NO_DATA = -127
     DEBUG = True
+    CRS = 28992  # https://epsg.io/28992
 
     PATH_EXAMPLE_RASTER_1 = BASEDIR / "data/examples/p_pytest_suitability_raster_apeldoorn.tif"
     PATH_EXAMPLE_ROUTE_1 = BASEDIR / "data/examples/traceontwerp_apeldoorn.geojson"

@@ -35,5 +35,4 @@ repos:
     hooks:
     - id: mypy
       args: [--ignore-missing-imports]
-      exclude: alembic
       additional_dependencies: [ types-PyYAML==6.0.8, types-requests==2.28.11.2 ]
