@@ -1,0 +1,400 @@
+### Raster presets containing al scenarios and their respective settings.
+preset_benchmark:
+  general:
+      description: 'Preset used for the MCDA cost-surface creation of the benchmark.'
+      table_prefix: 'p_sg_'
+      schema_name: 'msrbepaling'
+      raster_resolution: !!python/tuple [0.5, 0.5]
+      final_raster_name: 'p_sg_suitability_raster'
+      final_raster_value_limits: !!python/tuple [-126, 126]
+      intermediate_raster_value_limits: !!python/tuple [-126, 126]
+      raster_no_data: -127 # Must not be used in the final/intermediate raster range of values.
+      raster_recolored_no_data: 0 # Value for each R,G,B band that must be a valid int8 number.
+      raster_recolored_used_styling_name: 'p_sg_suitability_raster_color_settings'
+      project_area_schema_name: 'msrbepaling_source'
+      project_area_table_name: 'm_alliander_verzorgingsgebied' # options: m_alliander_verzorgingsgebied m_componistenbuurt_ede zz_gelderland zz_ede
+  criteria:
+    # BGT verplicht component: Kleinste functioneel onafhankelijk stukje water met gelijkblijvende, homogene eigenschappen en relaties dat er binnen het objecttype Water van NEN 3610 wordt onderscheiden en dat permanent met water bedekt is.
+    waterdeel:
+      weight_values:
+        w_zee: 126
+        w_watervlakte: 126
+        w_waterloop: 126
+        w_rivier: 126
+        w_sloot: 126
+        w_kanaal: 126
+        w_beek: 126
+        w_gracht: 126
+        w_bron: 126
+        w_haven: 126
+        w_meer_plas_ven_vijver: 126
+        w_greppel_droge_sloot: -13
+      geometry_values:
+        buffer_m_zee: 20
+
+    # BGT verplicht component: Object dat in het kader van de waterhuishouding periodiek gedeeltelijk of geheel met water is bedekt.
+    ondersteunendwaterdeel:
+      weight_values:
+        # attribute: bgt_type
+        w_oever_slootkant: 76
+        w_slik: 76
+
+    # BGT verplicht component: Kleinste functioneel onafhankelijk stukje van een NEN 3610 Weg met gelijkblijvende, homogene eigenschappen en relaties en primair bedoeld voor gebruik door weg-, spoor- en vliegverkeer te land.
+    wegdeel:
+      weight_values:
+        # attribute: bgt_functie
+        w_rijbaan_autosnelweg: 126
+        w_spoorbaan: 126
+        w_overweg: 126
+        w_rijbaan_autoweg: 126
+        w_baan_voor_vliegverkeer: 126
+        w_rijbaan_regionale_weg: 126
+        w_ov_baan: 126
+        w_rijbaan_lokale_weg: 63
+        w_fietspad: 63
+        w_inrit: 63
+        w_voetpad: 25
+        w_voetpad_op_trap: 38
+        w_ruiterpad: 25
+        w_woonerf: 25
+        w_voetgangersgebied: 1
+        w_parkeervlak: -13
+        # attribute: bgt_fysiekvoorkomen
+        w_gesloten_verharding: 1
+        w_open_verharding: 1
+        w_half_verhard: 1
+        w_onverhard: 1
+      geometry_values:
+        buffer_m_rijbaan_autosnelweg: 10
+        buffer_m_spoorbaan: 11
+        buffer_m_overweg: 11
+        buffer_m_rijbaan_autoweg: 10
+        buffer_m_baan_voor_vliegverkeer: 150
+        buffer_m_rijbaan_regionale_weg: 6
+        buffer_m_rijbaan_lokale_weg: 3
+        buffer_m_fietspad: 0.5
+        buffer_m_inrit: 3
+        buffer_m_ruiterpad: 0.5
+        buffer_m_parkeervlak: 0.5
+
+    # BGT verplicht component: Een deel van de weg dat niet primair bedoeld is voor gebruik door het verkeer.
+    ondersteunendwegdeel:
+      weight_values:
+        # attribute: bgt_functie
+        w_verkeerseiland: 126
+        w_berm: 25
+        # attribute: bgt_fysiekvoorkomen
+        w_groenvoorziening: 1
+        w_half_verhard: 1
+        w_onverhard: 1
+        w_open_verharding: 1
+        w_gesloten_verharding: 1
+
+    # BGT verplicht component: Kleinste functioneel onafhankelijk stukje van een terrein, dat er binnen het objecttype Terrein van NEN 3610 wordt onderscheiden, zonder aaneengesloten vegetatie.
+    onbegroeidterreindeel:
+      weight_values:
+        # attribute: bgt_fysiekvoorkomen
+        w_open_verharding: 1
+        w_gesloten_verharding: 1
+        w_onverhard: 1
+        w_half_verhard: 1
+        w_zand: 1
+        # TODO NTGRL-1385: "erf" implies it is privately owned ground. However, this is uncertain. Kadaster has a better (paid) source for this information.
+        w_erf: 25
+
+    # BGT verplicht component: Kleinste functioneel onafhankelijk stukje van een terrein dat er binnen het objecttype Terrein van NEN 3610 wordt onderscheiden, met aaneengesloten vegetatie.
+    begroeidterreindeel:
+      weight_values:
+        # attribute: bgt_fysiekvoorkomen
+        w_rietland: 76
+        w_kwelder: 76
+        w_heide: 63
+        w_duin: 63
+        w_moeras: 38
+        w_gemengd_bos: 25
+        w_loofbos: 25
+        w_houtwal: 13
+        w_naaldbos: 13
+        w_fruitteelt: -13
+        w_boomteelt: -13
+        w_struiken: -13
+        w_bouwland: -13
+        w_grasland_agrarisch: -13
+        w_grasland_overig: -13
+        w_groenvoorziening: -13
+        # attribute: plus_fysiekvoorkomen, complementary to w_groenvoorziening
+        w_bosplantsoen: 13
+        w_gras_en_kruidachtigen: -13
+        w_planten: -13
+        w_struikrozen: -13
+        w_heesters: -13
+        w_bodembedekkers: -13
+
+    # BGT verplicht component: Een PAND is de kleinste bij de totstandkoming functioneel en bouwkundig-constructief zelfstandige eenheid die direct en duurzaam met de aarde is verbonden en betreedbaar en afsluitbaar is.
+    panden:
+      weight_values:
+        w_panden: 76
+      geometry_values:
+        buffer_m_pand: 1.2
+
+    # BGT optioneel component: Solitair vegetatieobject of lijn- of vlakvormige groep gelijksoortige vegetatieobjecten met een beperkte omvang.
+    vegetatieobject:
+      weight_values:
+        # attribute: plus_type
+        w_boom: 13
+        w_haag: -13
+        w_waardeOnbekend: 1
+      geometry_values:
+        buffer_m_boom: 2.5
+
+    # BGT verplicht: Onderdeel van een civiel-technisch werk voor de infrastructuur van wegen, water, spoorbanen, waterkeringen en/of leidingen.
+    kunstwerkdeel:
+      weight_values:
+        # attribute: bgt_type
+        w_niet_bgt: 13
+        w_gemaal: 13
+        w_perron: 13
+        w_sluis: 13
+        w_strekdam: 13
+        w_steiger: 13
+        w_stuw: 13
+        w_keermuur: 13
+        w_overkluizing: 13
+        w_duiker: 13
+        w_faunavoorziening: 13
+        w_vispassage: 13
+        w_bodemval: 13
+        w_coupure: 13
+        w_ponton: 13
+        w_voorde: 13
+        w_waardeOnbekend: 1
+
+    # BGT verplicht: Kunstmatig obstakel met een werende functie.
+    scheiding:
+      weight_values:
+        # attribute: bgt_type
+        w_niet_bgt: 1
+        w_walbescherming: 126
+        w_damwand: 126
+        w_kademuur: 126
+        w_draadraster: 1
+        w_faunaraster: 1
+        w_geluidsscherm: 1
+        w_muur: 1
+        w_hek: 1
+
+    # BGT deels optioneel: Met de aarde verbonden duurzaam bouwwerk, dat niet valt onder de definities van een pand of kunstwerk
+    overig_bouwwerk:
+      weight_values:
+        w_niet_bgt: 1
+        w_open_loods: 1
+        w_overkapping: 1
+        w_opslagtank: 1
+        w_bezinkbak: 1
+        w_windturbine: 1
+        w_bassin: 1
+        w_schuur: 1
+        w_bunker: 1
+        w_voedersilo: 1
+
+    # BGT optioneel: Apparaat voor de meting van een fysieke grootheid (bijv. temperatuur, licht, druk, elektriciteit).
+    sensor:
+      weight_values:
+        w_camera: 1
+        w_debietmeter: 1
+        w_hoogtedetectieapparaat: 1
+        w_detectielus: 1
+        w_weerstation: 1
+        w_flitser: 1
+        w_waterafstandmeter: 1
+        w_windmeter: 1
+        w_lichtcel: 1
+        w_GMS_sensor: 1
+        w_radar_detector: 1
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Object met een permanent karakter dat dient om iets in te bergen of te verzamelen.
+    bak:
+      weight_values:
+        w_afval_apart_plaats: 38
+        w_container: 38
+        w_afvalbak: 1
+        w_drinkbak: 1
+        w_zand_zoutbak: 1
+        w_bloembak: 1
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Hoge draagconstructie.
+    mast:
+      weight_values:
+        w_bovenleidingmast: 76
+        w_straalzender: 76
+        w_radarmast: 76
+        w_zendmast: 76
+        w_laagspanningsmast: 76
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Een paneel waarop informatie wordt afgebeeld.
+    bord:
+      weight_values:
+        w_reclamebord_reclamezuil_mast: 38
+        w_wegwijzer: 38
+        w_informatiebord: 1
+        w_plaatsnaambord: 1
+        w_straatnaambord: 1
+        w_verkeersbord: 1
+        w_scheepvaartbord: 1
+        w_verklikker_transportleiding: 1
+        w_waarschuwingshek: 1
+        w_dynamische_snelheidsindicator: 1
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Samenhangend systeem dat een bepaald doel dient.
+    installatie:
+      weight_values:
+        w_pomp: 50
+        w_zonnepaneel: 38
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Object met een permanent karakter dat dient om iets in te bergen en te beschermen.
+    kast:
+      weight_values:
+        w_CAI_kast: 1
+        w_rioolkast: 1
+        w_verkeersinstallatiekast: 1
+        w_telkast: 1
+        w_telecom_kast: 1
+        w_gaskast: 1
+        w_GMS_kast: 1
+        w_elektrakast: 1
+        w_openbare_verlichtingkast: 1
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Langwerpig stuk hout, ijzer, steen enz., dat in de grond staat.
+    paal:
+      weight_values:
+        w_portaal_verkeersregelinstallatie: 76
+        w_verkeerregelinstallatiepaal: 76
+        w_haltepaal: 38
+        w_verkeersbordpaal: 38
+        w_poller: 25
+        w_lichtmast: 25
+        w_sirene: 1
+        w_vlaggenmast: 1
+        w_grensmarkering: 1
+        w_drukknoppaal: 1
+        w_dijkpaal: 1
+        w_praatpaal: 1
+        w_hectometerpaal: 1
+        w_afsluitpaal: 1
+        w_telpaal: 1
+        w_null: 1  # this shows up as [null] in PostgreSQL. Might be a data error.
+
+    # BGT optioneel: Gegraven of geboorde kokervormige diepte waarin zich (vloei)stoffen bevinden.
+    put:
+      weight_values:
+        w_benzine_olieput: 1
+        w_brandkraan_put: 1
+        w_drainageput: 1
+        w_gasput: 1
+        w_inspectie_rioolput: 1
+        w_kolk: 1
+        w_waterleidingput: 1
+        w_waardeOnbekend: 1
+
+    # BGT optioneel: Een ruimtelijk object ter inrichting van de openbare ruimte.
+    straatmeubilair:
+      weight_values:
+        w_herdenkingsmonument: 101
+        w_kunstobject: 76
+        w_fontein: 76
+        w_betaalautomaat: 50
+        w_abri: 25
+        w_slagboom: 25
+        w_telefooncel: 25
+        w_openbaar_toilet: 25
+        w_fietsenkluis: 25
+        w_lichtpunt: 1
+        w_reclamezuil: 1
+        w_bolder: 1
+        w_parkeerbeugel: 1
+        w_fietsenrek: 1
+        w_picknicktafel: 1
+        w_bank: 1
+        w_brievenbus: 1
+        w_speelvoorziening: 1
+        w_waardeOnbekend: 1
+
+    # Beschermd natuurgebied
+    natura2000:
+      weight_values:
+        w_natura2000: 126
+
+    # Alliander infra: Bestaande middenspanningruimtes
+    middenspanningsruimte:
+      weight_values:
+        w_middenspanningsruimte: 126
+        w_middenspanningsruimte_start: 126
+        w_middenspanningsruimte_end: 25
+        w_lskast: -3  # Manually set to -3, according to keyuser meeting 5-7-2023
+        w_gvbruimtes: 1
+        w_overig: 126 # TODO: This value might change in NTGRL-1818
+      geometry_values:
+        buffer_m_middenspanningsruimte: 75
+        raster_gradient_width_m: 2.0 # Desired width of each ring in the gradient.
+        buffer_m_lskast: 10
+        buffer_m_gvbruimtes: 5
+        buffer_m_overig: 1 # TODO: This value might change in NTGRL-1818
+
+    # Alliander infra: gasleidingen
+    alliander_gasleiding:
+      weight_values:
+        w_gaslagedruk: 50
+        w_gashogedruk: 126
+        w_waterstof: 50  # 13-3-2023 BARP: waterstof has no lage/hoge druk.
+      geometry_values:
+        buffer_m_gaslagedruk: 1
+        buffer_m_gashogedruk: 3.5
+        buffer_m_waterstof: 3.5
+
+    # Alliander infra: Laagspanning.
+    laagspanningskabel:
+      weight_values:
+        w_laagspanningkabel: -25
+
+    # Alliander infra: Middenspanning.
+    middenspanningskabel:
+      weight_values:
+        w_middenspanning_ongunstig: 126  # manually set based on key-user meeting of 12/04/2023
+        w_middenspanning_gunstig: -3  # manually set based on key-user meeting of 12/04/2023
+      geometry_values:
+        buffer_m_middenspanningskabel_ongunstig: 1
+        buffer_m_middenspanningskabel_gunstig: 3
+      rasterize_overlap_order:
+        order: ASC
+
+    # Tennet / Alliander infra: Bestaande hoogspanningsmasten.
+    hoogspanningsmast:
+      weight_values:
+        w_hoogspannigsmast: 126
+      geometry_values:
+        buffer_m_hoogspanningsmast: 5
+
+    # Tennet / Alliander infra: Bestaande hoogspanninglijnen (bovengronds).
+    hoogspanningslijn:
+      weight_values:
+        w_hoogspanningslijn: 1
+
+    # Tennet / Alliander infra: Bestaande hoogspanningkabels (ondergronds).
+    hoogspanningskabel:
+      weight_values:
+        w_hoogspanningkabel: 126
+      geometry_values:
+        buffer_m_hoogspanningkabel: 2
+
+    # Gasunieleidingen van risicokaart
+    gasunie_leiding:
+      weight_values:
+        w_gasunie_leiding: 126
+      geometry_values:
+        buffer_m_gasunie_leiding: 5

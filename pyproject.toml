@@ -17,6 +17,7 @@ networkx = "^3.2.1"
 cairocffi = "^1.6.1"
 matplotlib = "^3.8.2"
 osmnx = "^1.8.0"
+pydantic = "^2.6.3"
 
 [build-system]
 requires = ["poetry-core"]

@@ -3,12 +3,12 @@ import shapely
 from skimage.graph import route_through_array
 
 from settings import Config
-from src.util.datastructures import RouteModel
+from src.util.datastructures import LcpaModel
 from src.util.geo_utilities import logger
 from src.util.write import write_to_file
 
 
-def preprocess_input_linestring(geotransform: tuple, utility_route_sketch: shapely.LineString) -> RouteModel:
+def preprocess_input_linestring(geotransform: tuple, utility_route_sketch: shapely.LineString) -> LcpaModel:
     """
     Convert input to a dictionary for further processing and check if we have optional stops. The current input is
     a tuple, this might be changed to a shapely / GeoJSON linestring geometry later on depending on the GUI.
@@ -18,7 +18,7 @@ def preprocess_input_linestring(geotransform: tuple, utility_route_sketch: shape
     :return route_model: input converted to a route_model.
     """
 
-    route_model = RouteModel(utility_route_sketch, geotransform)
+    route_model = LcpaModel(utility_route_sketch, geotransform)
 
     if Config.DEBUG:
         write_to_file(route_model.input_linestring, "utility_sketch_route.geojson")
@@ -27,7 +27,7 @@ def preprocess_input_linestring(geotransform: tuple, utility_route_sketch: shape
     return route_model
 
 
-def calculate_least_cost_path(suit_raster_array: "np.ndarray", utility_route_model: RouteModel) -> tuple:
+def calculate_least_cost_path(suit_raster_array: "np.ndarray", utility_route_model: LcpaModel) -> tuple:
     """
     Calculates the least cost path in the given suitability raster. Handle one or multiple stops if present.
 
