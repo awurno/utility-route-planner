@@ -11,9 +11,9 @@ class Config:
     CRS = 28992  # https://epsg.io/28992
 
     # MCDA
-    RASTER_PRESET = "preset_default"
+    RASTER_PRESET = "preset_benchmark"
     RASTER_CELL_SIZE = 0.5
-    PATH_RASTER_PRESET_FILE = BASEDIR / "src/models/mcda_presets.yaml"
+    PATH_RASTER_PRESET_FILE = BASEDIR / "src/models/mcda/mcda_presets.yaml"
 
     # LCPA
     RASTER_NO_DATA = -127
