@@ -57,7 +57,7 @@ class LcpaUtilityRouteEngine:
         Calculates the least cost path in the given suitability raster. Handle one or multiple stops if present.
 
         :param suit_raster_array: numpy array containing the values of the suitability raster.
-        :param utility_route_model: dictionary containing the start, end and optional stops raster indices.
+        :param utility_route_model: input as lcpa data structure.
         :return: numpy array containing the least cost path.
         """
 
