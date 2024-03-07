@@ -3,9 +3,11 @@ from pathlib import Path
 import rasterio
 import rasterio.mask
 import shapely
+import structlog
 
 from settings import Config
-from src.util.geo_utilities import logger
+
+logger = structlog.get_logger(__name__)
 
 
 def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.Polygon):
