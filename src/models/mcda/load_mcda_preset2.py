@@ -2,8 +2,9 @@ import typing
 
 import pydantic
 import structlog
-from pydantic import field_validator
+from pydantic import field_validator, ConfigDict
 
+from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 
 logger = structlog.get_logger(__name__)
 
@@ -13,8 +14,11 @@ class RasterPresetCriteria(pydantic.BaseModel):
     Class for defining the datamodel for a criteria in the raster preset. Is part of the RasterPreset datamodel.
     """
 
-    name: str = pydantic.Field(description="Name of the criteria.")
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    description: str = pydantic.Field(description="Description of the criteria.")
     constraint: bool = pydantic.Field(description="Determines how the criteria is handled")
+    preprocessing_function: VectorPreprocessorBase
     group: str = pydantic.Field(description="Determines how the criteria is handled.")
 
     @field_validator("group")
@@ -32,16 +36,12 @@ class RasterPresetCriteria(pydantic.BaseModel):
 
 class RasterPresetGeneral(pydantic.BaseModel):
     """
-    Class for defining the datamodel containing general settings on how to handle the (intermediate) raster files. Is
-    part of the RasterPreset datamodel.
+    Check if we have the necessary general settings for the cost-surface generation using MCDA.
     """
 
-    # Throw an error when we encounter extra fields in general not covered below.
-    class Config:
-        extra = pydantic.Extra.forbid
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(extra="forbid")
 
-    description: typing.Optional[str] = pydantic.Field("Undefined", description="Description of the preset.")
+    description: typing.Optional[str] = pydantic.Field(..., description="Description of the preset.")
     prefix: str = pydantic.Field(
         ...,
         description="Prefix to apply for all files relevant for a given preset.",

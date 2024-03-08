@@ -1,4 +1,5 @@
 from settings import Config
+from src.models.mcda.vector_preprocessing.waterdeel import Waterdeel
 
 preset_benchmark = {
     "general": {
@@ -11,11 +12,12 @@ preset_benchmark = {
         "final_raster_value_limit_lower": 0,
         "final_raster_value_limit_upper": 126,
         "raster_no_data": Config.RASTER_NO_DATA,
-        # "project_area_geometry": 'placeholder',  # This line is commented out
+        # "project_area_geometry": 'placeholder'
     },
     "criteria": {
         "waterdeel": {
-            "name": "waterdeel",
+            "description": "Information on water.",
+            "preprocessing_function": Waterdeel(),
             "constraint": False,
             "group": "a",
             "weight_values": {
