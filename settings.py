@@ -13,15 +13,15 @@ class Config:
     # MCDA
     RASTER_PRESET = "preset_benchmark"
     RASTER_CELL_SIZE = 0.5
-    PATH_RASTER_PRESET_FILE = BASEDIR / "src/models/mcda/mcda_presets.yaml"
 
     # LCPA
     RASTER_NO_DATA = -127
     PATH_LCPA_GEOPACKAGE = BASEDIR / "data/processed/lcpa_results.gpkg"
 
-    # Testing & debug paths
-    PATH_EXAMPLE_RASTER_1 = BASEDIR / "data/examples/p_pytest_suitability_raster_apeldoorn.tif"
-    PATH_EXAMPLE_ROUTE_1 = BASEDIR / "data/examples/traceontwerp_apeldoorn.geojson"
-    PATH_PROJECT_AREA = BASEDIR / "data/examples/project_area_sample_apeldoorn.geojson"
-    PATH_PROJECT_AREA_ROAD_CROSSING = BASEDIR / "data/examples/road_crossing_example.geojson"
+    # Testing & input/output paths
     PATH_RESULTS = BASEDIR / "data/processed"
+    PATH_EXAMPLE_RASTER_APELDOORN = BASEDIR / "data/examples/p_pytest_suitability_raster_apeldoorn.tif"
+    PATH_EXAMPLE_ROUTE_APELDOORN = BASEDIR / "data/examples/traceontwerp_apeldoorn.geojson"
+    PATH_PROJECT_AREA_APELDOORN_SMALL = BASEDIR / "data/examples/project_area_sample_apeldoorn.geojson"
+    PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING = BASEDIR / "data/examples/road_crossing_example.geojson"
+    PATH_PROJECT_AREA_EDE_COMPONISTENBUURT = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"

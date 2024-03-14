@@ -6,7 +6,9 @@ from settings import Config
 
 
 def test_get_piece_of_network_small_and_get_two_paths():
-    project_area_graph = get_network_for_project_area(geopandas.read_file(Config.PATH_PROJECT_AREA_ROAD_CROSSING), 50)
+    project_area_graph = get_network_for_project_area(
+        geopandas.read_file(Config.PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING), 50
+    )
     osmnx.save_graph_geopackage(project_area_graph, str(Config.PATH_RESULTS / "mygraph.gpkg"))
 
     # Plot the two shortest paths

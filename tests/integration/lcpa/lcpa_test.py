@@ -17,7 +17,7 @@ def setup_monkeypatch_debug(monkeypatch):
 class TestUtilityRoutes:
     def test_get_utility_route_small_area(self):
         lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_1,
+            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
             utility_route_sketch=shapely.LineString([(193077.740, 466510.697), (193031.551, 466474.721)]),
         )
 
@@ -26,9 +26,9 @@ class TestUtilityRoutes:
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
 
     def test_get_utility_route_small_area_with_project_area(self):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_ROAD_CROSSING).iloc[0].geometry
+        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING).iloc[0].geometry
         lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_1,
+            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
             utility_route_sketch=shapely.LineString([(193077.740, 466510.697), (193031.551, 466474.721)]),
             project_area=project_area,
         )
@@ -37,9 +37,9 @@ class TestUtilityRoutes:
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
 
     def test_get_utility_route_with_intermediate_stops_small_area(self):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_ROAD_CROSSING).iloc[0].geometry
+        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING).iloc[0].geometry
         lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_1,
+            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
             utility_route_sketch=shapely.LineString(
                 [(193077.740, 466510.697), (193043.338, 466490.707), (193055.374, 466489.049), (193031.551, 466474.721)]
             ),
@@ -50,9 +50,9 @@ class TestUtilityRoutes:
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
 
     def test_get_utility_route_larger_area_with_project_area(self):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA).iloc[0].geometry
+        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_SMALL).iloc[0].geometry
         lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_1,
+            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
             utility_route_sketch=shapely.LineString([(193077.740, 466510.697), (193383.28, 466452.02)]),
             project_area=project_area,
         )
