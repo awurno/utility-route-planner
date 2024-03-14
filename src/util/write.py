@@ -22,13 +22,22 @@ def write_to_file(geometry: gpd.GeoSeries | gpd.GeoDataFrame | shapely.Geometry,
     geometry.to_file(Config.PATH_RESULTS / name)
 
 
-def delete_geopackage(path_geopackage: pathlib.Path) -> None:
+def reset_geopackage(path_geopackage: pathlib.Path, truncate=True) -> None:
     """
-    Clean start, delete result geopackage to write to.
+    Clean start, delete or truncate result geopackage to write to.
     """
-    logger.info("Deleting existing geopackage result file for a clean start.")
+    logger.info("Resetting existing geopackage result file for a clean start.")
     if os.path.exists(path_geopackage):
-        os.remove(path_geopackage)
+        if truncate:
+            existing_layers = [layername for layername in fiona.listlayers(path_geopackage)]
+            for layer_name in existing_layers:
+                gdf = gpd.read_file(path_geopackage, layer=layer_name)
+                if gdf.empty:
+                    return
+                gdf = gdf.iloc[0:0]
+                gdf.to_file(path_geopackage, layer=layer_name, driver="GPKG")
+        else:
+            os.remove(path_geopackage)
     else:
         logger.info("Geopackage does not exists, continuing as normal.")
 
@@ -58,7 +67,7 @@ def _get_writing_mode_geopackage(filename, path_geopackage):
     if not os.path.exists(path_geopackage):
         mode = "w"
     else:
-        # if layer does not exist, create a new one. Otherwise append.
+        # if layer does not exist, create a new one. Otherwise, append.
         existing_layers = [layername for layername in fiona.listlayers(path_geopackage)]
         if filename in existing_layers:
             mode = "a"
