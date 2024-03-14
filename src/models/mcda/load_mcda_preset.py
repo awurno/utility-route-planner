@@ -3,9 +3,10 @@ import typing
 import pydantic
 import shapely
 import structlog
-import yaml
+from pydantic import field_validator, ConfigDict
+from src.models.mcda.mcda_presets import preset_collection
 
-from settings import Config
+from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 
 logger = structlog.get_logger(__name__)
 
@@ -15,78 +16,75 @@ class RasterPresetCriteria(pydantic.BaseModel):
     Class for defining the datamodel for a criteria in the raster preset. Is part of the RasterPreset datamodel.
     """
 
-    weight_values: dict = pydantic.Field(..., description="Contains values for defining how important the " "layer is.")
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    description: str = pydantic.Field(description="Description of the criteria.")
+    constraint: bool = pydantic.Field(description="Determines how the criteria is handled")
+    preprocessing_function: VectorPreprocessorBase
+    group: str = pydantic.Field(description="Determines how the criteria is handled.")
+
+    @field_validator("group")
+    def validate_group(cls, v: str) -> str:
+        if v not in ["a", "b"]:
+            raise ValueError("Group must be 'a' or 'b'.")
+        return v.title()
+
+    weight_values: dict = pydantic.Field(..., description="Contains values for defining how important the layer is.")
     geometry_values: typing.Optional[dict] = pydantic.Field(
         default=None,
-        description="Contains values for optional " "computational geometry steps " "(e.g., buffer).",
-    )
-    rasterize_overlap_order: typing.Optional[dict] = pydantic.Field(
-        default=None,
-        description="Contains optional SQL statement used during rasterize steps in case of overlap.",
+        description="Contains values for optional computational geometry steps, e.g., buffer.",
     )
 
 
 class RasterPresetGeneral(pydantic.BaseModel):
     """
-    Class for defining the datamodel containing general settings on how to handle the (intermediate) raster files. Is
-    part of the RasterPreset datamodel.
+    Check if we have the necessary general settings for the cost-surface generation using MCDA.
     """
 
-    # Throw an error when we encounter extra fields in general not covered below.
-    class Config:
-        extra = pydantic.Extra.forbid
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
-    description: typing.Optional[str] = pydantic.Field("Undefined", description="Description of the preset.")
-    table_prefix: str = pydantic.Field(
+    description: typing.Optional[str] = pydantic.Field(..., description="Description of the preset.")
+    prefix: str = pydantic.Field(
         ...,
-        description="Prefix to apply for all tables relevant " "for a given preset.",
-    )
-    schema_name: str = pydantic.Field(
-        default="playground",
-        description="Target schema to write the tables to during preprocessing.",
+        description="Prefix to apply for all files relevant for a given preset.",
     )
     raster_resolution: tuple = pydantic.Field(
         default=(1, 1),
-        description="Resolution to be used for the (" "intermediate) raster.",
+        description="Resolution to be used for the (intermediate) raster.",
+    )
+    intermediate_raster_value_limit_lower: int = pydantic.Field(
+        ...,
+        description="Contains the min value for the intermediate rasters to sum in the final suit raster.",
+    )
+    intermediate_raster_value_limit_upper: int = pydantic.Field(
+        ...,
+        description="Contains the max value for the intermediate rasters to sum in the final suit raster.",
     )
     final_raster_name: str = pydantic.Field(default="zz_test_raster", description="Name of the final raster.")
-    final_raster_value_limits: tuple = pydantic.Field(
+    final_raster_value_limit_lower: int = pydantic.Field(
         ...,
-        description="Contains the cut-off point of values for "
-        "creating the final raster which will be "
-        "rounded up or down to.",
+        description="Contains the min value for the final raster.",
     )
-    intermediate_raster_value_limits: tuple = pydantic.Field(
+    final_raster_value_limit_upper: int = pydantic.Field(
         ...,
-        description="Contains the max/min value for the " "intermediate rasters to sum in the " "final suit raster.",
+        description="Contains the max value for the final raster.",
     )
     raster_no_data: int = pydantic.Field(
         ...,
         description="Contains the nodata value to set for areas outside the project area for which the raster is made.",
     )
-    raster_recolored_no_data: int = pydantic.Field(
+    project_area_geometry: shapely.MultiPolygon | shapely.Polygon = pydantic.Field(
         ...,
-        description="Contains the nodata value to set for areas outside the project area for which the raster is made. "
-        "Only applies to the recolored raster in RGB.",
+        description="Shapely geometry to use defining the project area for the utility route.",
     )
-    raster_recolored_used_styling_name: str = pydantic.Field(
-        ...,
-        description="Contains the filename of the applied color styling used in the recolored raster in front-end. "
-        "The front-end uses this to dynamically visualize the explanation field.",
-    )
-    project_area_schema_name: str = pydantic.Field(
-        ...,
-        description="Table name which contains the project area to compute the final raster for.",
-    )
-    project_area_table_name: str = pydantic.Field(
-        ...,
-        description="Schema name which contains the project area table to compute the final raster for.",
-    )
-    project_area_geometry: shapely.MultiPolygon = pydantic.Field(
-        default=shapely.MultiPolygon([]),
-        description="Shapely geometry later set in preprocessing.",
-    )
+
+    @field_validator("project_area_geometry")
+    def validate_group(cls, v: shapely.MultiPolygon | shapely.Polygon) -> shapely.MultiPolygon:
+        if v.geom_type == "Polygon":
+            v = shapely.MultiPolygon([v])
+        if shapely.get_num_geometries(v) < 1:
+            raise ValueError("Input project MultiPolygon is not valid as it does not contain 1 or more geometries.")
+        return v
 
 
 class RasterPreset(pydantic.BaseModel):
@@ -102,20 +100,22 @@ class RasterPreset(pydantic.BaseModel):
     criteria: typing.Dict[str, RasterPresetCriteria]
 
 
-def load_preset(preset_to_load: str) -> RasterPreset:
+def load_preset(preset_name: str) -> RasterPreset:
     """
     Convert the raw configuration file to a pydantic datamodel.
 
-    :param preset_to_load: preset to load from the mcda_presets.yaml.
+    :param preset_name: preset dictionary to load from the mcda_presets.py.
     :return: datamodel containing configuration for the raster to create.
     """
-    with open(Config.PATH_RASTER_PRESET_FILE, "r") as f:
-        all_raster_presets_raw = yaml.load(f, Loader=yaml.FullLoader)
 
     try:
+        preset_to_load_raw = preset_collection.get(preset_name)
+        if preset_to_load_raw is None:
+            logger.error(f"Preset: {preset_to_load_raw} is not implemented. Options are: {preset_collection.keys()}")
+            raise ValueError
         preset_model = RasterPreset(
-            general=all_raster_presets_raw[preset_to_load]["general"],
-            criteria=all_raster_presets_raw[preset_to_load]["criteria"],
+            general=preset_to_load_raw["general"],
+            criteria=preset_to_load_raw["criteria"],
         )
 
         logger.info("Successfully loaded the raster preset datamodel.")

@@ -13,4 +13,5 @@ class Waterdeel(VectorPreprocessorBase):
     @staticmethod
     def _set_suitability_values():
         logger.info("Setting suitability values.")
+
         pass

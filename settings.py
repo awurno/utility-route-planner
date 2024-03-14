@@ -11,7 +11,7 @@ class Config:
     CRS = 28992  # https://epsg.io/28992
 
     # MCDA
-    RASTER_PRESET = "preset_benchmark"
+    RASTER_PRESET_NAME = "preset_benchmark_raw"
     RASTER_CELL_SIZE = 0.5
 
     # LCPA
