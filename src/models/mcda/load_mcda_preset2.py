@@ -1,6 +1,7 @@
 import typing
 
 import pydantic
+import shapely
 import structlog
 from pydantic import field_validator, ConfigDict
 
@@ -24,7 +25,7 @@ class RasterPresetCriteria(pydantic.BaseModel):
     @field_validator("group")
     def validate_group(cls, v: str) -> str:
         if v not in ["a", "b"]:
-            raise ValueError("Must be within a or b.")
+            raise ValueError("Group must be 'a' or 'b'.")
         return v.title()
 
     weight_values: dict = pydantic.Field(..., description="Contains values for defining how important the layer is.")
@@ -39,7 +40,7 @@ class RasterPresetGeneral(pydantic.BaseModel):
     Check if we have the necessary general settings for the cost-surface generation using MCDA.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     description: typing.Optional[str] = pydantic.Field(..., description="Description of the preset.")
     prefix: str = pydantic.Field(
@@ -71,10 +72,18 @@ class RasterPresetGeneral(pydantic.BaseModel):
         ...,
         description="Contains the nodata value to set for areas outside the project area for which the raster is made.",
     )
-    # project_area_geometry: shapely.MultiPolygon = pydantic.Field(
-    #     default=shapely.MultiPolygon([]),
-    #     description="Shapely geometry later set in preprocessing.",
-    # )
+    project_area_geometry: shapely.MultiPolygon | shapely.Polygon = pydantic.Field(
+        ...,
+        description="Shapely geometry to use defining the project area for the utility route.",
+    )
+
+    @field_validator("project_area_geometry")
+    def validate_group(cls, v: shapely.MultiPolygon | shapely.Polygon) -> shapely.MultiPolygon:
+        if v.geom_type == "Polygon":
+            v = shapely.MultiPolygon([v])
+        if shapely.get_num_geometries(v) < 1:
+            raise ValueError("Input project MultiPolygon is not valid as it does not contain 1 or more geometries.")
+        return v
 
 
 class RasterPreset(pydantic.BaseModel):

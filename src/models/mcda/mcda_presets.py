@@ -1,18 +1,19 @@
 from settings import Config
+import geopandas as gpd
 from src.models.mcda.vector_preprocessing.waterdeel import Waterdeel
 
 preset_benchmark = {
     "general": {
-        "description": "Preset voor stedelijk gebied.",
+        "description": "Preset used for benchmark results.",
         "prefix": "b_",
-        "raster_resolution": (0.5, 0.5),
+        "raster_resolution": (Config.RASTER_CELL_SIZE, Config.RASTER_CELL_SIZE),
         "intermediate_raster_value_limit_lower": -126,
         "intermediate_raster_value_limit_upper": 126,
         "final_raster_name": "benchmark_suitability_raster",
         "final_raster_value_limit_lower": 0,
         "final_raster_value_limit_upper": 126,
         "raster_no_data": Config.RASTER_NO_DATA,
-        # "project_area_geometry": 'placeholder'
+        "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
     },
     "criteria": {
         "waterdeel": {
