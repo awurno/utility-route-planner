@@ -3,8 +3,9 @@ import typing
 import pydantic
 import shapely
 import structlog
-from pydantic import field_validator, ConfigDict
+from pydantic import model_validator, ConfigDict, field_validator
 from src.models.mcda.mcda_presets import preset_collection
+from settings import Config
 
 from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 
@@ -22,18 +23,28 @@ class RasterPresetCriteria(pydantic.BaseModel):
     constraint: bool = pydantic.Field(description="Determines how the criteria is handled")
     preprocessing_function: VectorPreprocessorBase
     group: str = pydantic.Field(description="Determines how the criteria is handled.")
-
-    @field_validator("group")
-    def validate_group(cls, v: str) -> str:
-        if v not in ["a", "b"]:
-            raise ValueError("Group must be 'a' or 'b'.")
-        return v.title()
-
     weight_values: dict = pydantic.Field(..., description="Contains values for defining how important the layer is.")
     geometry_values: typing.Optional[dict] = pydantic.Field(
         default=None,
         description="Contains values for optional computational geometry steps, e.g., buffer.",
     )
+
+    @model_validator(mode="after")
+    def validate_attributes(self):
+        group = self.group
+        weight_values = self.weight_values
+
+        if group not in ["a", "b"]:
+            raise ValueError("Group must be 'a' or 'b'.")
+        for name, weight in weight_values.items():
+            if (
+                not Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
+                <= weight
+                <= Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
+            ):
+                raise ValueError(
+                    f"{name} has an invalid value of {weight}. Weights must be between: {Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER}-{Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER}"
+                )
 
 
 class RasterPresetGeneral(pydantic.BaseModel):
@@ -94,13 +105,11 @@ class RasterPreset(pydantic.BaseModel):
     - List of criteria to include in the raster.
     """
 
-    # General settings.
     general: RasterPresetGeneral
-    # List of criteria to include.
     criteria: typing.Dict[str, RasterPresetCriteria]
 
 
-def load_preset(preset_name: str) -> RasterPreset:
+def load_preset(preset_name: str | dict) -> RasterPreset:
     """
     Convert the raw configuration file to a pydantic datamodel.
 
@@ -109,15 +118,23 @@ def load_preset(preset_name: str) -> RasterPreset:
     """
 
     try:
-        preset_to_load_raw = preset_collection.get(preset_name)
-        if preset_to_load_raw is None:
-            logger.error(f"Preset: {preset_to_load_raw} is not implemented. Options are: {preset_collection.keys()}")
+        if isinstance(preset_name, str):
+            preset_to_load_raw = preset_collection.get(preset_name)
+            if preset_to_load_raw is None:
+                logger.error(
+                    f"Preset: {preset_to_load_raw} is not implemented. Options are: {preset_collection.keys()}"
+                )
+                raise ValueError
+        elif isinstance(preset_name, dict):
+            preset_to_load_raw = preset_name
+        else:
+            logger.error(f"Unsupported input received. Expecting dict or str, received {type(preset_name)}.")
             raise ValueError
+
         preset_model = RasterPreset(
             general=preset_to_load_raw["general"],
             criteria=preset_to_load_raw["criteria"],
         )
-
         logger.info("Successfully loaded the raster preset datamodel.")
         return preset_model
 

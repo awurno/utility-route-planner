@@ -1,6 +1,12 @@
-from settings import Config
-from src.models.mcda.mcda_main import get_mcda_cost_surface
+from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
 
 
-def test_get_mcda_cost_surface_raster_preset():
-    get_mcda_cost_surface(Config.RASTER_PRESET_NAME)
+class TestVectorPreprocessing:
+    def test_process_vector_criteria(self):
+        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
+        mcda_engine.preprocess_vectors()
+
+
+class TestRasterPreprocessing:
+    # TODO
+    pass
