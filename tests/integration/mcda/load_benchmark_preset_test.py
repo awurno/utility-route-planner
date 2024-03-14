@@ -10,7 +10,7 @@ from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 
 
 def test_load_benchmark_with_default_settings():
-    # Pydantic validates the values in the model
+    # Pydantic validates the values in the model.
     load_preset(Config.RASTER_PRESET_NAME)
 
 
