@@ -1,5 +1,7 @@
+import functools
 import typing
 
+import fiona
 import pydantic
 import shapely
 import structlog
@@ -20,6 +22,7 @@ class RasterPresetCriteria(pydantic.BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     description: str = pydantic.Field(description="Description of the criteria.")
+    layer_names: list = pydantic.Field(description="Layer names in the geopackage which will be handled.")
     constraint: bool = pydantic.Field(description="Determines how the criteria is handled")
     preprocessing_function: VectorPreprocessorBase
     group: str = pydantic.Field(description="Determines how the criteria is handled.")
@@ -33,6 +36,7 @@ class RasterPresetCriteria(pydantic.BaseModel):
     def validate_attributes(self):
         group = self.group
         weight_values = self.weight_values
+        layer_names = self.layer_names
 
         if group not in ["a", "b"]:
             raise ValueError("Group must be 'a' or 'b'.")
@@ -45,6 +49,20 @@ class RasterPresetCriteria(pydantic.BaseModel):
                 raise ValueError(
                     f"{name} has an invalid value of {weight}. Weights must be between: {Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER}-{Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER}"
                 )
+
+        # TODO make this patchable, move to seperate function (it used in write.py).
+        existing_layers = self.get_existing_layers_geopackage
+        for layer_name in layer_names:
+            if not isinstance(layer_name, str):
+                raise ValueError(f"Invalid value in layer_names: {layer_name}. Should be a string.")
+            if layer_name not in existing_layers:
+                raise ValueError(f"{layer_name} is not in the source geopackage. Existing layers: {existing_layers}")
+
+        return self
+
+    @functools.cached_property
+    def get_existing_layers_geopackage(self) -> list:
+        return [layer_name for layer_name in fiona.listlayers(Config.PATH_INPUT_MCDA_GEOPACKAGE)]
 
 
 class RasterPresetGeneral(pydantic.BaseModel):

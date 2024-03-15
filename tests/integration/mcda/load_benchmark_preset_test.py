@@ -1,3 +1,4 @@
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pydantic
@@ -43,6 +44,7 @@ def setup_raster_preset_dummy():
         "criteria": {
             "test_criteria": {
                 "description": "Information on something.",
+                "layer_names": ["my_layer_name"],
                 "preprocessing_function": MagicMock(spec=VectorPreprocessorBase),
                 "constraint": False,
                 "group": "b",
@@ -57,7 +59,7 @@ def setup_raster_preset_dummy():
     yield dummy_preset
 
 
-class TestInvalidCriteriaInput:
+class TestCriteriaInput:
     def test_invalid_group(self, setup_raster_preset_dummy):
         preset_input_dict = setup_raster_preset_dummy
         preset_input_dict["criteria"]["test_criteria"]["group"] = "c"
@@ -116,3 +118,27 @@ class TestInvalidCriteriaInput:
         preset_input_dict["criteria"]["test_criteria"]["weight_values"]["w_dummy"] = invalid_input
         with pytest.raises(pydantic.ValidationError):
             load_preset(preset_input_dict)
+
+    @pytest.mark.parametrize(
+        "invalid_input",
+        [[1, 2], 1, False, "layer_name_invalid_too", ["layer_name_invalid", False]],
+    )
+    def test_invalid_layer_name_values(self, setup_raster_preset_dummy, invalid_input):
+        preset_input_dict = setup_raster_preset_dummy
+        preset_input_dict["criteria"]["test_criteria"]["layer_names"] = invalid_input
+        with pytest.raises(pydantic.ValidationError):
+            load_preset(preset_input_dict)
+
+    # TODO ask Jasper how to fix this.
+    @mock.patch("src.models.mcda.load_mcda_preset.RasterPresetCriteria.get_existing_layers_geopackage")
+    @pytest.mark.parametrize(
+        "valid_input",
+        [["single_layer"], ["layer1", "layer2"]],
+    )
+    def test_valid_layer_name_values(
+        self, setup_raster_preset_dummy, valid_input, patched_get_existing_layers_geopackage
+    ):
+        preset_input_dict = setup_raster_preset_dummy
+        patched_get_existing_layers_geopackage.return_value = ["single_layer", "layer1", "layer2"]
+        preset_input_dict["criteria"]["test_criteria"]["layer_names"] = valid_input
+        load_preset(preset_input_dict)

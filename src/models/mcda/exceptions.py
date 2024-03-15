@@ -1,0 +1,2 @@
+class SuitabilityValueNotSet(Exception):
+    pass

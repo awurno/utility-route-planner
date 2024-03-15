@@ -1,17 +1,30 @@
 from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 import structlog
+import geopandas as gpd
 
 logger = structlog.get_logger(__name__)
 
 
 class Waterdeel(VectorPreprocessorBase):
-    criteria = "waterdeel"
+    criterion = "waterdeel"  # TODO set this after loading the preset?
 
-    def specific_preprocess(self) -> None:
-        self._set_suitability_values()
+    def specific_preprocess(self, input_gdf: list, criterion) -> gpd.GeoDataFrame:
+        input_gdf = self._set_suitability_values(input_gdf[0], criterion.weight_values)
+        input_gdf = self._update_geometry_values(input_gdf)
+        return input_gdf
 
     @staticmethod
-    def _set_suitability_values():
+    def _set_suitability_values(input_gdf: gpd.GeoDataFrame, weight_values: dict) -> gpd.GeoDataFrame:
         logger.info("Setting suitability values.")
+        input_gdf["suitability_value"] = input_gdf.apply(
+            lambda row: weight_values.get(row["class"], row["suitability_value"]), axis=1
+        )
+        input_gdf["suitability_value"] = input_gdf.apply(
+            lambda row: weight_values.get(row["plus-type"], row["suitability_value"]), axis=1
+        )
+        return input_gdf
 
-        pass
+    def _update_geometry_values(self, input_gdf):
+        logger.info("Updating geometry values.")
+        # TODO: buffer values
+        return input_gdf

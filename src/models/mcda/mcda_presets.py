@@ -19,24 +19,25 @@ preset_collection = {
         "criteria": {
             "waterdeel": {
                 "description": "Information on water.",
+                "layer_names": ["bgt_waterdeel_V"],
                 "preprocessing_function": Waterdeel(),
                 "constraint": False,
                 "group": "b",
                 "weight_values": {
-                    "w_zee": 126,
-                    "w_watervlakte": 126,
-                    "w_waterloop": 126,
-                    "w_rivier": 126,
-                    "w_sloot": 126,
-                    "w_kanaal": 126,
-                    "w_beek": 126,
-                    "w_gracht": 126,
-                    "w_bron": 126,
-                    "w_haven": 126,
-                    "w_meer_plas_ven_vijver": 126,
-                    "w_greppel_droge_sloot": -13,
+                    "zee": 126,
+                    "watervlakte": 124,
+                    "waterloop": 126,
+                    "rivier": 126,
+                    "sloot": 126,
+                    "kanaal": 126,
+                    "beek": 126,
+                    "gracht": 126,
+                    "bron": 126,
+                    "haven": 126,
+                    "meer, plas, ven, vijver": 125,
+                    "greppel_droge_sloot": -13,
                 },
-                "geometry_values": {"buffer_m_zee": 20},
+                "geometry_values": {"zee": 20},  # buffer in meters
             }
         },
     }

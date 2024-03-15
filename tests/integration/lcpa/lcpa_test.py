@@ -8,12 +8,12 @@ import geopandas as gpd
 
 
 @pytest.fixture
-def setup_monkeypatch_debug(monkeypatch):
+def setup_clean_start(monkeypatch):
     reset_geopackage(Config.PATH_LCPA_GEOPACKAGE)
     monkeypatch.setattr(Config, "DEBUG", True)
 
 
-@pytest.mark.usefixtures("setup_monkeypatch_debug")
+@pytest.mark.usefixtures("setup_clean_start")
 class TestUtilityRoutes:
     def test_get_utility_route_small_area(self):
         lcpa_engine = get_lcpa_utility_route(

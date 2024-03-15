@@ -18,8 +18,11 @@ class McdaCostSurfaceEngine:
 
     def preprocess_vectors(self):
         logger.info(f"Processing {self.number_of_criteria} criteria.")
-        for idx, criteria in enumerate(self.raster_preset.criteria):
+        for idx, criterion in enumerate(self.raster_preset.criteria):
             logger.info(f"Processing criteria number {idx+1} of {self.number_of_criteria}.")
+            self.raster_preset.criteria[criterion].preprocessing_function.execute(
+                self.raster_preset.general.project_area_geometry, self.raster_preset.criteria[criterion]
+            )
 
     def preprocess_rasters(self):
         pass
