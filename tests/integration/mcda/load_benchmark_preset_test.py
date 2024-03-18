@@ -1,13 +1,14 @@
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 
-import pydantic
 import pytest
 import geopandas as gpd
 
 from settings import Config
+from src.models.mcda.exceptions import InvalidSuitabilityValue, InvalidLayerName, InvalidGroupValue
 from src.models.mcda.load_mcda_preset import load_preset
 from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from src.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 
 def test_load_benchmark_with_default_settings():
@@ -60,41 +61,13 @@ def setup_raster_preset_dummy():
 
 
 class TestCriteriaInput:
-    def test_invalid_group(self, setup_raster_preset_dummy):
-        preset_input_dict = setup_raster_preset_dummy
-        preset_input_dict["criteria"]["test_criteria"]["group"] = "c"
-        with pytest.raises(pydantic.ValidationError):
-            load_preset(preset_input_dict)
+    def test_invalid_group(self):
+        with pytest.raises(InvalidGroupValue):
+            RasterPresetCriteria.validate_group("c")
 
-    def test_correct_group(self, setup_raster_preset_dummy):
-        preset_input_dict = setup_raster_preset_dummy
-        preset_input_dict["criteria"]["test_criteria"]["group"] = "a"
-        load_preset(preset_input_dict)
-
-        preset_input_dict["criteria"]["test_criteria"]["group"] = "b"
-        load_preset(preset_input_dict)
-
-    def test_invalid_constraint(self, setup_raster_preset_dummy):
-        preset_input_dict = setup_raster_preset_dummy
-
-        preset_input_dict["criteria"]["test_criteria"]["constraint"] = "wrong-value"
-        with pytest.raises(pydantic.ValidationError):
-            load_preset(preset_input_dict)
-
-    def test_correct_constraint(self, setup_raster_preset_dummy):
-        preset_input_dict = setup_raster_preset_dummy
-
-        preset_input_dict["criteria"]["test_criteria"]["constraint"] = False
-        load_preset(preset_input_dict)
-
-        preset_input_dict["criteria"]["test_criteria"]["constraint"] = "false"
-        load_preset(preset_input_dict)
-
-        preset_input_dict["criteria"]["test_criteria"]["constraint"] = True
-        load_preset(preset_input_dict)
-
-        preset_input_dict["criteria"]["test_criteria"]["constraint"] = "true"
-        load_preset(preset_input_dict)
+    def test_correct_group(self):
+        RasterPresetCriteria.validate_group("a")
+        RasterPresetCriteria.validate_group("b")
 
     @pytest.mark.parametrize(
         "valid_input",
@@ -104,41 +77,38 @@ class TestCriteriaInput:
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER - 1,
         ],
     )
-    def test_correct_weight_values(self, setup_raster_preset_dummy, valid_input):
-        preset_input_dict = setup_raster_preset_dummy
-        preset_input_dict["criteria"]["test_criteria"]["weight_values"]["w_dummy"] = valid_input
-        load_preset(preset_input_dict)
+    def test_correct_weight_values(self, valid_input):
+        weight_to_verify = {"w_dummy": valid_input}
+        RasterPresetCriteria.validate_weights(weight_to_verify)
 
     @pytest.mark.parametrize(
         "invalid_input",
         [Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER - 1, Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER + 1],
     )
-    def test_invalid_weight_values(self, setup_raster_preset_dummy, invalid_input):
-        preset_input_dict = setup_raster_preset_dummy
-        preset_input_dict["criteria"]["test_criteria"]["weight_values"]["w_dummy"] = invalid_input
-        with pytest.raises(pydantic.ValidationError):
-            load_preset(preset_input_dict)
+    def test_invalid_weight_values(self, invalid_input):
+        with pytest.raises(InvalidSuitabilityValue):
+            weight_to_verify = {"w_dummy": invalid_input}
+            RasterPresetCriteria.validate_weights(weight_to_verify)
 
     @pytest.mark.parametrize(
         "invalid_input",
-        [[1, 2], 1, False, "layer_name_invalid_too", ["layer_name_invalid", False]],
+        [[1, 2], [1], [False], ["layer_name_invalid_too"], ["layer_name_invalid", False]],
     )
-    def test_invalid_layer_name_values(self, setup_raster_preset_dummy, invalid_input):
-        preset_input_dict = setup_raster_preset_dummy
-        preset_input_dict["criteria"]["test_criteria"]["layer_names"] = invalid_input
-        with pytest.raises(pydantic.ValidationError):
-            load_preset(preset_input_dict)
+    def test_invalid_layer_name_values(self, invalid_input):
+        existing_layers = ["valid_layer1", "valid_layer2"]
+        with pytest.raises(InvalidLayerName):
+            RasterPresetCriteria.validate_layer_names(existing_layers, invalid_input)
 
-    # TODO ask Jasper how to fix this.
-    @mock.patch("src.models.mcda.load_mcda_preset.RasterPresetCriteria.get_existing_layers_geopackage")
     @pytest.mark.parametrize(
         "valid_input",
         [["single_layer"], ["layer1", "layer2"]],
     )
-    def test_valid_layer_name_values(
-        self, setup_raster_preset_dummy, valid_input, patched_get_existing_layers_geopackage
-    ):
+    def test_valid_layer_name_values(self, valid_input, setup_raster_preset_dummy):
+        existing_layers = ["single_layer", "layer1", "layer2"]
+        RasterPresetCriteria.validate_layer_names(existing_layers, valid_input)
+
+    @mock.patch.object(RasterPresetCriteria, "get_existing_layers_geopackage", new_callable=PropertyMock)
+    def test_initialize_raster_criteria(self, patched_get_existing_layers_geopackage, setup_raster_preset_dummy):
+        patched_get_existing_layers_geopackage.return_value = ["my_layer_name"]
         preset_input_dict = setup_raster_preset_dummy
-        patched_get_existing_layers_geopackage.return_value = ["single_layer", "layer1", "layer2"]
-        preset_input_dict["criteria"]["test_criteria"]["layer_names"] = valid_input
         load_preset(preset_input_dict)

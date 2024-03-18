@@ -1,6 +1,12 @@
+from __future__ import annotations
+
 from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 import structlog
 import geopandas as gpd
+import typing
+
+if typing.TYPE_CHECKING:
+    from src.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 logger = structlog.get_logger(__name__)
 
@@ -8,7 +14,7 @@ logger = structlog.get_logger(__name__)
 class Waterdeel(VectorPreprocessorBase):
     criterion = "waterdeel"  # TODO set this after loading the preset?
 
-    def specific_preprocess(self, input_gdf: list, criterion) -> gpd.GeoDataFrame:
+    def specific_preprocess(self, input_gdf: list, criterion: RasterPresetCriteria) -> gpd.GeoDataFrame:
         input_gdf = self._set_suitability_values(input_gdf[0], criterion.weight_values)
         input_gdf = self._update_geometry_values(input_gdf)
         return input_gdf

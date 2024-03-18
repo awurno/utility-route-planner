@@ -6,6 +6,8 @@ import pydantic
 import shapely
 import structlog
 from pydantic import model_validator, ConfigDict, field_validator
+
+from src.models.mcda.exceptions import InvalidGroupValue, InvalidSuitabilityValue, InvalidLayerName
 from src.models.mcda.mcda_presets import preset_collection
 from settings import Config
 
@@ -23,7 +25,7 @@ class RasterPresetCriteria(pydantic.BaseModel):
 
     description: str = pydantic.Field(description="Description of the criteria.")
     layer_names: list = pydantic.Field(description="Layer names in the geopackage which will be handled.")
-    constraint: bool = pydantic.Field(description="Determines how the criteria is handled")
+    constraint: bool = pydantic.Field(description="Determines how the criteria is handled.")
     preprocessing_function: VectorPreprocessorBase
     group: str = pydantic.Field(description="Determines how the criteria is handled.")
     weight_values: dict = pydantic.Field(..., description="Contains values for defining how important the layer is.")
@@ -38,27 +40,38 @@ class RasterPresetCriteria(pydantic.BaseModel):
         weight_values = self.weight_values
         layer_names = self.layer_names
 
-        if group not in ["a", "b"]:
-            raise ValueError("Group must be 'a' or 'b'.")
+        self.validate_group(group)
+        self.validate_weights(weight_values)
+        self.validate_layer_names(self.get_existing_layers_geopackage, layer_names)
+
+        return self
+
+    @staticmethod
+    def validate_layer_names(existing_layers: list, layer_names: list):
+        for layer_name in layer_names:
+            if not isinstance(layer_name, str):
+                raise InvalidLayerName(f"Invalid value in layer_names: {layer_name}. Should be a string.")
+            if layer_name not in existing_layers:
+                raise InvalidLayerName(
+                    f"{layer_name} is not in the source geopackage. Existing layers: {existing_layers}"
+                )
+
+    @staticmethod
+    def validate_weights(weight_values):
         for name, weight in weight_values.items():
             if (
                 not Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
                 <= weight
                 <= Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
             ):
-                raise ValueError(
+                raise InvalidSuitabilityValue(
                     f"{name} has an invalid value of {weight}. Weights must be between: {Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER}-{Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER}"
                 )
 
-        # TODO make this patchable, move to seperate function (it used in write.py).
-        existing_layers = self.get_existing_layers_geopackage
-        for layer_name in layer_names:
-            if not isinstance(layer_name, str):
-                raise ValueError(f"Invalid value in layer_names: {layer_name}. Should be a string.")
-            if layer_name not in existing_layers:
-                raise ValueError(f"{layer_name} is not in the source geopackage. Existing layers: {existing_layers}")
-
-        return self
+    @staticmethod
+    def validate_group(group):
+        if group not in ["a", "b"]:
+            raise InvalidGroupValue("Group must be 'a' or 'b'.")
 
     @functools.cached_property
     def get_existing_layers_geopackage(self) -> list:
