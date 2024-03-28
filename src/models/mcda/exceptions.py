@@ -1,7 +1,3 @@
-class SuitabilityValueNotSet(Exception):
-    pass
-
-
 class InvalidGroupValue(Exception):
     pass
 
