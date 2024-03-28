@@ -46,7 +46,6 @@ class Waterdeel(VectorPreprocessorBase):
         logger.info("Updating geometry values.")
 
         # TODO check which version to use
-
         # Version 1: seems bloated
         # input_gdf["buffer_values"] = input_gdf['class']
         # input_gdf["buffer_values"] = input_gdf['class'].case_when(
@@ -56,7 +55,7 @@ class Waterdeel(VectorPreprocessorBase):
         # input_gdf.loc[mask, 'geom'] = input_gdf.loc[mask, 'geom']
         # input_gdf.loc[mask, 'geom'] = input_gdf.loc[mask, 'geom'].buffer(input_gdf.loc[mask, 'buffer_values'].astype(int))
 
-        # # Version 2: alternative, what to use?
+        # # Version 2: alternative, looks simpeler
         for key, value in buffer_values.items():
             input_gdf["geometry"] = np.where(
                 input_gdf["class"].eq(key), input_gdf["geometry"].buffer(value), input_gdf["geometry"]
