@@ -53,7 +53,9 @@ class TestUtilityRoutes:
         project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_SMALL).iloc[0].geometry
         lcpa_engine = get_lcpa_utility_route(
             path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
-            utility_route_sketch=shapely.LineString([(193077.740, 466510.697), (193383.28, 466452.02)]),
+            utility_route_sketch=shapely.LineString(
+                [(193077.740, 466510.697), (193262.94, 466507.51), (193383.28, 466452.02)]
+            ),
             project_area=project_area,
         )
 
