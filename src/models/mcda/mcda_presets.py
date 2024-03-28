@@ -17,6 +17,7 @@ preset_collection = {
             "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
         },
         "criteria": {
+            # https://geonovum.github.io/IMGeo-objectenhandboek/waterdeel
             "waterdeel": {
                 "description": "Information on water.",
                 "layer_names": ["bgt_waterdeel_V"],
@@ -24,9 +25,12 @@ preset_collection = {
                 "constraint": False,
                 "group": "b",
                 "weight_values": {
-                    "zee": 126,
-                    "watervlakte": 124,
+                    # Column "class"
+                    "greppel, droge sloot": -13,
                     "waterloop": 126,
+                    "watervlakte": 124,
+                    "zee": 126,
+                    # Column "plus-type"
                     "rivier": 126,
                     "sloot": 126,
                     "kanaal": 126,
@@ -35,7 +39,6 @@ preset_collection = {
                     "bron": 126,
                     "haven": 126,
                     "meer, plas, ven, vijver": 125,
-                    "greppel_droge_sloot": -13,
                 },
                 "geometry_values": {"zee": 20},  # buffer in meters
             }
