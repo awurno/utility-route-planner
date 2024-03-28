@@ -1,6 +1,6 @@
 import shapely
 import structlog
-
+import geopandas as gpd
 
 logger = structlog.get_logger(__name__)
 
@@ -63,3 +63,12 @@ def align_linestring(linestring: shapely.LineString, cell_size: float) -> shapel
     aligned_linestring = linestring.simplify(cell_size, preserve_topology=True)
 
     return aligned_linestring
+
+
+def get_empty_geodataframe() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        data=None,
+        columns=["geometry"],
+        geometry="geometry",
+        crs=None,
+    )
