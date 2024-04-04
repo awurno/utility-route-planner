@@ -99,7 +99,6 @@ class TestVectorPreprocessing:
         assert buffered_gdf.iloc[:10].area.round(1).unique().tolist() == [1.0]
         assert buffered_gdf.iloc[[10]].area.round(1).tolist() == [1335.6]
 
-    # TODO add tests for all vectors
     def test_begroeid_terreindeel(self):
         weight_values = {
             # bgt_fysiekvoorkomen
