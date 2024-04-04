@@ -36,6 +36,9 @@ class OndersteunendWegdeel(VectorPreprocessorBase):
         input_gdf["sv_2"] = input_gdf["sv_2"].case_when(
             [(input_gdf["sv_2"].eq(i), weight_values[i]) for i in weight_values]
         )
-        input_gdf["suitability_value"] = input_gdf["sv_1"] + input_gdf["sv_2"]
+        input_gdf["suitability_value"] = input_gdf["sv_1"]
+        # Overwrite suitability_value if sv_2 is filled in with a valid integer
+        mask = input_gdf["sv_2"].astype(str).str.isnumeric()
+        input_gdf.loc[mask, "suitability_value"] = input_gdf.loc[mask, "sv_2"]
 
         return input_gdf

@@ -124,7 +124,7 @@ preset_collection = {
                     "zand": 1,
                 },
             },
-            "begroeidterreindeel": {
+            "begroeid_terreindeel": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/begroeidterreindeel
                 "description": "placeholder",
                 "layer_names": ["bgt_begroeidterreindeel_V"],
@@ -253,6 +253,7 @@ preset_collection = {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/straatmeubilair
                 "description": "placeholder",
                 # TODO following are not available: "bgt_sensor_P", "bgt_mast_P"
+                # The order of layers matter here, first two must be bgt_scheiding.
                 "layer_names": [
                     "bgt_scheiding_V",
                     "bgt_scheiding_L",

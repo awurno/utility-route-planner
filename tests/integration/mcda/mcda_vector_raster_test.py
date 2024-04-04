@@ -3,8 +3,19 @@ import pytest
 
 from settings import Config
 from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from src.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from src.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
+from src.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
+from src.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
+from src.models.mcda.vector_preprocessing.ondersteunend_wegdeel import OndersteunendWegdeel
+from src.models.mcda.vector_preprocessing.overig_bouwwerk import OverigBouwwerk
+from src.models.mcda.vector_preprocessing.pand import Pand
+from src.models.mcda.vector_preprocessing.protected_area import ProtectedArea
+from src.models.mcda.vector_preprocessing.small_above_ground_obstacles import SmallAboveGroundObstacles
+from src.models.mcda.vector_preprocessing.vegetation_object import VegetationObject
 from src.models.mcda.vector_preprocessing.waterdeel import Waterdeel
 from src.models.mcda.mcda_presets import preset_collection
+from src.models.mcda.vector_preprocessing.wegdeel import Wegdeel
 from src.util.write import reset_geopackage
 import geopandas as gpd
 import shapely
@@ -89,6 +100,943 @@ class TestVectorPreprocessing:
         assert buffered_gdf.iloc[[10]].area.round(1).tolist() == [1335.6]
 
     # TODO add tests for all vectors
+    def test_begroeid_terreindeel(self):
+        weight_values = {
+            # bgt_fysiekvoorkomen
+            "boomteelt": 1,
+            "bouwland": 2,
+            "duin": 3,
+            "fruitteelt": 4,
+            "gemengd bos": 5,
+            "grasland agrarisch": 6,
+            "grasland overig": 7,
+            "groenvoorziening": 8,
+            "heide": 9,
+            "houtwal": 10,
+            "kwelder": 11,
+            "loofbos": 12,
+            "moeras": 13,
+            "naaldbos": 14,
+            "rietland": 15,
+            "struiken": 16,
+            # plus_fysiekvoorkomen
+            "akkerbouw": 17,
+            "bodembedekkers": 18,
+            "bollenteelt": 19,
+            "bosplantsoen": 20,
+            "braakliggend": 21,
+            "gesloten duinvegetatie": 22,
+            "gras- en kruidachtigen": 23,
+            "griend en hakhout": 24,
+            "heesters": 25,
+            "hoogstam boomgaarden": 26,
+            "klein fruit": 27,
+            "laagstam boomgaarden": 28,
+            "open duinvegetatie": 29,
+            "planten": 30,
+            "struikrozen": 31,
+            "vollegrondsteelt": 32,
+            "wijngaarden": 33,
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["boomteelt", "waardeOnbekend", shapely.Polygon()],
+                ["bouwland", "waardeOnbekend", shapely.Polygon()],
+                ["duin", "waardeOnbekend", shapely.Polygon()],
+                ["fruitteelt", "waardeOnbekend", shapely.Polygon()],
+                ["gemengd bos", "waardeOnbekend", shapely.Polygon()],
+                ["grasland agrarisch", "waardeOnbekend", shapely.Polygon()],
+                ["grasland overig", "waardeOnbekend", shapely.Polygon()],
+                ["groenvoorziening", "waardeOnbekend", shapely.Polygon()],
+                ["heide", "waardeOnbekend", shapely.Polygon()],
+                ["houtwal", "waardeOnbekend", shapely.Polygon()],
+                ["kwelder", "waardeOnbekend", shapely.Polygon()],
+                ["loofbos", "waardeOnbekend", shapely.Polygon()],
+                ["moeras", "waardeOnbekend", shapely.Polygon()],
+                ["naaldbos", "waardeOnbekend", shapely.Polygon()],
+                ["rietland", "waardeOnbekend", shapely.Polygon()],
+                ["struiken", "waardeOnbekend", shapely.Polygon()],
+                # Use placeholders for class as they will be overwritten.
+                ["loofbos", "akkerbouw", shapely.Polygon()],
+                ["loofbos", "bodembedekkers", shapely.Polygon()],
+                ["loofbos", "bollenteelt", shapely.Polygon()],
+                ["loofbos", "bosplantsoen", shapely.Polygon()],
+                ["loofbos", "braakliggend", shapely.Polygon()],
+                ["loofbos", "gesloten duinvegetatie", shapely.Polygon()],
+                ["loofbos", "gras- en kruidachtigen", shapely.Polygon()],
+                ["loofbos", "griend en hakhout", shapely.Polygon()],
+                ["loofbos", "heesters", shapely.Polygon()],
+                ["loofbos", "hoogstam boomgaarden", shapely.Polygon()],
+                ["loofbos", "klein fruit", shapely.Polygon()],
+                ["loofbos", "laagstam boomgaarden", shapely.Polygon()],
+                ["loofbos", "open duinvegetatie", shapely.Polygon()],
+                ["loofbos", "planten", shapely.Polygon()],
+                ["loofbos", "struikrozen", shapely.Polygon()],
+                ["loofbos", "vollegrondsteelt", shapely.Polygon()],
+                ["loofbos", "wijngaarden", shapely.Polygon()],
+            ],
+            columns=["class", "plus-fysiekVoorkomen", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = BegroeidTerreindeel._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series(
+                [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                    12,
+                ]
+            ),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_2"],
+            pd.Series(
+                [
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    "waardeOnbekend",
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    27,
+                    28,
+                    29,
+                    30,
+                    31,
+                    32,
+                    33,
+                ]
+            ),
+            check_names=False,
+            check_exact=True,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series(
+                [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    27,
+                    28,
+                    29,
+                    30,
+                    31,
+                    32,
+                    33,
+                ]
+            ),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+
+    def test_kunstwerkdeel(self):
+        weight_values = {
+            # bgt_type
+            "gemaal": 1,
+            "hoogspanningsmast": 2,
+            "niet-bgt": 3,
+            "perron": 4,
+            "sluis": 5,
+            "steiger": 6,
+            "strekdam": 7,
+            "stuw": 8,
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["gemaal", shapely.Polygon()],
+                ["hoogspanningsmast", shapely.Polygon()],
+                ["niet-bgt", shapely.Polygon()],
+                ["perron", shapely.Polygon()],
+                ["sluis", shapely.Polygon()],
+                ["steiger", shapely.Polygon()],
+                ["strekdam", shapely.Polygon()],
+                ["stuw", shapely.Polygon()],
+            ],
+            columns=["bgt-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+
+        reclassified_gdf = Kunstwerkdeel._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 2, 4, 5, 6, 7, 8]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 2, 4, 5, 6, 7, 8]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        assert "niet-bgt" not in reclassified_gdf["bgt-type"]
+
+    def test_onbegroeid_terreindeel(self):
+        weight_values = {
+            # bgt_fysiekvoorkomen
+            "erf": 1,
+            "gesloten verharding": 2,
+            "half verhard": 3,
+            "onverhard": 4,
+            "open verharding": 5,
+            "zand": 6,
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["erf", shapely.Polygon()],
+                ["gesloten verharding", shapely.Polygon()],
+                ["half verhard", shapely.Polygon()],
+                ["onverhard", shapely.Polygon()],
+                ["open verharding", shapely.Polygon()],
+                ["zand", shapely.Polygon()],
+            ],
+            columns=["bgt-fysiekVoorkomen", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+
+        reclassified_gdf = OnbegroeidTerreindeel._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 2, 3, 4, 5, 6]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 2, 3, 4, 5, 6]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+
+    def test_ondersteunend_waterdeel(self):
+        weight_values = {
+            # bgt_type
+            "oever, slootkant": 1,
+            "slik": 2,
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["oever, slootkant", shapely.Polygon()],
+                ["slik", shapely.Polygon()],
+            ],
+            columns=["class", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+
+        reclassified_gdf = OndersteunendWaterdeel._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 2]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 2]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+
+    def test_ondersteunend_wegdeel(self):
+        weight_values = {
+            # bgt_functie
+            "berm": 1,
+            "verkeerseiland": 2,
+            # bgt_fysiekvoorkomen
+            "gesloten verharding": 3,
+            "groenvoorziening": 4,
+            "half verhard": 5,
+            "onverhard": 6,
+            "open verharding": 7,
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["berm", "waardeOnbekend", shapely.Polygon()],
+                ["verkeerseiland", "waardeOnbekend", shapely.Polygon()],
+                # Use placeholders for class as they will be overwritten.
+                ["berm", "groenvoorziening", shapely.Polygon()],
+                ["verkeerseiland", "gesloten verharding", shapely.Polygon()],
+                ["verkeerseiland", "half verhard", shapely.Polygon()],
+                ["verkeerseiland", "onverhard", shapely.Polygon()],
+                ["verkeerseiland", "open verharding", shapely.Polygon()],
+            ],
+            columns=["function", "surfaceMaterial", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = OndersteunendWegdeel._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 2, 1, 2, 2, 2, 2]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_2"],
+            pd.Series(["waardeOnbekend", "waardeOnbekend", 4, 3, 5, 6, 7]),
+            check_names=False,
+            check_exact=True,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 2, 4, 3, 5, 6, 7]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+        )
+
+    def test_overig_bouwwerk(self):
+        weight_values = {
+            # bgt_type
+            "functie": 1,
+            "bassin": 2,
+            "bezinkbak": 3,
+            "lage trafo": 4,
+            "niet-bgt": 5,
+            "open loods": 6,
+            "opslagtank": 7,
+            "overkapping": 8,
+            "windturbine": 9,
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["functie", shapely.Polygon()],
+                ["bassin", shapely.Polygon()],
+                ["bezinkbak", shapely.Polygon()],
+                ["lage trafo", shapely.Polygon()],
+                ["niet-bgt", shapely.Polygon()],
+                ["open loods", shapely.Polygon()],
+                ["opslagtank", shapely.Polygon()],
+                ["overkapping", shapely.Polygon()],
+                ["windturbine", shapely.Polygon()],
+            ],
+            columns=["bgt-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+
+        reclassified_gdf = OverigBouwwerk._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 2, 3, 4, 6, 7, 8, 9]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 2, 3, 4, 6, 7, 8, 9]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        assert "niet-bgt" not in reclassified_gdf["bgt-type"]
+
+    def test_pand(self):
+        weight_values = {"pand": 1}
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["placeholder", shapely.Polygon()],
+            ],
+            columns=["placeholder", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+
+        reclassified_gdf = Pand._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+
+    def test_protected_area(self):
+        weight_values = {
+            # bgt_type
+            "kering": 1,  # Dykes, delete all other records
+        }
+        input_gdf = gpd.GeoDataFrame(
+            [
+                ["kering", shapely.Polygon()],
+                ["should_be_deleted", shapely.Polygon()],
+                ["should_be_deleted_too", shapely.Polygon()],
+            ],
+            columns=["bgt-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = ProtectedArea._set_suitability_values(input_gdf, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+
+    def test_small_above_ground_obstacles(self):
+        weight_values = {
+            # scheiding: bgt_type
+            "damwand": 1,
+            "muur": 2,
+            "kademuur": 3,
+            "geluidsscherm": 4,
+            "hek": 5,
+            "niet-bgt": 6,  # Delete these records if they exist.
+            "walbescherming": 7,
+            # bak: plus_type
+            "afval apart plaats": 8,
+            "afvalbak": 9,
+            "bloembak": 10,
+            "container": 11,
+            "drinkbak": 12,
+            "zand- / zoutbak": 13,
+            # bord: plus_type
+            "dynamische snelheidsindicator": 14,
+            "informatiebord": 15,
+            "plaatsnaambord": 16,
+            "reclamebord": 17,
+            "scheepvaartbord": 18,
+            "straatnaambord": 19,
+            "verkeersbord": 20,
+            "verklikker transportleiding": 21,
+            "waarschuwingshek": 22,
+            "wegwijzer": 23,
+            # kast: plus_type
+            "CAI-kast": 24,
+            "elektrakast": 25,
+            "gaskast": 26,
+            "GMS kast": 27,
+            "openbare verlichtingkast": 28,
+            "rioolkast": 29,
+            "telecom kast": 30,
+            "telkast": 31,
+            "verkeersregelinstallatiekast": 32,
+            # mast: plus_type
+            "bovenleidingmast": 33,
+            "laagspanningsmast": 34,
+            "radarmast": 35,
+            "straalzender": 36,
+            "zendmast": 37,
+            # paal: plus_type
+            "afsluitpaal": 38,
+            "dijkpaal": 39,
+            "drukknoppaal": 40,
+            "grensmarkering": 41,
+            "haltepaal": 42,
+            "hectometerpaal": 43,
+            "lichtmast": 44,
+            "poller": 44,
+            "portaal": 45,
+            "praatpaal": 46,
+            "sirene": 47,
+            "telpaal": 48,
+            "verkeersbordpaal": 49,
+            "verkeersregelinstallatiepaal": 50,
+            "vlaggenmast": 51,
+            # put: plus_type
+            "benzine- / olieput": 52,
+            "brandkraan / -put": 53,
+            "drainageput": 54,
+            "gasput": 55,
+            "inspectie- / rioolput": 56,
+            "kolk": 57,
+            "waterleidingput": 58,
+            # sensor:
+            "detectielus": 59,
+            "camera": 59,
+            "debietmeter": 60,
+            "flitser": 61,
+            "GMS sensor": 62,
+            "hoogtedetectieapparaat": 63,
+            "lichtcel": 64,
+            "radar detector": 65,
+            "waterstandmeter": 66,
+            "weerstation": 67,
+            "windmeter": 68,
+            # straatmeubilair:
+            "abri": 69,
+            "bank": 70,
+            "betaalautomaat": 71,
+            "bolder": 72,
+            "brievenbus": 72,
+            "fietsenkluis": 73,
+            "fietsenrek": 74,
+            "fontein": 75,
+            "herdenkingsmonument": 76,
+            "kunstobject": 77,
+            "lichtpunt": 78,
+            "openbaar toilet": 79,
+            "parkeerbeugel": 80,
+            "picknicktafel": 81,
+            "reclamezuil": 82,
+            "slagboom": 83,
+            "speelvoorziening": 84,
+            "telefooncel": 85,
+            # Value occurs on all these tables, remove if present.
+            "waardeOnbekend": 1,
+        }
+        bgt_scheiding_1 = gpd.GeoDataFrame(
+            [
+                ["damwand", shapely.Polygon()],
+                ["muur", shapely.Polygon()],
+                ["kademuur", shapely.Polygon()],
+                ["geluidsscherm", shapely.Polygon()],
+                ["niet-bgt", shapely.Polygon()],
+            ],
+            columns=["bgt-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        bgt_scheiding_2 = gpd.GeoDataFrame(
+            [
+                ["hek", shapely.Polygon()],
+                ["walbescherming", shapely.Polygon()],
+            ],
+            columns=["bgt-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        bgt_bak_bord_kast_paal_put_straatmeubilair = gpd.GeoDataFrame(
+            [
+                ["afval apart plaats", shapely.Polygon()],
+                ["afvalbak", shapely.Polygon()],
+                ["bloembak", shapely.Polygon()],
+                ["container", shapely.Polygon()],
+                ["drinkbak", shapely.Polygon()],
+                ["zand- / zoutbak", shapely.Polygon()],
+                ["dynamische snelheidsindicator", shapely.Polygon()],
+                ["informatiebord", shapely.Polygon()],
+                ["plaatsnaambord", shapely.Polygon()],
+                ["reclamebord", shapely.Polygon()],
+                ["scheepvaartbord", shapely.Polygon()],
+                ["straatnaambord", shapely.Polygon()],
+                ["verkeersbord", shapely.Polygon()],
+                ["verklikker transportleiding", shapely.Polygon()],
+                ["waarschuwingshek", shapely.Polygon()],
+                ["wegwijzer", shapely.Polygon()],
+                ["CAI-kast", shapely.Polygon()],
+                ["elektrakast", shapely.Polygon()],
+                ["gaskast", shapely.Polygon()],
+                ["GMS kast", shapely.Polygon()],
+                ["openbare verlichtingkast", shapely.Polygon()],
+                ["rioolkast", shapely.Polygon()],
+                ["telecom kast", shapely.Polygon()],
+                ["telkast", shapely.Polygon()],
+                ["verkeersregelinstallatiekast", shapely.Polygon()],
+                ["bovenleidingmast", shapely.Polygon()],
+                ["laagspanningsmast", shapely.Polygon()],
+                ["radarmast", shapely.Polygon()],
+                ["straalzender", shapely.Polygon()],
+                ["zendmast", shapely.Polygon()],
+                ["afsluitpaal", shapely.Polygon()],
+                ["dijkpaal", shapely.Polygon()],
+                ["drukknoppaal", shapely.Polygon()],
+                ["grensmarkering", shapely.Polygon()],
+                ["haltepaal", shapely.Polygon()],
+                ["hectometerpaal", shapely.Polygon()],
+                ["lichtmast", shapely.Polygon()],
+                ["poller", shapely.Polygon()],
+                ["portaal", shapely.Polygon()],
+                ["praatpaal", shapely.Polygon()],
+                ["sirene", shapely.Polygon()],
+                ["telpaal", shapely.Polygon()],
+                ["verkeersbordpaal", shapely.Polygon()],
+                ["verkeersregelinstallatiepaal", shapely.Polygon()],
+                ["vlaggenmast", shapely.Polygon()],
+                ["benzine- / olieput", shapely.Polygon()],
+                ["brandkraan / -put", shapely.Polygon()],
+                ["drainageput", shapely.Polygon()],
+                ["gasput", shapely.Polygon()],
+                ["inspectie- / rioolput", shapely.Polygon()],
+                ["kolk", shapely.Polygon()],
+                ["waterleidingput", shapely.Polygon()],
+                ["detectielus", shapely.Polygon()],
+                ["camera", shapely.Polygon()],
+                ["debietmeter", shapely.Polygon()],
+                ["flitser", shapely.Polygon()],
+                ["GMS sensor", shapely.Polygon()],
+                ["hoogtedetectieapparaat", shapely.Polygon()],
+                ["lichtcel", shapely.Polygon()],
+                ["radar detector", shapely.Polygon()],
+                ["waterstandmeter", shapely.Polygon()],
+                ["weerstation", shapely.Polygon()],
+                ["windmeter", shapely.Polygon()],
+                ["abri", shapely.Polygon()],
+                ["bank", shapely.Polygon()],
+                ["betaalautomaat", shapely.Polygon()],
+                ["bolder", shapely.Polygon()],
+                ["brievenbus", shapely.Polygon()],
+                ["fietsenkluis", shapely.Polygon()],
+                ["fietsenrek", shapely.Polygon()],
+                ["fontein", shapely.Polygon()],
+                ["herdenkingsmonument", shapely.Polygon()],
+                ["kunstobject", shapely.Polygon()],
+                ["lichtpunt", shapely.Polygon()],
+                ["openbaar toilet", shapely.Polygon()],
+                ["parkeerbeugel", shapely.Polygon()],
+                ["picknicktafel", shapely.Polygon()],
+                ["reclamezuil", shapely.Polygon()],
+                ["slagboom", shapely.Polygon()],
+                ["speelvoorziening", shapely.Polygon()],
+                ["telefooncel", shapely.Polygon()],
+                ["waardeOnbekend", shapely.Polygon()],
+            ],
+            columns=["plus-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+
+        reclassified_gdf = SmallAboveGroundObstacles._set_suitability_values(
+            [bgt_scheiding_1, bgt_scheiding_2, bgt_bak_bord_kast_paal_put_straatmeubilair], weight_values
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series(
+                [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    27,
+                    28,
+                    29,
+                    30,
+                    31,
+                    32,
+                    33,
+                    34,
+                    35,
+                    36,
+                    37,
+                    38,
+                    39,
+                    40,
+                    41,
+                    42,
+                    43,
+                    44,
+                    44,
+                    45,
+                    46,
+                    47,
+                    48,
+                    49,
+                    50,
+                    51,
+                    52,
+                    53,
+                    54,
+                    55,
+                    56,
+                    57,
+                    58,
+                    59,
+                    59,
+                    60,
+                    61,
+                    62,
+                    63,
+                    64,
+                    65,
+                    66,
+                    67,
+                    68,
+                    69,
+                    70,
+                    71,
+                    72,
+                    72,
+                    73,
+                    74,
+                    75,
+                    76,
+                    77,
+                    78,
+                    79,
+                    80,
+                    81,
+                    82,
+                    83,
+                    84,
+                    85,
+                ]
+            ),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+
+        assert "niet-bgt" not in reclassified_gdf["bgt-type"]
+        assert "waardeOnbekend" not in reclassified_gdf["plus-type"]
+
+    def test_vegetation_object(self):
+        weight_values = {
+            # plus_type
+            "haag": 1,
+            "boom": 2,
+            "waardeOnbekend": 1,
+        }
+        gdf_1 = gpd.GeoDataFrame(
+            [
+                ["haag", shapely.LineString([[0, 0], [1, 0], [1, 1]])],
+                ["haag", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],
+                ["waardeOnbekend", shapely.Polygon()],
+            ],
+            columns=["plus-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        gdf_2 = gpd.GeoDataFrame(
+            [
+                ["boom", shapely.Point(1, 1)],
+            ],
+            columns=["plus-type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = VegetationObject._set_suitability_values([gdf_1, gdf_2], weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 1, 2]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 1, 2]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        assert "waardeOnbekend" not in reclassified_gdf["plus-type"]
+
+        reclassified_gdf = VegetationObject._update_geometry_values(reclassified_gdf, {"boom": 5})
+        assert reclassified_gdf.is_empty.value_counts().get(False) == 3
+        assert reclassified_gdf.is_empty.value_counts().get(True) is None
+        assert reclassified_gdf.geom_type.unique().tolist() == ["LineString", "Polygon"]
+
+    def test_wegdeel(self):
+        weight_values = {
+            "baan voor vliegverkeer": 1,
+            "fietspad": 2,
+            "inrit": 3,
+            "OV-baan": 4,
+            "overweg": 5,
+            "parkeervlak": 6,
+            "rijbaan autosnelweg": 7,
+            "rijbaan autoweg": 8,
+            "rijbaan lokale weg": 9,
+            "rijbaan regionale weg": 10,
+            "ruiterpad": 11,
+            "spoorbaan": 12,
+            "voetgangersgebied": 13,
+            "voetpad": 14,
+            "voetpad op trap": 15,
+            "woonerf": 16,
+            "gesloten verharding": 17,
+            "half verhard": 18,
+            "onverhard": 19,
+            "open verharding": 20,
+        }
+        gdf_1 = gpd.GeoDataFrame(
+            [
+                ["baan voor vliegverkeer", "gesloten verharding", shapely.Polygon()],
+                ["fietspad", "gesloten verharding", shapely.Polygon()],
+                ["inrit", "gesloten verharding", shapely.Polygon()],
+                ["OV-baan", "gesloten verharding", shapely.Polygon()],
+                ["overweg", "gesloten verharding", shapely.Polygon()],
+                ["parkeervlak", "gesloten verharding", shapely.Polygon()],
+                ["rijbaan autosnelweg", "gesloten verharding", shapely.Polygon()],
+                ["rijbaan autoweg", "gesloten verharding", shapely.Polygon()],
+                ["rijbaan lokale weg", "gesloten verharding", shapely.Polygon()],
+                ["rijbaan regionale weg", "gesloten verharding", shapely.Polygon()],
+                ["ruiterpad", "gesloten verharding", shapely.Polygon()],
+                ["spoorbaan", "gesloten verharding", shapely.Polygon()],
+                ["voetgangersgebied", "gesloten verharding", shapely.Polygon()],
+                ["voetpad", "gesloten verharding", shapely.Polygon()],
+                ["voetpad op trap", "half verhard", shapely.Polygon()],
+                ["woonerf", "onverhard", shapely.Polygon()],
+            ],
+            columns=["function", "surfaceMaterial", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = Wegdeel._set_suitability_values(gdf_1, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_1"],
+            pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["sv_2"],
+            pd.Series(
+                [
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    17,
+                    18,
+                    19,
+                ]
+            ),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 33, 35]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
 
     def test_process_all_vectors(self):
         mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")

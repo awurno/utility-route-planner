@@ -50,6 +50,6 @@ class SmallAboveGroundObstacles(VectorPreprocessorBase):
         gdf_remaining_obstacles["suitability_value"] = gdf_remaining_obstacles["sv_1"]
 
         # Merge dfs
-        gdf_merged = pd.concat([gdf_remaining_obstacles, gdf_bgt_scheiding])
+        gdf_merged = pd.concat([gdf_bgt_scheiding, gdf_remaining_obstacles])
 
         return gdf_merged
