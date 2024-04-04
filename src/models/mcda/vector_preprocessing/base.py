@@ -27,20 +27,20 @@ class VectorPreprocessorBase(abc.ABC):
     def criterion(self) -> str:
         """Name of the criterion"""
 
-    def execute(self, general: RasterPresetGeneral, criterion: RasterPresetCriteria) -> bool:
+    def execute(self, general: RasterPresetGeneral, criterion: RasterPresetCriteria) -> tuple[bool, gpd.GeoDataFrame]:
         start = datetime.datetime.now()
         logger.info(f"Start preprocessing: {self.criterion}.")
 
         prepared_gdfs = self.prepare_input_data(general.project_area_geometry, criterion)
         if len(prepared_gdfs) == 1 and prepared_gdfs[0].empty:
-            return False  # Nothing to process when there is no data available, return.
+            return False, prepared_gdfs[0]  # Nothing to process when there is no data available, return.
         processed_gdf = self.specific_preprocess(prepared_gdfs, criterion)
         self.validate_result(processed_gdf)
         self.write_to_file(general.prefix, processed_gdf)
 
         end = datetime.datetime.now()
         logger.info(f"Finished {self.criterion} in: {end - start} time.")
-        return True
+        return True, processed_gdf
 
     @staticmethod
     def prepare_input_data(
@@ -53,6 +53,8 @@ class VectorPreprocessorBase(abc.ABC):
             gdf = gpd.read_file(
                 Config.PATH_INPUT_MCDA_GEOPACKAGE, layer=layer_name, engine="pyogrio", bbox=project_area.bounds
             ).clip(project_area)
+            if gdf.columns.__contains__("terminationDate"):  # BGT data has this attribute, filter historic items.
+                gdf = gdf.loc[gdf["terminationDate"].isna()]
             gdf["suitability_value"] = pandas.NA  # Placeholder value
             if not gdf.empty:
                 prepared_input.append(gdf)
