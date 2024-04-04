@@ -88,6 +88,8 @@ class TestVectorPreprocessing:
         assert buffered_gdf.iloc[:10].area.round(1).unique().tolist() == [1.0]
         assert buffered_gdf.iloc[[10]].area.round(1).tolist() == [1335.6]
 
+    # TODO add tests for all vectors
+
     def test_process_all_vectors(self):
         mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
         mcda_engine.preprocess_vectors()
@@ -95,14 +97,22 @@ class TestVectorPreprocessing:
 
 @pytest.mark.usefixtures("setup_clean_start")
 class TestRasterPreprocessing:
-    def test_preprocess_rasters(self):
+    def test_preprocess_single_raster(self):
         preset_to_load = {
             "general": preset_collection["preset_benchmark_raw"]["general"],
             "criteria": {
-                "waterdeel": preset_collection["preset_benchmark_raw"]["criteria"]["waterdeel"],
-                "wegdeel": preset_collection["preset_benchmark_raw"]["criteria"]["wegdeel"],
+                # "waterdeel": preset_collection["preset_benchmark_raw"]["criteria"]["waterdeel"],
+                # "wegdeel": preset_collection["preset_benchmark_raw"]["criteria"]["wegdeel"],
+                "small_above_ground_obstacles": preset_collection["preset_benchmark_raw"]["criteria"][
+                    "small_above_ground_obstacles"
+                ],
             },
         }
         mcda_engine = McdaCostSurfaceEngine(preset_to_load)
+        mcda_engine.preprocess_vectors()
+        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+
+    def test_preprocess_all_rasters(self):
+        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)

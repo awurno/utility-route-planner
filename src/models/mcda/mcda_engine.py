@@ -41,7 +41,7 @@ class McdaCostSurfaceEngine:
     def preprocess_rasters(self, vector_to_convert: dict[str, gpd.GeoDataFrame]):
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         for idx, (criterion, gdf) in enumerate(vector_to_convert.items()):
-            logger.info(f"Processing criteria number {idx+1} of {self.number_of_criteria_to_rasterize}.")
+            logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
             rasterize_vector_data(
                 criterion,
                 self.raster_preset.general.project_area_geometry,

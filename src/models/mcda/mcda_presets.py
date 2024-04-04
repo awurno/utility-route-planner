@@ -1,5 +1,16 @@
 from settings import Config
 import geopandas as gpd
+
+from src.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from src.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
+from src.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
+from src.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
+from src.models.mcda.vector_preprocessing.ondersteunend_wegdeel import OndersteunendWegdeel
+from src.models.mcda.vector_preprocessing.overig_bouwwerk import OverigBouwwerk
+from src.models.mcda.vector_preprocessing.pand import Pand
+from src.models.mcda.vector_preprocessing.protected_area import ProtectedArea
+from src.models.mcda.vector_preprocessing.small_above_ground_obstacles import SmallAboveGroundObstacles
+from src.models.mcda.vector_preprocessing.vegetation_object import VegetationObject
 from src.models.mcda.vector_preprocessing.waterdeel import Waterdeel
 from src.models.mcda.vector_preprocessing.wegdeel import Wegdeel
 
@@ -25,7 +36,7 @@ preset_collection = {
                 "layer_names": ["bgt_waterdeel_V"],
                 "preprocessing_function": Waterdeel(),
                 "constraint": False,
-                "group": "b",
+                "group": "a",
                 "weight_values": {
                     # Column "class"
                     "greppel, droge sloot": -13,
@@ -42,7 +53,7 @@ preset_collection = {
                     "haven": 126,
                     "meer, plas, ven, vijver": 125,
                 },
-                "geometry_values": {"zee": 20},  # buffer in meters
+                "geometry_values": {"zee": 20},
             },
             "wegdeel": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/wegdeel
@@ -50,7 +61,7 @@ preset_collection = {
                 "layer_names": ["bgt_wegdeel_V"],
                 "preprocessing_function": Wegdeel(),
                 "constraint": False,
-                "group": "b",
+                "group": "a",
                 "weight_values": {
                     # Column "bgt_functie"
                     "baan voor vliegverkeer": 126,
@@ -76,305 +87,315 @@ preset_collection = {
                     "open verharding": 2,
                     "transitie": 1,
                 },
-                "ondersteunend_wegdeel": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/ondersteunendwegdeel
-                    "description": "Complementary information on roads.",
-                    "layer_names": [""],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_functie
-                        "berm": 0,
-                        "verkeerseiland": 0,
-                        # bgt_fysiekvoorkomen
-                        "gesloten verharding": 10,
-                        "groenvoorziening": 1,
-                        "half verhard": 5,
-                        "onverhard": 2,
-                        "open verharding": 1,
-                    },
+            },
+            "ondersteunend_wegdeel": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/ondersteunendwegdeel
+                "description": "Complementary information on roads.",
+                "layer_names": ["bgt_ondersteunendwegdeel_V"],
+                "preprocessing_function": OndersteunendWegdeel(),
+                "constraint": False,
+                "group": "a",
+                "weight_values": {
+                    # bgt_functie
+                    "berm": -25,
+                    "verkeerseiland": 126,
+                    # bgt_fysiekvoorkomen
+                    "gesloten verharding": 10,
+                    "groenvoorziening": 1,
+                    "half verhard": 5,
+                    "onverhard": 2,
+                    "open verharding": 1,
                 },
-                "onbegroeid_terreindeel": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/onbegroeidterreindeel
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_fysiekvoorkomen
-                        "erf": 0,
-                        "gesloten verharding": 0,
-                        "half verhard": 0,
-                        "onverhard": 0,
-                        "open verharding": 0,
-                        "zand": 0,
-                    },
+            },
+            "onbegroeid_terreindeel": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/onbegroeidterreindeel
+                "description": "placeholder",
+                "layer_names": ["bgt_onbegroeidterreindeel_V"],
+                "preprocessing_function": OnbegroeidTerreindeel(),
+                "constraint": False,
+                "group": "a",
+                "weight_values": {
+                    # bgt_fysiekvoorkomen
+                    "erf": 76,
+                    "gesloten verharding": 10,
+                    "half verhard": 5,
+                    "onverhard": 2,
+                    "open verharding": 1,
+                    "zand": 1,
                 },
-                "begroeidterreindeel": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/begroeidterreindeel
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_fysiekvoorkomen
-                        "boomteelt": 0,
-                        "bouwland": 0,
-                        "duin": 0,
-                        "fruitteelt": 0,
-                        "gemengd bos": 0,
-                        "grasland agrarisch": 0,
-                        "grasland overig": 0,
-                        "groenvoorziening": 0,
-                        "heide": 0,
-                        "houtwal": 0,
-                        "kwelder": 0,
-                        "loofbos": 0,
-                        "moeras": 0,
-                        "naaldbos": 0,
-                        "rietland": 0,
-                        "struiken": 0,
-                        # plus_fysiekvoorkomen
-                        "akkerbouw": 0,
-                        "bodembedekkers": 0,
-                        "bollenteelt": 0,
-                        "bosplantsoen": 0,
-                        "braakliggend": 0,
-                        "gesloten duinvegetatie": 0,
-                        "gras- en kruidachtigen": 0,
-                        "griend en hakhout": 0,
-                        "heesters": 0,
-                        "hoogstam boomgaarden": 0,
-                        "klein fruit": 0,
-                        "laagstam boomgaarden": 0,
-                        "open duinvegetatie": 0,
-                        "planten": 0,
-                        "struikrozen": 0,
-                        "vollegrondsteelt": 0,
-                        "waardeOnbekend": 0,
-                        "wijngaarden": 0,
-                    },
+            },
+            "begroeidterreindeel": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/begroeidterreindeel
+                "description": "placeholder",
+                "layer_names": ["bgt_begroeidterreindeel_V"],
+                "preprocessing_function": BegroeidTerreindeel(),
+                "constraint": False,
+                "group": "a",
+                "weight_values": {
+                    # bgt_fysiekvoorkomen
+                    "boomteelt": 25,
+                    "bouwland": -13,
+                    "duin": 63,
+                    "fruitteelt": 13,
+                    "gemengd bos": 25,
+                    "grasland agrarisch": -13,
+                    "grasland overig": -13,
+                    "groenvoorziening": -13,
+                    "heide": 63,
+                    "houtwal": 13,
+                    "kwelder": 76,
+                    "loofbos": 25,
+                    "moeras": 38,
+                    "naaldbos": 25,
+                    "rietland": 76,
+                    "struiken": -13,
+                    # plus_fysiekvoorkomen
+                    "akkerbouw": -13,
+                    "bodembedekkers": -13,
+                    "bollenteelt": -13,
+                    "bosplantsoen": 25,
+                    "braakliggend": -13,
+                    "gesloten duinvegetatie": 63,
+                    "gras- en kruidachtigen": -13,
+                    "griend en hakhout": 25,
+                    "heesters": -13,
+                    "hoogstam boomgaarden": 25,
+                    "klein fruit": 25,
+                    "laagstam boomgaarden": 25,
+                    "open duinvegetatie": 63,
+                    "planten": -13,
+                    "struikrozen": -13,
+                    "vollegrondsteelt": -13,
+                    "wijngaarden": 25,
                 },
-                "ondersteunend_waterdeel": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/ondersteunendwaterdeel
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {},
+            },
+            "ondersteunend_waterdeel": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/ondersteunendwaterdeel
+                "description": "placeholder",
+                "layer_names": ["bgt_ondersteunendwaterdeel_V"],
+                "preprocessing_function": OndersteunendWaterdeel(),
+                "constraint": False,
+                "group": "a",
+                "weight_values": {
+                    # bgt_type
+                    "oever, slootkant": 76,
+                    "slik": 76,
                 },
-                "pand": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/pand
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_type
-                        "oever, slootkant": 0,
-                        "slik": 0,
-                    },
+            },
+            "pand": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/pand
+                "description": "placeholder",
+                "layer_names": ["bgt_pand_V"],
+                "preprocessing_function": Pand(),
+                "constraint": False,
+                "group": "a",
+                "weight_values": {"pand": 125},
+            },
+            "overig_bouwwerk": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/overigbouwwerk
+                "description": "placeholder",
+                "layer_names": ["bgt_overigbouwwerk_V"],
+                "preprocessing_function": OverigBouwwerk(),
+                "constraint": False,
+                "group": "b",
+                "weight_values": {
+                    # bgt_type
+                    "functie": 26,
+                    "bassin": 1,
+                    "bezinkbak": 1,
+                    "lage trafo": 1,
+                    "niet-bgt": 1,  # Delete these records if they exist.
+                    "open loods": 1,
+                    "opslagtank": 1,
+                    "overkapping": 1,
+                    "windturbine": 126,
                 },
-                "overig_bouwwerk": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/overigbouwwerk
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_type
-                        "functie": 0,
-                        "bassin": 0,
-                        "bezinkbak": 0,
-                        "lage trafo": 0,
-                        "niet-bgt": 0,  # Delete these records if they exist.
-                        "open loods": 0,
-                        "opslagtank": 0,
-                        "overkapping": 0,
-                        "windturbine": 0,
-                    },
+            },
+            # TODO determine if we want to include this. It may be beneficial to place cables there? Can optionally be guessed from the "relative hoogteligging" in wegdeel.
+            # "tunneldeel": {
+            #     # https://geonovum.github.io/IMGeo-objectenhandboek/tunneldeel
+            #     "description": "placeholder",
+            #     "layer_names": ["bgt_tunneldeel_V"],
+            #     "preprocessing_function": None,
+            #     "constraint": False,
+            #     "group": "a",
+            #     "weight_values": {"tunnel": 0},
+            # },
+            # TODO Replace high voltage with own datasource
+            "kunstwerkdeel": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/kunstwerkdeel
+                "description": "placeholder",
+                "layer_names": ["bgt_kunstwerkdeel_V"],
+                "preprocessing_function": Kunstwerkdeel(),
+                "constraint": False,
+                "group": "a",
+                "weight_values": {
+                    # bgt_type
+                    "gemaal": 126,
+                    "hoogspanningsmast": 126,
+                    "niet-bgt": 0,  # Delete these records if they exist.
+                    "perron": 126,
+                    "sluis": 126,
+                    "steiger": 126,
+                    "strekdam": 126,
+                    "stuw": 126,
                 },
-                # TODO determine if we want to include this. It may be beneficial to place cables there?
-                "tunneldeel": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/tunneldeel
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {"tunnel": 0},
+            },
+            "small_above_ground_obstacles": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/scheiding
+                # https://geonovum.github.io/IMGeo-objectenhandboek/bak
+                # https://geonovum.github.io/IMGeo-objectenhandboek/bord
+                # https://geonovum.github.io/IMGeo-objectenhandboek/kast
+                # https://geonovum.github.io/IMGeo-objectenhandboek/mast
+                # https://geonovum.github.io/IMGeo-objectenhandboek/paal
+                # https://geonovum.github.io/IMGeo-objectenhandboek/put
+                # https://geonovum.github.io/IMGeo-objectenhandboek/sensor
+                # https://geonovum.github.io/IMGeo-objectenhandboek/straatmeubilair
+                "description": "placeholder",
+                # TODO following are not available: "bgt_sensor_P", "bgt_mast_P"
+                "layer_names": [
+                    "bgt_scheiding_V",
+                    "bgt_scheiding_L",
+                    "bgt_bak_P",
+                    "bgt_bord_P",
+                    "bgt_kast_P",
+                    "bgt_paal_P",
+                    "bgt_put_P",
+                    "bgt_straatmeubilair_P",
+                ],
+                "preprocessing_function": SmallAboveGroundObstacles(),
+                "constraint": False,
+                "group": "b",
+                "weight_values": {
+                    # scheiding: bgt_type
+                    "damwand": 76,
+                    "muur": 76,
+                    "kademuur": 76,
+                    "geluidsscherm": 76,
+                    "hek": 13,
+                    "niet-bgt": 1,  # Delete these records if they exist.
+                    "walbescherming": 76,
+                    # bak: plus_type
+                    "afval apart plaats": 76,
+                    "afvalbak": 1,
+                    "bloembak": 1,
+                    "container": 26,
+                    "drinkbak": 1,
+                    "zand- / zoutbak": 1,
+                    # bord: plus_type
+                    "dynamische snelheidsindicator": 1,
+                    "informatiebord": 1,
+                    "plaatsnaambord": 1,
+                    "reclamebord": 1,
+                    "scheepvaartbord": 1,
+                    "straatnaambord": 1,
+                    "verkeersbord": 1,
+                    "verklikker transportleiding": 1,
+                    "waarschuwingshek": 1,
+                    "wegwijzer": 1,
+                    # kast: plus_type
+                    "CAI-kast": 1,
+                    "elektrakast": 1,
+                    "gaskast": 1,
+                    "GMS kast": 1,
+                    "openbare verlichtingkast": 1,
+                    "rioolkast": 1,
+                    "telecom kast": 1,
+                    "telkast": 1,
+                    "verkeersregelinstallatiekast": 1,
+                    # mast: plus_type
+                    "bovenleidingmast": 1,
+                    "laagspanningsmast": 1,
+                    "radarmast": 1,
+                    "straalzender": 1,
+                    "zendmast": 1,
+                    # paal: plus_type
+                    "afsluitpaal": 1,
+                    "dijkpaal": 1,
+                    "drukknoppaal": 1,
+                    "grensmarkering": 1,
+                    "haltepaal": 1,
+                    "hectometerpaal": 1,
+                    "lichtmast": 1,
+                    "poller": 1,
+                    "portaal": 1,
+                    "praatpaal": 1,
+                    "sirene": 1,
+                    "telpaal": 1,
+                    "verkeersbordpaal": 1,
+                    "verkeersregelinstallatiepaal": 1,
+                    "vlaggenmast": 1,
+                    # put: plus_type
+                    "benzine- / olieput": 1,
+                    "brandkraan / -put": 1,
+                    "drainageput": 1,
+                    "gasput": 1,
+                    "inspectie- / rioolput": 1,
+                    "kolk": 1,
+                    "waterleidingput": 1,
+                    # sensor:
+                    "detectielus": 1,
+                    "camera": 1,
+                    "debietmeter": 1,
+                    "flitser": 1,
+                    "GMS sensor": 1,
+                    "hoogtedetectieapparaat": 1,
+                    "lichtcel": 1,
+                    "radar detector": 1,
+                    "waterstandmeter": 1,
+                    "weerstation": 1,
+                    "windmeter": 1,
+                    # straatmeubilair:
+                    "abri": 1,
+                    "bank": 1,
+                    "betaalautomaat": 1,
+                    "bolder": 1,
+                    "brievenbus": 1,
+                    "fietsenkluis": 1,
+                    "fietsenrek": 1,
+                    "fontein": 1,
+                    "herdenkingsmonument": 1,
+                    "kunstobject": 1,
+                    "lichtpunt": 1,
+                    "openbaar toilet": 1,
+                    "parkeerbeugel": 1,
+                    "picknicktafel": 1,
+                    "reclamezuil": 1,
+                    "slagboom": 1,
+                    "speelvoorziening": 1,
+                    "telefooncel": 1,
+                    # Value occurs on all these tables, remove if present.
+                    "waardeOnbekend": 1,
                 },
-                "kunstwerkdeel": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/kunstwerkdeel
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_type
-                        "gemaal": 0,
-                        "hoogspanningsmast": 0,
-                        "niet-bgt": 0,  # Delete these records if they exist.
-                        "perron": 0,
-                        "sluis": 0,
-                        "steiger": 0,
-                        "strekdam": 0,
-                        "stuw": 0,
-                    },
+            },
+            "vegetation_object": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/vegetatieobject
+                "description": "placeholder",
+                "layer_names": ["bgt_vegetatieobject_P", "bgt_vegetatieobject_V"],
+                "preprocessing_function": VegetationObject(),
+                "constraint": False,
+                "group": "b",
+                "weight_values": {
+                    # plus_type
+                    "haag": 25,
+                    "boom": 76,
+                    "waardeOnbekend": 1,  # Delete these records if they exist.
                 },
-                "small_above_ground_obstacles": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/scheiding
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/bak
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/bord
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/kast
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/mast
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/paal
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/put
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/sensor
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/straatmeubilair
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # scheiding: bgt_type
-                        "damwand": 0,
-                        "muur": 0,
-                        "kademuur": 0,
-                        "geluidsscherm": 0,
-                        "hek": 0,
-                        "niet-bgt": 0,  # Delete these records if they exist.
-                        "walbescherming": 0,
-                        # bak: plus_type
-                        "afval apart plaats": 0,
-                        "afvalbak": 0,
-                        "bloembak": 0,
-                        "container": 0,
-                        "drinkbak": 0,
-                        "zand- / zoutbak": 0,
-                        # bord: plus_type
-                        "dynamische snelheidsindicator": 0,
-                        "informatiebord": 0,
-                        "plaatsnaambord": 0,
-                        "reclamebord": 0,
-                        "scheepvaartbord": 0,
-                        "straatnaambord": 0,
-                        "verkeersbord": 0,
-                        "verklikker transportleiding": 0,
-                        "waarschuwingshek": 0,
-                        "wegwijzer": 0,
-                        # kast: plus_type
-                        "CAI-kast": 0,
-                        "elektrakast": 0,
-                        "gaskast": 0,
-                        "GMS kast": 0,
-                        "openbare verlichtingkast": 0,
-                        "rioolkast": 0,
-                        "telecom kast": 0,
-                        "telkast": 0,
-                        "verkeersregelinstallatiekast": 0,
-                        # mast: plus_type
-                        "bovenleidingmast": 0,
-                        "laagspanningsmast": 0,
-                        "radarmast": 0,
-                        "straalzender": 0,
-                        "zendmast": 0,
-                        # paal: plus_type
-                        "afsluitpaal": 0,
-                        "dijkpaal": 0,
-                        "drukknoppaal": 0,
-                        "grensmarkering": 0,
-                        "haltepaal": 0,
-                        "hectometerpaal": 0,
-                        "lichtmast": 0,
-                        "poller": 0,
-                        "portaal": 0,
-                        "praatpaal": 0,
-                        "sirene": 0,
-                        "telpaal": 0,
-                        "verkeersbordpaal": 0,
-                        "verkeersregelinstallatiepaal": 0,
-                        "vlaggenmast": 0,
-                        # put: plus_type
-                        "benzine- / olieput": 0,
-                        "brandkraan / -put": 0,
-                        "drainageput": 0,
-                        "gasput": 0,
-                        "inspectie- / rioolput": 0,
-                        "kolk": 0,
-                        "waterleidingput": 0,
-                        # sensor:
-                        "detectielus": 0,
-                        "camera": 0,
-                        "debietmeter": 0,
-                        "flitser": 0,
-                        "GMS sensor": 0,
-                        "hoogtedetectieapparaat": 0,
-                        "lichtcel": 0,
-                        "radar detector": 0,
-                        "waterstandmeter": 0,
-                        "weerstation": 0,
-                        "windmeter": 0,
-                        # straatmeubilair:
-                        "abri": 0,
-                        "bank": 0,
-                        "betaalautomaat": 0,
-                        "bolder": 0,
-                        "brievenbus": 0,
-                        "fietsenkluis": 0,
-                        "fietsenrek": 0,
-                        "fontein": 0,
-                        "herdenkingsmonument": 0,
-                        "kunstobject": 0,
-                        "lichtpunt": 0,
-                        "openbaar toilet": 0,
-                        "parkeerbeugel": 0,
-                        "picknicktafel": 0,
-                        "reclamezuil": 0,
-                        "slagboom": 0,
-                        "speelvoorziening": 0,
-                        "telefooncel": 0,
-                        # Value occurs on all these tables, ignore.
-                        "waardeOnbekend": 0,
-                    },
-                },
-                "special_trees": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/vegetatieobject
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # plus_type
-                        "haag": 0,
-                        "boom": 0,
-                        "waardeOnbekend": 0,
-                    },
-                },
-                "protected_area": {
-                    # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
-                    # Natura2000
-                    "description": "placeholder",
-                    "layer_names": [],
-                    "preprocessing_function": None,
-                    "constraint": False,
-                    "group": None,
-                    "weight_values": {
-                        # bgt_type
-                        "kering": 0,  # Dykes
-                        "niet-bgt": 0,  # Delete these records if they exist.
-                    },
+                "geometry_values": {"boom": 5},
+            },
+            "protected_area": {
+                # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
+                # TODO Natura2000
+                "description": "placeholder",
+                "layer_names": ["bgt_functioneelgebied_V"],
+                "preprocessing_function": ProtectedArea(),
+                "constraint": False,
+                "group": "b",
+                "weight_values": {
+                    # bgt_type
+                    "kering": 25,  # Dykes, delete all other records
                 },
             },
         },
-    }
+    },
 }
