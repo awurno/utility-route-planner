@@ -53,7 +53,7 @@ class VectorPreprocessorBase(abc.ABC):
             gdf = gpd.read_file(
                 Config.PATH_INPUT_MCDA_GEOPACKAGE, layer=layer_name, engine="pyogrio", bbox=project_area.bounds
             ).clip(project_area)
-            # TODO determine a proper datasource which has one of either fields, not both
+            # TODO determine a proper datasource (nl extract) which has one of either fields, not both
             if gdf.columns.__contains__("eindRegistratie"):  # BGT data has this attribute, filter historic items.
                 gdf = gdf.loc[gdf["eindRegistratie"].isna()]
             if gdf.columns.__contains__("terminationDate"):  # BGT data has this attribute, filter historic items.
