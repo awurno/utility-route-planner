@@ -14,11 +14,12 @@ logger = structlog.get_logger(__name__)
 
 
 def rasterize_vector_data(
+    raster_prefix: str,
     criterion: str,
     project_area: shapely.MultiPolygon | shapely.Polygon,
     gdf_to_rasterize: gpd.GeoDataFrame,
     cell_size: int,
-) -> None:
+) -> str:
     """Burns the vector data to the project area in the desired raster cell size."""
     minx, miny, maxx, maxy = project_area.bounds
 
@@ -44,9 +45,30 @@ def rasterize_vector_data(
 
     logger.info(f"Rasterizing layer: {criterion} in cell size: {cell_size} meters")
     # TODO check if we can use /vsimem/
-    with rasterio.open(Config.PATH_RESULTS / f"zz_{criterion}.tif", "w+", **profile) as out:
+    path_raster = Config.PATH_RESULTS / f"{raster_prefix+criterion}.tif"
+    with rasterio.open(path_raster, "w+", **profile) as out:
         out_arr = out.read(1)
         # TODO check if sorting the order here impacts the raster creation, order by suitability_value
         shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
         burned = rasterio.features.rasterize(shapes=shapes, fill=0, out=out_arr, transform=out.transform)
         out.write_band(1, burned)
+
+    return path_raster.__str__()
+
+
+def sum_rasters(rasters_to_sum: list[dict]):
+    logger.info(f"Starting summing {len(rasters_to_sum)} rasters into the final cost surface.")
+
+    src_files_to_mosaic = [rasterio.open(list(i.keys())[0]) for i in rasters_to_sum]
+    # Merge the rasters
+    mosaic, out_trans = rasterio.merge.merge(src_files_to_mosaic)
+    summed_raster = mosaic.sum(axis=0)
+
+    # Update metadata
+    out_meta = src_files_to_mosaic[0].meta.copy()
+    out_meta.update(
+        {"driver": "GTiff", "height": summed_raster.shape[0], "width": summed_raster.shape[1], "transform": out_trans}
+    )
+
+    with rasterio.open(Config.PATH_RESULTS / "zz_final_raster.tif", "w", **out_meta) as dest:
+        dest.write(summed_raster, 1)

@@ -4,7 +4,7 @@ from src.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
 
-from src.models.mcda.mcda_rasterizing import rasterize_vector_data
+from src.models.mcda.mcda_rasterizing import rasterize_vector_data, sum_rasters
 
 logger = structlog.get_logger(__name__)
 
@@ -40,15 +40,16 @@ class McdaCostSurfaceEngine:
 
     def preprocess_rasters(self, vector_to_convert: dict[str, gpd.GeoDataFrame]):
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
+        rasters_to_sum = []
         for idx, (criterion, gdf) in enumerate(vector_to_convert.items()):
             logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
-            rasterize_vector_data(
+            path_raster = rasterize_vector_data(
+                self.raster_preset.general.prefix,
                 criterion,
                 self.raster_preset.general.project_area_geometry,
                 gdf,
                 self.raster_preset.general.raster_resolution[0],
             )
+            rasters_to_sum.append({path_raster: self.raster_preset.criteria[criterion].group})
 
-        # TODO sum al created rasters
-
-        # profit
+        sum_rasters(rasters_to_sum)
