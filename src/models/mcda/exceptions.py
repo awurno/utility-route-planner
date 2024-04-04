@@ -12,3 +12,11 @@ class InvalidLayerName(Exception):
 
 class InvalidSuitabilityValue(Exception):
     pass
+
+
+class RasterCellSizeTooSmall(Exception):
+    pass
+
+
+class UnassignedValueFoundDuringReclassify(Exception):
+    pass
