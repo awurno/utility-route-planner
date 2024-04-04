@@ -87,8 +87,9 @@ def test_all_values_present():
     validate_values_to_reclassify(values_to_reclassify, assigned_values)
 
 
-def test_missing_values():
+@pytest.mark.parametrize("input_which_should_raise", [{1: "A", 2: "B", 3: "C"}, {1: "A", 4: 0}])
+def test_missing_values(input_which_should_raise):
     values_to_reclassify = [1, 2, 4]
-    assigned_values = {1: "A", 2: "B", 3: "C"}
+    wrong_input = input_which_should_raise
     with pytest.raises(UnassignedValueFoundDuringReclassify):
-        validate_values_to_reclassify(values_to_reclassify, assigned_values)
+        validate_values_to_reclassify(values_to_reclassify, wrong_input)
