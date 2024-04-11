@@ -16,7 +16,11 @@ def test_rasterize_vector_data_cell_size_error():
         rasterize_vector_data("temp", project_area, gpd.GeoDataFrame(), 500000)
 
 
-def test_rasterize_different_order():
+def test_rasterize_different_order(monkeypatch):
+    max_value = 100
+    min_value = -120
+    monkeypatch.setattr(Config, "INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER", min_value)
+    monkeypatch.setattr(Config, "INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER", max_value)
     gdf = gpd.GeoDataFrame(
         data=[
             # These layers all overlap each other.
@@ -26,6 +30,9 @@ def test_rasterize_different_order():
             [1, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]])],
             # One larger partly overlapping polygon with a unique value.
             [5, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]]).buffer(50)],
+            # These values should be reset to the min/max of the intermediate raster values
+            [-9999, shapely.Polygon([[175091, 450919], [175091, 450911], [175105, 450911], [175091, 450919]])],
+            [9999, shapely.Polygon([[175012, 450920], [175011, 450907], [175019, 450906], [175012, 450920]])],
         ],
         geometry="geometry",
         crs=Config.CRS,
@@ -46,14 +53,24 @@ def test_rasterize_different_order():
         with rasterio.open(rasterized_gdf, "r") as out:
             result = out.read(1)
             unique_values = np.unique(result)
-            assert set(unique_values) == {0, 5, 10}
+            assert set(unique_values) == {min_value, 0, 5, 10, max_value}
             # Check that the overlapping part has the highest value
             values = list(
                 rasterio.sample.sample_gen(
-                    out, [[174872.396, 451084.460], [174868.573, 451086.020], [174985.83, 451101.57], [0, 0]]
+                    out,
+                    [
+                        [174872.396, 451084.460],
+                        [174868.573, 451086.020],
+                        [174985.83, 451101.57],
+                        [0, 0],
+                        [175013, 450909],
+                        [175094, 450913],
+                    ],
                 )
             )
             assert values[0][0] == 10  # middle of the overlapping part
             assert values[1][0] == 5  # just next to the polygon
             assert values[2][0] == 0  # outside the polygons
             assert values[3][0] == 0  # outside the project area
+            assert values[4][0] == max_value  # max value
+            assert values[5][0] == min_value  # min value

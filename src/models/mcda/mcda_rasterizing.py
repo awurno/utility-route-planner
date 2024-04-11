@@ -5,6 +5,7 @@ import structlog
 import rasterio
 import rasterio.features
 import rasterio.merge
+import numpy as np
 import geopandas as gpd
 import affine
 
@@ -60,6 +61,9 @@ def rasterize_vector_data(
         shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
         burned = rasterio.features.rasterize(
             shapes=shapes, fill=nodata, out=out_arr, transform=out.transform, all_touched=False
+        )
+        burned = np.clip(
+            burned, Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER, Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
         )
         out.write_band(1, burned)
 
