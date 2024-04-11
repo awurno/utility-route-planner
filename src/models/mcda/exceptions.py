@@ -20,3 +20,7 @@ class RasterCellSizeTooSmall(Exception):
 
 class UnassignedValueFoundDuringReclassify(Exception):
     pass
+
+
+class InvalidRasterValues(Exception):
+    pass

@@ -6,6 +6,7 @@ import shapely
 import structlog
 
 from settings import Config
+from src.models.mcda.exceptions import InvalidRasterValues
 
 logger = structlog.get_logger(__name__)
 
@@ -30,8 +31,6 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
             )
 
     if len(image) < 1:
-        critical_txt = "Unexpected values retrieved from suitability raster. Check project area."
-        logger.critical(critical_txt)
-        raise ValueError(critical_txt)
+        raise InvalidRasterValues("Unexpected values retrieved from suitability raster. Check project area.")
 
     return image, transform.to_gdal()
