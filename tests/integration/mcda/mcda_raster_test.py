@@ -46,7 +46,7 @@ def test_rasterize_different_order():
         with rasterio.open(rasterized_gdf, "r") as out:
             result = out.read(1)
             unique_values = np.unique(result)
-            assert set(unique_values) == set([0, 5, 10])
+            assert set(unique_values) == {0, 5, 10}
             # Check that the overlapping part has the highest value
             values = list(
                 rasterio.sample.sample_gen(
