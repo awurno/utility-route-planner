@@ -38,7 +38,7 @@ class McdaCostSurfaceEngine:
                 assert processed_gdf.empty
                 self.unprocessed_vectors.append(criterion)
 
-    def preprocess_rasters(self, vector_to_convert: dict[str, gpd.GeoDataFrame]):
+    def preprocess_rasters(self, vector_to_convert: dict[str, gpd.GeoDataFrame]) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         rasters_to_sum = []
         for idx, (criterion, gdf) in enumerate(vector_to_convert.items()):
@@ -52,4 +52,5 @@ class McdaCostSurfaceEngine:
             )
             rasters_to_sum.append({path_raster: self.raster_preset.criteria[criterion].group})
 
-        sum_rasters(rasters_to_sum)
+        path_suitability_raster = sum_rasters(rasters_to_sum, self.raster_preset.general.final_raster_name)
+        return path_suitability_raster

@@ -24,3 +24,7 @@ class UnassignedValueFoundDuringReclassify(Exception):
 
 class InvalidRasterValues(Exception):
     pass
+
+
+class InvalidSuitabilityRasterInput(Exception):
+    pass
