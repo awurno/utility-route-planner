@@ -65,22 +65,22 @@ class GraphNetwork:
                 # We only want to connect the nodes that are part of the project area (so not with the ones that
                 # have the cost of 65534 which is the value assigned to the cropped section
 
-                if self.cost_raster[i][j] != Config.RASTER_NO_DATA:
+                if self.cost_raster[i][j] != Config.FINAL_RASTER_NO_DATA:
                     # For each direction, check if the indexes are valid and if the other end of the edge is also
                     # part of the project area
-                    if i - 1 >= 0 and j - 1 >= 0 and self.cost_raster[i - 1][j - 1] != Config.RASTER_NO_DATA:
+                    if i - 1 >= 0 and j - 1 >= 0 and self.cost_raster[i - 1][j - 1] != Config.FINAL_RASTER_NO_DATA:
                         # For the diagonal movement, the weight is sightly bigger than just moving horiz/vertically
                         # In this way we avoid going in diagonal when is not necessary
                         weight = (self.cost_raster[i][j] + self.cost_raster[i - 1][j - 1]) / np.sqrt(2)
                         length = np.sqrt(2) / 2
                         self.add_to_adj_list(weight, length, self.nodes[i][j], self.nodes[i - 1][j - 1])
 
-                    if j - 1 >= 0 and self.cost_raster[i][j - 1] != Config.RASTER_NO_DATA:
+                    if j - 1 >= 0 and self.cost_raster[i][j - 1] != Config.FINAL_RASTER_NO_DATA:
                         weight = self.cost_raster[i][j] / 2 + self.cost_raster[i][j - 1] / 2
                         length = 1 / 2
                         self.add_to_adj_list(weight, length, self.nodes[i][j], self.nodes[i][j - 1])
 
-                    if i - 1 >= 0 and self.cost_raster[i - 1][j] != Config.RASTER_NO_DATA:
+                    if i - 1 >= 0 and self.cost_raster[i - 1][j] != Config.FINAL_RASTER_NO_DATA:
                         weight = self.cost_raster[i][j] / 2 + self.cost_raster[i - 1][j] / 2
                         length = 1 / 2
                         self.add_to_adj_list(weight, length, self.nodes[i][j], self.nodes[i - 1][j])
@@ -88,18 +88,18 @@ class GraphNetwork:
                     if (
                         i + 1 < self.cost_raster.shape[0]
                         and j + 1 < self.cost_raster.shape[1]
-                        and self.cost_raster[i + 1][j + 1] != Config.RASTER_NO_DATA
+                        and self.cost_raster[i + 1][j + 1] != Config.FINAL_RASTER_NO_DATA
                     ):
                         weight = (self.cost_raster[i][j] + self.cost_raster[i + 1][j + 1]) / np.sqrt(2)
                         length = np.sqrt(2) / 2
                         self.add_to_adj_list(weight, length, self.nodes[i][j], self.nodes[i + 1][j + 1])
 
-                    if i + 1 < self.cost_raster.shape[0] and self.cost_raster[i + 1][j] != Config.RASTER_NO_DATA:
+                    if i + 1 < self.cost_raster.shape[0] and self.cost_raster[i + 1][j] != Config.FINAL_RASTER_NO_DATA:
                         weight = self.cost_raster[i][j] / 2 + self.cost_raster[i + 1][j] / 2
                         length = 1 / 2
                         self.add_to_adj_list(weight, length, self.nodes[i][j], self.nodes[i + 1][j])
 
-                    if j + 1 < self.cost_raster.shape[1] and self.cost_raster[i][j + 1] != Config.RASTER_NO_DATA:
+                    if j + 1 < self.cost_raster.shape[1] and self.cost_raster[i][j + 1] != Config.FINAL_RASTER_NO_DATA:
                         weight = self.cost_raster[i][j] / 2 + self.cost_raster[i][j + 1] / 2
                         length = 1 / 2
                         self.add_to_adj_list(weight, length, self.nodes[i][j], self.nodes[i][j + 1])
@@ -107,7 +107,7 @@ class GraphNetwork:
                     if (
                         i - 1 >= 0
                         and j + 1 < self.cost_raster.shape[1]
-                        and self.cost_raster[i - 1][j + 1] != Config.RASTER_NO_DATA
+                        and self.cost_raster[i - 1][j + 1] != Config.FINAL_RASTER_NO_DATA
                     ):
                         weight = (self.cost_raster[i][j] + self.cost_raster[i - 1][j + 1]) / np.sqrt(2)
                         length = np.sqrt(2) / 2
@@ -116,7 +116,7 @@ class GraphNetwork:
                     if (
                         i + 1 < self.cost_raster.shape[0]
                         and j - 1 >= 0
-                        and self.cost_raster[i + 1][j - 1] != Config.RASTER_NO_DATA
+                        and self.cost_raster[i + 1][j - 1] != Config.FINAL_RASTER_NO_DATA
                     ):
                         weight = (self.cost_raster[i][j] + self.cost_raster[i + 1][j - 1]) / np.sqrt(2)
                         length = np.sqrt(2) / 2

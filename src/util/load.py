@@ -5,7 +5,6 @@ import rasterio.mask
 import shapely
 import structlog
 
-from settings import Config
 from src.models.mcda.exceptions import InvalidRasterValues
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +26,6 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
                 crop=True,  # Crop result to input project area.
                 filled=True,  # Values outside input project area will be set to nodata.
                 indexes=1,
-                nodata=Config.RASTER_NO_DATA,
             )
 
     if len(image) < 1:
