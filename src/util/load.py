@@ -26,8 +26,8 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
                 all_touched=True,  # Include a pixel in the mask if it touches any of the shapes.
                 crop=True,  # Crop result to input project area.
                 filled=True,  # Values outside input project area will be set to nodata.
-                indexes=1,  # Read only values from band 1.
-                nodata=Config.RASTER_NO_DATA,  # As our values are always =< 128, this can be used for filtering.
+                indexes=1,
+                nodata=Config.RASTER_NO_DATA,
             )
 
     if len(image) < 1:
