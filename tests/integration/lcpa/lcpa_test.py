@@ -61,3 +61,15 @@ class TestUtilityRoutes:
 
         for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
+
+    # TODO make this a bit better with a small example raster
+    def test_get_utility_route_larger_area_with_no_data(self):
+        project_area = gpd.read_file(Config.BASEDIR / "data/processed/testing_area_for_nodata.geojson").iloc[0].geometry
+        lcpa_engine = get_lcpa_utility_route(
+            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
+            utility_route_sketch=shapely.LineString([(190799.841, 462929.722), (190833.512, 462902.776)]),
+            project_area=project_area,
+        )
+
+        for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
+            assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
