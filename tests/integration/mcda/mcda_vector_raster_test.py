@@ -1048,8 +1048,6 @@ class TestRasterPreprocessing:
         preset_to_load = {
             "general": preset_collection["preset_benchmark_raw"]["general"],
             "criteria": {
-                # "waterdeel": preset_collection["preset_benchmark_raw"]["criteria"]["waterdeel"],
-                # "wegdeel": preset_collection["preset_benchmark_raw"]["criteria"]["wegdeel"],
                 "small_above_ground_obstacles": preset_collection["preset_benchmark_raw"]["criteria"][
                     "small_above_ground_obstacles"
                 ],
