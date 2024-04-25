@@ -111,7 +111,6 @@ class TestShortestPath:
         _, indices = lcpa_engine.calculate_least_cost_path(array, input_model)
         assert indices == expected_indices
 
-    # numpy array which is not connected through valid values
     @pytest.mark.parametrize(
         "invalid_input",
         [
@@ -124,7 +123,7 @@ class TestShortestPath:
                     [1, 1, -1, 1, 1],
                 ]
             ),
-            # Diagonals need to be at least 2 wide.
+            # Diagonals need to be at least 2 wide to block a path.
             np.array(
                 [
                     [1, 1, 1, 1, -1],
