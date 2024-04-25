@@ -1,4 +1,3 @@
-# TODO tests for running MCDA + LCPA
 import pytest
 import shapely
 
@@ -30,5 +29,4 @@ def test_mcda_lcpa_chain(monkeypatch, setup_mcda_lcpa_testing):
     write_results_to_geopackage(Config.PATH_LCPA_GEOPACKAGE, lcpa_engine.lcpa_result, "utility_route_result")
 
 
-def test_mcda_lcpa_chain_with_(monkeypatch, setup_mcda_lcpa_testing):
-    pass
+# TODO tests for running MCDA + LCPA, add some more examples

@@ -3,7 +3,6 @@ import numpy as np
 import shapely
 from skimage.graph import route_through_array
 
-import pathlib
 from settings import Config
 from src.models.lcpa.lcpa_datastructures import LcpaInputModel
 from src.util.geo_utilities import array_indices_to_linestring, align_linestring
@@ -17,9 +16,7 @@ class LcpaUtilityRouteEngine:
     route_model: LcpaInputModel
     lcpa_result: shapely.LineString
 
-    def get_lcpa_route(
-        self, path_raster: pathlib.Path, project_area: shapely.Polygon, utility_route_sketch: shapely.LineString
-    ):
+    def get_lcpa_route(self, path_raster: str, project_area: shapely.Polygon, utility_route_sketch: shapely.LineString):
         # Creates a numpy array from cost surface raster and saves the metadata for further usage.
         raster_array, raster_geotransform = load_suitability_raster_data(path_raster, project_area)
         # Preprocess input linestring geometry to a structured datamodel.
