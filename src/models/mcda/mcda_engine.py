@@ -44,11 +44,7 @@ class McdaCostSurfaceEngine:
         for idx, (criterion, gdf) in enumerate(vector_to_convert.items()):
             logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
             path_raster = rasterize_vector_data(
-                self.raster_preset.general.prefix,
-                criterion,
-                self.raster_preset.general.project_area_geometry,
-                gdf,
-                self.raster_preset.general.raster_resolution[0],
+                self.raster_preset.general.prefix, criterion, self.raster_preset.general.project_area_geometry, gdf
             )
             rasters_to_sum.append({path_raster: self.raster_preset.criteria[criterion].group})
 

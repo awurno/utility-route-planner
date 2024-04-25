@@ -14,12 +14,14 @@ class Config:
     RASTER_PRESET_NAME = "preset_benchmark_raw"
     RASTER_CELL_SIZE = 0.5
     RASTER_BLOCK_SIZE = 512
-    # To prevent unwanted rounding/capping at the intermediate steps, allow larger values (int16)
+    # No data is ignored during creation of the raster.
     INTERMEDIATE_RASTER_NO_DATA = -32768
+    # To prevent unwanted rounding/capping at the intermediate steps, allow larger values as int16 datatype.
     INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER = -32767
     INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER = 32767
-    # The no data value is masked during LCPA.
+    # No data is set for areas: outside the project area, manually set, invalid data which are ignored during LCPA.
     FINAL_RASTER_NO_DATA = 0
+    # Cap final data to the int8 datatype.
     FINAL_RASTER_VALUE_LIMIT_LOWER = 1
     FINAL_RASTER_VALUE_LIMIT_UPPER = 126
     PATH_INPUT_MCDA_GEOPACKAGE = BASEDIR / "data/examples/ede.gpkg"

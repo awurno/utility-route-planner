@@ -90,31 +90,7 @@ class RasterPresetGeneral(pydantic.BaseModel):
         ...,
         description="Prefix to apply for all files relevant for a given preset.",
     )
-    raster_resolution: tuple = pydantic.Field(
-        default=(1, 1),
-        description="Resolution to be used for the (intermediate) raster.",
-    )
-    intermediate_raster_value_limit_lower: int = pydantic.Field(
-        ...,
-        description="Contains the min value for the intermediate rasters to sum in the final suit raster.",
-    )
-    intermediate_raster_value_limit_upper: int = pydantic.Field(
-        ...,
-        description="Contains the max value for the intermediate rasters to sum in the final suit raster.",
-    )
     final_raster_name: str = pydantic.Field(default="zz_test_raster", description="Name of the final raster.")
-    final_raster_value_limit_lower: int = pydantic.Field(
-        ...,
-        description="Contains the min value for the final raster.",
-    )
-    final_raster_value_limit_upper: int = pydantic.Field(
-        ...,
-        description="Contains the max value for the final raster.",
-    )
-    raster_no_data: int = pydantic.Field(
-        ...,
-        description="Contains the nodata value to set for areas outside the project area for which the raster is made.",
-    )
     project_area_geometry: shapely.MultiPolygon | shapely.Polygon = pydantic.Field(
         ...,
         description="Shapely geometry to use defining the project area for the utility route.",

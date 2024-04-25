@@ -33,13 +33,7 @@ def setup_raster_preset_dummy():
         "general": {
             "description": "Dummy preset.",
             "prefix": "b_",
-            "raster_resolution": (Config.RASTER_CELL_SIZE, Config.RASTER_CELL_SIZE),
-            "intermediate_raster_value_limit_lower": Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER,
-            "intermediate_raster_value_limit_upper": Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER,
             "final_raster_name": "benchmark_suitability_raster",
-            "final_raster_value_limit_lower": Config.FINAL_RASTER_VALUE_LIMIT_LOWER,
-            "final_raster_value_limit_upper": Config.FINAL_RASTER_VALUE_LIMIT_UPPER,
-            "raster_no_data": Config.FINAL_RASTER_NO_DATA,
             "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
         },
         "criteria": {

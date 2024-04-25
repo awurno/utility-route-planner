@@ -21,7 +21,7 @@ def rasterize_vector_data(
     criterion: str,
     project_area: shapely.MultiPolygon | shapely.Polygon,
     gdf_to_rasterize: gpd.GeoDataFrame,
-    cell_size: int | float,
+    cell_size: int | float = Config.RASTER_CELL_SIZE,
 ) -> str:
     """
     Burns the vector data to the project area in the desired raster cell size.
