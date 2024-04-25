@@ -14,8 +14,7 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
     """
     Read only the intersection of the project area with the large suitability raster from S3 (or local).
     """
-    # load with mask, based on geom using rasterio.mask. This replaces the preprocessing.py
-    logger.info(f"Loading a portion of {path_raster} based on input project area.")
+    logger.info(f"Loading {path_raster} based on input project area.")
 
     with rasterio.Env():
         with rasterio.open(path_raster) as src:
@@ -27,8 +26,10 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
                 filled=True,  # Values outside input project area will be set to nodata.
                 indexes=1,
             )
+            no_data = src.nodata
 
     if len(image) < 1:
         raise InvalidRasterValues("Unexpected values retrieved from suitability raster. Check project area.")
-
+    # Replace with a negative value which is ignored in LCPA.
+    image[image == no_data] = -1
     return image, transform.to_gdal()

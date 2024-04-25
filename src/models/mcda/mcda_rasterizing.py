@@ -36,11 +36,11 @@ def rasterize_vector_data(
     width = math.ceil((maxx - minx) / cell_size)
     height = math.ceil((maxy - miny) / cell_size)
 
-    nodata = Config.INTERMEDIATE_RASTER_NO_DATA
+    no_data = Config.INTERMEDIATE_RASTER_NO_DATA
     profile = {
         "driver": "GTiff",
         "dtype": "int16",
-        "nodata": nodata,
+        "nodata": no_data,
         "compress": "lzw",
         "tiled": True,
         "width": width,
@@ -55,8 +55,9 @@ def rasterize_vector_data(
     logger.info(f"Rasterizing layer: {criterion} in cell size: {cell_size} meters")
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
-    # Remove no-data values prior to rasterizing, reset values exceeding the min/max.
-    gdf_to_rasterize.suitability_value.replace(nodata, nodata + 1, inplace=True)
+    # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
+    gdf_to_rasterize.suitability_value.replace(no_data, no_data + 1, inplace=True)
+    # Reset values exceeding the min/max.
     gdf_to_rasterize.suitability_value[
         gdf_to_rasterize.suitability_value < Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
@@ -74,7 +75,7 @@ def rasterize_vector_data(
     return path_raster.__str__()
 
 
-def sum_rasters(rasters_to_sum: list[dict], final_raster_name: str) -> str:
+def process_rasters(rasters_to_process: list[dict], final_raster_name: str) -> str:
     """
     List of rasters to sum and their respective group.
 
@@ -82,10 +83,10 @@ def sum_rasters(rasters_to_sum: list[dict], final_raster_name: str) -> str:
     Criteria in group b: Values in group b are added to group a.
 
     """
-    logger.info(f"Starting summing {len(rasters_to_sum)} rasters into the final cost surface.")
+    logger.info(f"Starting summing {len(rasters_to_process)} rasters into the final cost surface.")
 
     group_a, group_b = [], []
-    for raster_dict in rasters_to_sum:
+    for raster_dict in rasters_to_process:
         for key in raster_dict:
             if raster_dict[key] == "a":
                 group_a.append(raster_dict)
@@ -94,23 +95,23 @@ def sum_rasters(rasters_to_sum: list[dict], final_raster_name: str) -> str:
             else:
                 raise InvalidGroupValue(f"Invalid group value encountered during raster processing: {raster_dict[key]}")
 
+    # Use numpy masks to ignore the nodata values in the computations.
     merged_group_a, merged_group_b = [], []
     if len(group_a) > 0:
-        # Replace no-data with np.nan .
-        src_files_to_mosaic = [rasterio.open(list(i.keys())[0]) for i in group_a]
         for idx, raster_dict in enumerate(group_a):
             with rasterio.open(list(raster_dict.keys())[0], "r") as src:
                 if idx == 0:
                     merged_group_a = src.read(1, masked=True)
+                    out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster, a or b.
                 else:
                     merged_group_a = np.ma.max(np.ma.stack((merged_group_a, src.read(1, masked=True)), axis=0), axis=0)
 
     if len(group_b) > 0:
-        src_files_to_mosaic = [rasterio.open(list(i.keys())[0]) for i in group_b]
         for idx, raster_dict in enumerate(group_b):
             with rasterio.open(list(raster_dict.keys())[0], "r") as src:
                 if idx == 0:
                     merged_group_b = src.read(1, masked=True)
+                    out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster, a or b.
                 else:
                     merged_group_b = np.ma.sum([merged_group_b, src.read(1, masked=True)], axis=0)
 
@@ -123,22 +124,14 @@ def sum_rasters(rasters_to_sum: list[dict], final_raster_name: str) -> str:
     else:
         raise InvalidSuitabilityRasterInput("No rasters to sum, exiting.")
 
+    # Force values to fit in the int8 datatype.
     summed_raster = np.ma.clip(
         summed_raster, Config.FINAL_RASTER_VALUE_LIMIT_LOWER, Config.FINAL_RASTER_VALUE_LIMIT_UPPER
     )
-    # mask with project area to set all values outside the mask to nodata again.
-    # mask, _, _ = rasterio.mask.raster_geometry_mask(
-    #     src_files_to_mosaic[0],  # TODO replace
-    #     [gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry],
-    # )
-    # summed_raster[mask] = Config.FINAL_RASTER_NO_DATA
 
-    # TODO experiment with replacing the nodata to np.inf during the lcpa part. During loading the raster in load.py. Although I think it already ignores negative values?
-    # TODO add nodata for final raster as config variable, reuse this for LCPA
-    out_meta = src_files_to_mosaic[0].meta.copy()
     out_meta.update(
         {
-            "dtype": "uint8",
+            "dtype": "int8",
             "compress": "lzw",
             "tiled": True,
             "blockxsize": Config.RASTER_BLOCK_SIZE,

@@ -4,7 +4,7 @@ from src.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
 
-from src.models.mcda.mcda_rasterizing import rasterize_vector_data, sum_rasters
+from src.models.mcda.mcda_rasterizing import rasterize_vector_data, process_rasters
 
 logger = structlog.get_logger(__name__)
 
@@ -52,5 +52,5 @@ class McdaCostSurfaceEngine:
             )
             rasters_to_sum.append({path_raster: self.raster_preset.criteria[criterion].group})
 
-        path_suitability_raster = sum_rasters(rasters_to_sum, self.raster_preset.general.final_raster_name)
+        path_suitability_raster = process_rasters(rasters_to_sum, self.raster_preset.general.final_raster_name)
         return path_suitability_raster
