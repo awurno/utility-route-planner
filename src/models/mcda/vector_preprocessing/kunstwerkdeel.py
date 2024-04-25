@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 
 class Kunstwerkdeel(VectorPreprocessorBase):
-    criterion = "Kunstwerkdeel"
+    criterion = "kunstwerkdeel"
 
     def specific_preprocess(self, input_gdf: list, criterion: RasterPresetCriteria) -> gpd.GeoDataFrame:
         input_gdf = self._set_suitability_values(input_gdf[0], criterion.weight_values)  # we only have 1 layer.
