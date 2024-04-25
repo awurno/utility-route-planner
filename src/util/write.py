@@ -68,7 +68,7 @@ def _get_writing_mode_geopackage(filename, path_geopackage):
         mode = "w"
     else:
         # if layer does not exist, create a new one. Otherwise, append.
-        existing_layers = [layername for layername in fiona.listlayers(path_geopackage)]
+        existing_layers = [layer_name for layer_name in fiona.listlayers(path_geopackage)]
         if filename in existing_layers:
             mode = "a"
         else:
