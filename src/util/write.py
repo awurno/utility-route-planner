@@ -26,10 +26,10 @@ def reset_geopackage(path_geopackage: pathlib.Path, truncate=True) -> None:
     """
     Clean start, delete or truncate result geopackage to write to.
     """
-    logger.info("Resetting existing geopackage result file for a clean start.")
+    logger.info(f"Resetting geopackage {path_geopackage} for a clean start.")
     if os.path.exists(path_geopackage):
         if truncate:
-            existing_layers = [layername for layername in fiona.listlayers(path_geopackage)]
+            existing_layers = [layer_name for layer_name in fiona.listlayers(path_geopackage)]
             for layer_name in existing_layers:
                 gdf = gpd.read_file(path_geopackage, layer=layer_name)
                 if gdf.empty:
