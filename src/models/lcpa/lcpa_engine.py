@@ -26,7 +26,7 @@ class LcpaUtilityRouteEngine:
         self.preprocess_input_linestring(raster_geotransform, utility_route_sketch)
         # Creates path array and the respective sequence as numpy array indices.
         cost_path, cost_path_indices = self.calculate_least_cost_path(raster_array, self.route_model)
-        # Converts path array to raster and linestring
+        # Converts path array to raster and linestring.
         linestring = array_indices_to_linestring(raster_geotransform, cost_path_indices)
         # The linestring is the result of a vectorized raster, which results in a jagged shape. Smooth this.
         linestring_aligned = align_linestring(linestring, Config.RASTER_CELL_SIZE)
