@@ -1,10 +1,13 @@
 import pytest
 import shapely
 
+from src.models.lcpa.lcpa_datastructures import LcpaInputModel
+from src.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from src.models.lcpa.lcpa_main import get_lcpa_utility_route
 from settings import Config
 from src.util.write import reset_geopackage
 import geopandas as gpd
+import numpy as np
 
 
 @pytest.fixture
@@ -62,14 +65,83 @@ class TestUtilityRoutes:
         for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
 
-    # TODO make this a bit better with a small example raster
-    def test_get_utility_route_larger_area_with_no_data(self):
-        project_area = gpd.read_file(Config.BASEDIR / "data/processed/testing_area_for_nodata.geojson").iloc[0].geometry
-        lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
-            utility_route_sketch=shapely.LineString([(190799.841, 462929.722), (190833.512, 462902.776)]),
-            project_area=project_area,
-        )
 
-        for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
-            assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
+@pytest.fixture
+def setup_lcpa_engine():
+    yield LcpaUtilityRouteEngine()
+
+
+class TestShortestPath:
+    @pytest.mark.parametrize(
+        "valid_input",
+        [
+            [
+                np.array(
+                    [
+                        [1, 1, 1, 1, 1],
+                        [1, 1, 1, 1, 1],
+                        [1, 1, 1, 1, 1],
+                        [1, 1, 1, 1, 1],
+                        [1, 1, 1, 1, 1],
+                    ]
+                ),
+                [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)],
+            ],
+            [
+                np.array(
+                    [
+                        [1, -1, -1, -1, 1],
+                        [1, -1, -1, -1, 1],
+                        [1, -1, -1, -1, 1],
+                        [1, -1, -1, -1, 1],
+                        [1, 1, 1, 1, 1],
+                    ]
+                ),
+                [(0, 0), (1, 0), (2, 0), (3, 0), (4, 1), (4, 2), (4, 3), (4, 4)],
+            ],
+        ],
+    )
+    def test_get_easy_utility_route(self, setup_lcpa_engine, valid_input):
+        lcpa_engine = setup_lcpa_engine
+        input_model = LcpaInputModel(
+            shapely.LineString([[0, 0], [4, -4]]),  # Note the negative y due to rasters starting from top-left side.
+            tuple([0, 1, 0, 0, 0, -1]),
+        )
+        array, expected_indices = valid_input
+        _, indices = lcpa_engine.calculate_least_cost_path(array, input_model)
+        assert indices == expected_indices
+
+    # numpy array which is not connected through valid values
+    @pytest.mark.parametrize(
+        "invalid_input",
+        [
+            np.array(
+                [
+                    [1, 1, -1, 1, 1],
+                    [1, 1, -1, 1, 1],
+                    [1, 1, -1, 1, 1],
+                    [1, 1, -1, 1, 1],
+                    [1, 1, -1, 1, 1],
+                ]
+            ),
+            # Diagonals need to be at least 2 wide.
+            np.array(
+                [
+                    [1, 1, 1, 1, -1],
+                    [1, 1, 1, -1, -1],
+                    [1, 1, -1, -1, 1],
+                    [1, -1, -1, 1, 1],
+                    [-1, -1, 1, 1, 1],
+                ]
+            ),
+        ],
+    )
+    def test_get_utility_route_which_is_unsolvable_due_to_no_data(self, setup_lcpa_engine, invalid_input):
+        lcpa_engine = setup_lcpa_engine
+
+        input_model = LcpaInputModel(
+            shapely.LineString([[0, 0], [4, -4]]),  # Note the negative y due to rasters starting from top-left side.
+            tuple([0, 1, 0, 0, 0, -1]),
+        )
+        with pytest.raises(ValueError):
+            lcpa_engine.calculate_least_cost_path(invalid_input, input_model)
