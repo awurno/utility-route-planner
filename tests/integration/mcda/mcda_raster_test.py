@@ -7,7 +7,7 @@ import numpy as np
 
 from settings import Config
 from src.models.mcda.exceptions import RasterCellSizeTooSmall, InvalidSuitabilityRasterInput, InvalidGroupValue
-from src.models.mcda.mcda_rasterizing import rasterize_vector_data, sum_rasters
+from src.models.mcda.mcda_rasterizing import rasterize_vector_data, process_rasters
 
 
 def test_rasterize_vector_data_cell_size_error():
@@ -193,7 +193,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         )
         rasters_to_merge.append({path_raster: i[0]})
 
-    path_suitability_raster = sum_rasters(rasters_to_merge, "pytest_suitability_raster")
+    path_suitability_raster = process_rasters(rasters_to_merge, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
@@ -207,9 +207,9 @@ def test_sum_rasters(monkeypatch, debug=False):
 @pytest.mark.parametrize("invalid_input", [[{"key": "c"}], [{"key": "c"}, {"key": "b"}]])
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        sum_rasters(invalid_input, "pytest")
+        process_rasters(invalid_input, "pytest")
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        sum_rasters([], "pytest")
+        process_rasters([], "pytest")
