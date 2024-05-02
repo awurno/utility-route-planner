@@ -71,8 +71,6 @@ class TestCriteriaInput:
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER + 1,
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER,
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER - 1,
-            True,
-            False,
         ],
     )
     def test_correct_weight_values(self, valid_input):
@@ -86,6 +84,8 @@ class TestCriteriaInput:
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER + 1,
             1.02,
             "str",
+            True,
+            False,
         ],
     )
     def test_invalid_weight_values(self, invalid_input):
