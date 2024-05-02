@@ -28,6 +28,7 @@ class VectorPreprocessorBase(abc.ABC):
         """Name of the criterion"""
 
     def execute(self, general: RasterPresetGeneral, criterion: RasterPresetCriteria) -> tuple[bool, gpd.GeoDataFrame]:
+        """Run all methods in order for a criteria returning the processed geodataframe with suitability values."""
         start = datetime.datetime.now()
         logger.info(f"Start preprocessing: {self.criterion}.")
 
@@ -47,7 +48,6 @@ class VectorPreprocessorBase(abc.ABC):
         project_area: shapely.MultiPolygon, criterion: RasterPresetCriteria
     ) -> list[gpd.GeoDataFrame]:
         """Check existing layers in geopackage / clip data / check if gdf is empty"""
-        # load and clip data
         prepared_input = []
         for layer_name in criterion.layer_names:
             gdf = gpd.read_file(
@@ -73,16 +73,15 @@ class VectorPreprocessorBase(abc.ABC):
         """Subclasses must implement this abstract method which contains logic for handling the criteria."""
 
     def validate_result(self, processed_gdf: gpd.GeoDataFrame) -> None:
-        """Validate the result if all values are set and within expected tolerances."""
-        # Check if the placeholder value got overwritten.
+        """Validate the result if all features were assigned a valid suitability value."""
         try:
             processed_gdf.astype({"suitability_value": int}, errors="raise")
         except ValueError:
             logger.error(
-                f"Suitability value is invalid rows: {processed_gdf.loc[~processed_gdf['suitability_value'].astype(str).str.isnumeric()]}. Check mcda_presets.yaml for criteria: {self.criterion}."
+                f"Suitability value is invalid rows: {processed_gdf.loc[~processed_gdf['suitability_value'].astype(str).str.isnumeric()]}. Check mcda_presets.yaml or preprocessing function for criteria: {self.criterion}."
             )
             raise InvalidSuitabilityValue
 
     def write_to_file(self, prefix, validated_gdf: gpd.GeoDataFrame) -> None:
-        """Write to the geopackage."""
+        """Write to the geopackage for debugging and rasterizing."""
         write_results_to_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, validated_gdf, prefix + self.criterion)
