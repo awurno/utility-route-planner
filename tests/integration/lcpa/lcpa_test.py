@@ -18,52 +18,55 @@ def setup_clean_start(monkeypatch):
 
 @pytest.mark.usefixtures("setup_clean_start")
 class TestUtilityRoutes:
-    def test_get_utility_route_small_area(self):
+    @pytest.mark.parametrize(
+        "utility_route_sketch",
+        [
+            [(174753.97, 451038.03), (175775.00, 450411.52)],
+            [(174998.02, 451155.50), (174815.78, 450568.64), (175775.00, 450411.52)],
+        ],
+    )
+    def test_get_utility_routes(self, utility_route_sketch):
         lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
-            utility_route_sketch=shapely.LineString([(193077.740, 466510.697), (193031.551, 466474.721)]),
+            path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
+            utility_route_sketch=shapely.LineString(utility_route_sketch),
         )
 
         # Check that the input points are present in the result.
         for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
 
-    def test_get_utility_route_small_area_with_project_area(self):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING).iloc[0].geometry
+    @pytest.mark.parametrize(
+        "utility_route_sketch",
+        [
+            [(174972.16, 450998.87), (175089.39, 450889.53)],
+            [(174966.75, 450896.42), (174968.96, 450846.43), (174912.32, 450837.07)],
+        ],
+    )
+    def test_get_utility_route_with_smaller_project_area(self, utility_route_sketch):
+        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry.buffer(-200)
         lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
-            utility_route_sketch=shapely.LineString([(193077.740, 466510.697), (193031.551, 466474.721)]),
+            path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
+            utility_route_sketch=shapely.LineString(utility_route_sketch),
             project_area=project_area,
         )
 
         for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
             assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
 
-    def test_get_utility_route_with_intermediate_stops_small_area(self):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING).iloc[0].geometry
-        lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
-            utility_route_sketch=shapely.LineString(
-                [(193077.740, 466510.697), (193043.338, 466490.707), (193055.374, 466489.049), (193031.551, 466474.721)]
-            ),
-            project_area=project_area,
-        )
-
-        for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
-            assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
-
-    def test_get_utility_route_larger_area_with_project_area(self):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_APELDOORN_SMALL).iloc[0].geometry
-        lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_APELDOORN,
-            utility_route_sketch=shapely.LineString(
-                [(193077.740, 466510.697), (193262.94, 466507.51), (193383.28, 466452.02)]
-            ),
-            project_area=project_area,
-        )
-
-        for route_point in lcpa_engine.route_model.route_points.geometry.tolist():
-            assert lcpa_engine.lcpa_result.dwithin(route_point, Config.RASTER_CELL_SIZE)
+    @pytest.mark.parametrize(
+        "utility_route_sketch",
+        [
+            [(174922.17, 450595.98), (175106.38, 450753.59)],  # start in no data, end valid
+            [(174770.47, 450766.39), (174933.99, 450615.68)],  # start in valid, end in no data
+            [(174841.39, 450793.98), (174941.87, 450635.38), (175199.96, 450783.14)],  # start valid, invalid, end valid
+        ],
+    )
+    def test_invalid_utility_route_outside_raster(self, utility_route_sketch):
+        with pytest.raises(ValueError):
+            get_lcpa_utility_route(
+                path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
+                utility_route_sketch=shapely.LineString(utility_route_sketch),
+            )
 
 
 @pytest.fixture

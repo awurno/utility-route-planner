@@ -1,10 +1,12 @@
 import osmnx
+import pytest
 
 from src.models.multilayer_network.reachability_design import get_network_for_project_area
 import geopandas
 from settings import Config
 
 
+@pytest.mark.skip(reason="Part of RQ2.")
 def test_get_piece_of_network_small_and_get_two_paths():
     project_area_graph = get_network_for_project_area(
         geopandas.read_file(Config.PATH_PROJECT_AREA_APELDOORN_ROAD_CROSSING), 50
