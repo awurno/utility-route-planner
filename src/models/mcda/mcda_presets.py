@@ -380,7 +380,6 @@ preset_collection = {
                     "kering": 25,  # Dykes, all other features in this layer are removed.
                 },
             },
-            # TODO make it so that the tests are set to the geopackage of Ede.
             "excluded_area": {
                 "description": "Area to exclude were no utility network can be placed, often drawn manually.",
                 "layer_names": ["area_to_exclude"],
