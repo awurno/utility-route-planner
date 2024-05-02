@@ -2,6 +2,7 @@ from settings import Config
 import geopandas as gpd
 
 from src.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from src.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
 from src.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
 from src.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
 from src.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
@@ -29,7 +30,6 @@ preset_collection = {
                 "description": "Information on water.",
                 "layer_names": ["bgt_waterdeel_V"],
                 "preprocessing_function": Waterdeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # Column "class"
@@ -54,7 +54,6 @@ preset_collection = {
                 "description": "Information on roads.",
                 "layer_names": ["bgt_wegdeel_V"],
                 "preprocessing_function": Wegdeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # Column "bgt_functie"
@@ -87,7 +86,6 @@ preset_collection = {
                 "description": "Complementary information on roads.",
                 "layer_names": ["bgt_ondersteunendwegdeel_V"],
                 "preprocessing_function": OndersteunendWegdeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # bgt_functie
@@ -106,7 +104,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_onbegroeidterreindeel_V"],
                 "preprocessing_function": OnbegroeidTerreindeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # bgt_fysiekvoorkomen
@@ -123,7 +120,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_begroeidterreindeel_V"],
                 "preprocessing_function": BegroeidTerreindeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # bgt_fysiekvoorkomen
@@ -168,7 +164,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_ondersteunendwaterdeel_V"],
                 "preprocessing_function": OndersteunendWaterdeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # bgt_type
@@ -181,7 +176,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_pand_V"],
                 "preprocessing_function": Pand(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {"pand": 125},
             },
@@ -190,7 +184,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_overigbouwwerk_V"],
                 "preprocessing_function": OverigBouwwerk(),
-                "constraint": False,
                 "group": "b",
                 "weight_values": {
                     # bgt_type
@@ -221,7 +214,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_kunstwerkdeel_V"],
                 "preprocessing_function": Kunstwerkdeel(),
-                "constraint": False,
                 "group": "a",
                 "weight_values": {
                     # bgt_type
@@ -259,7 +251,6 @@ preset_collection = {
                     "bgt_straatmeubilair_P",
                 ],
                 "preprocessing_function": SmallAboveGroundObstacles(),
-                "constraint": False,
                 "group": "b",
                 "weight_values": {
                     # scheiding: bgt_type
@@ -368,7 +359,6 @@ preset_collection = {
                 "description": "placeholder",
                 "layer_names": ["bgt_vegetatieobject_P", "bgt_vegetatieobject_V"],
                 "preprocessing_function": VegetationObject(),
-                "constraint": False,
                 "group": "b",
                 "weight_values": {
                     # plus_type
@@ -381,17 +371,28 @@ preset_collection = {
             "protected_area": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
                 # TODO Natura2000
-                "description": "placeholder",
+                "description": "Protected area such as dykes and nature which may have additional rules or policies.",
                 "layer_names": ["bgt_functioneelgebied_V"],
                 "preprocessing_function": ProtectedArea(),
-                "constraint": False,
                 "group": "b",
                 "weight_values": {
                     # bgt_type
-                    "kering": 25,  # Dykes, delete all other records
+                    "kering": 25,  # Dykes, all other features in this layer are removed.
                 },
             },
-            # TODO add area to exclude
+            # TODO restructure tests of mcda vector/raster.
+            # TODO make it so that the tests are set to the geopackage of Ede.
+            "excluded_area": {
+                "description": "Area to exclude were no utility network can be placed.",
+                "layer_names": ["area_to_exclude"],
+                "preprocessing_function": ExcludedArea(),
+                # TODO change so that we have group a, b, c. Respectively: painters algo, enhancers, constraints (bool). Remove all constraint options
+                "group": "c",
+                "weight_values": {
+                    # These values do not matter as group c determines that everything is excluded.
+                    "constraint": True,
+                },
+            },
         },
     },
 }

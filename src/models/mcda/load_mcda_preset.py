@@ -25,7 +25,6 @@ class RasterPresetCriteria(pydantic.BaseModel):
 
     description: str = pydantic.Field(description="Description of the criteria.")
     layer_names: list = pydantic.Field(description="Layer names in the geopackage which will be handled.")
-    constraint: bool = pydantic.Field(description="Determines how the criteria is handled.")
     preprocessing_function: VectorPreprocessorBase
     group: str = pydantic.Field(description="Determines how the criteria is handled.")
     weight_values: dict = pydantic.Field(..., description="Contains values for defining how important the layer is.")
@@ -59,6 +58,10 @@ class RasterPresetCriteria(pydantic.BaseModel):
     @staticmethod
     def validate_weights(weight_values):
         for name, weight in weight_values.items():
+            if not isinstance(weight, int) and not isinstance(weight, bool):
+                raise InvalidSuitabilityValue(
+                    f"{name} has an invalid value of {weight}. Expected int or bool, received {type(weight)}"
+                )
             if (
                 not Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
                 <= weight
@@ -70,8 +73,8 @@ class RasterPresetCriteria(pydantic.BaseModel):
 
     @staticmethod
     def validate_group(group):
-        if group not in ["a", "b"]:
-            raise InvalidGroupValue("Group must be 'a' or 'b'.")
+        if group not in ["a", "b", "c"]:
+            raise InvalidGroupValue(f"Group must be 'a', 'b' or 'c'. Received: {group}")
 
     @functools.cached_property
     def get_existing_layers_geopackage(self) -> list:

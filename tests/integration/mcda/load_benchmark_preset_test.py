@@ -57,18 +57,22 @@ def setup_raster_preset_dummy():
 class TestCriteriaInput:
     def test_invalid_group(self):
         with pytest.raises(InvalidGroupValue):
-            RasterPresetCriteria.validate_group("c")
+            RasterPresetCriteria.validate_group("d")
 
     def test_correct_group(self):
         RasterPresetCriteria.validate_group("a")
         RasterPresetCriteria.validate_group("b")
+        RasterPresetCriteria.validate_group("c")
 
     @pytest.mark.parametrize(
         "valid_input",
         [
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER,
+            Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER + 1,
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER,
             Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER - 1,
+            True,
+            False,
         ],
     )
     def test_correct_weight_values(self, valid_input):
@@ -77,7 +81,12 @@ class TestCriteriaInput:
 
     @pytest.mark.parametrize(
         "invalid_input",
-        [Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER - 1, Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER + 1],
+        [
+            Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER - 1,
+            Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER + 1,
+            1.02,
+            "str",
+        ],
     )
     def test_invalid_weight_values(self, invalid_input):
         with pytest.raises(InvalidSuitabilityValue):
