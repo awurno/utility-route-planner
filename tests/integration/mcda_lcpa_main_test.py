@@ -10,7 +10,7 @@ from src.util.write import reset_geopackage, write_results_to_geopackage
 @pytest.fixture
 def setup_mcda_lcpa_testing(monkeypatch):
     reset_geopackage(Config.PATH_LCPA_GEOPACKAGE)
-    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE)
+    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, truncate=False)
     monkeypatch.setattr(Config, "DEBUG", True)
 
 
