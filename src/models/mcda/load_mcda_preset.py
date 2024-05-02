@@ -58,7 +58,7 @@ class RasterPresetCriteria(pydantic.BaseModel):
     @staticmethod
     def validate_weights(weight_values):
         for name, weight in weight_values.items():
-            if not type(weight) == int:  # # noqa: E721
+            if not type(weight) == int:  # noqa: E721
                 raise InvalidSuitabilityValue(
                     f"{name} has an invalid value of {weight}. Expected int, received {type(weight)}"
                 )
