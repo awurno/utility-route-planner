@@ -80,11 +80,12 @@ def process_rasters(rasters_to_process: list[dict], final_raster_name: str) -> s
     List of rasters to sum and their respective group.
 
     Criteria in group a: highest value in group a is leading.
-    Criteria in group b: Values in group b are added to group a.
-
+    Criteria in group b: values in group b are added or subtracted to group a if present.
+    Criteria in group c: mark as no data if present, overruling group a and b.
     """
     logger.info(f"Starting summing {len(rasters_to_process)} rasters into the final cost surface.")
 
+    # Split groups and process accordingly prior to summing all together.
     group_a, group_b, group_c = [], [], []
     for raster_dict in rasters_to_process:
         for key in raster_dict:
@@ -96,36 +97,13 @@ def process_rasters(rasters_to_process: list[dict], final_raster_name: str) -> s
                 group_c.append(raster_dict)
             else:
                 raise InvalidGroupValue(f"Invalid group value encountered during raster processing: {raster_dict[key]}")
-    # TODO refactor with less redundant parts
-    # TODO do some checks that we have atleast a or b, optionally c.
-    # Use numpy masks to ignore the nodata values in the computations.
-    merged_group_a, merged_group_b, merged_group_c = [], [], []
+
     if len(group_a) > 0:
-        for idx, raster_dict in enumerate(group_a):
-            with rasterio.open(list(raster_dict.keys())[0], "r") as src:
-                if idx == 0:
-                    merged_group_a = src.read(1, masked=True)
-                    out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster, a or b.
-                else:
-                    merged_group_a = np.ma.max(np.ma.stack((merged_group_a, src.read(1, masked=True)), axis=0), axis=0)
-
+        merged_group_a, out_meta = process_raster_groups(group_a, "max")
     if len(group_b) > 0:
-        for idx, raster_dict in enumerate(group_b):
-            with rasterio.open(list(raster_dict.keys())[0], "r") as src:
-                if idx == 0:
-                    merged_group_b = src.read(1, masked=True)
-                    out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster, a or b.
-                else:
-                    merged_group_b = np.ma.sum([merged_group_b, src.read(1, masked=True)], axis=0)
-
+        merged_group_b, out_meta = process_raster_groups(group_b, "sum")
     if len(group_c) > 0:
-        for idx, raster_dict in enumerate(group_c):
-            with rasterio.open(list(raster_dict.keys())[0], "r") as src:
-                if idx == 0:
-                    merged_group_c = src.read(1, masked=True)
-                else:
-                    # Actual array values do not matter here as only the mask is used.
-                    merged_group_c = np.ma.sum([merged_group_c, src.read(1, masked=True)], axis=0)
+        merged_group_c, _ = process_raster_groups(group_c, "sum")
 
     if len(group_b) > 0 and len(group_a) > 0:
         summed_raster = np.ma.sum([merged_group_a, merged_group_b], axis=0)
@@ -160,3 +138,25 @@ def process_rasters(rasters_to_process: list[dict], final_raster_name: str) -> s
         dest.write(np.ma.filled(summed_raster, Config.FINAL_RASTER_NO_DATA), 1)
 
     return final_raster_path.__str__()
+
+
+def process_raster_groups(group: list, method: str) -> tuple:
+    """Per group, process the criteria arrays."""
+    # Use numpy masks to ignore the nodata values in the computations.
+    merged_group = []
+    for idx, raster_dict in enumerate(group):
+        with rasterio.open(list(raster_dict.keys())[0], "r") as src:
+            if idx == 0:
+                merged_group = src.read(1, masked=True)
+                out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster.
+            else:
+                match method:
+                    case "sum":
+                        merged_group = np.ma.sum([merged_group, src.read(1, masked=True)], axis=0)
+                    case "max":
+                        merged_group = np.ma.max(np.ma.stack((merged_group, src.read(1, masked=True)), axis=0), axis=0)
+                    case _:
+                        raise InvalidSuitabilityRasterInput(
+                            f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
+                        )
+    return merged_group, out_meta

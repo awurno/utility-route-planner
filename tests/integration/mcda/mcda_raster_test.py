@@ -264,7 +264,7 @@ def test_sum_rasters(monkeypatch, debug=False):
             assert values[0][0] == row.expected_suitability_value
 
 
-@pytest.mark.parametrize("invalid_input", [[{"key": "c"}], [{"key": "c"}, {"key": "b"}]])
+@pytest.mark.parametrize("invalid_input", [[{"key": "d"}], [{"key": "f"}], [{"key": "e"}, {"key": "d"}]])
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
         process_rasters(invalid_input, "pytest")
