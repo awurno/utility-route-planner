@@ -19,7 +19,7 @@ preset_collection = {
     "preset_benchmark_raw": {
         "general": {
             "description": "Preset used for benchmark results.",
-            "prefix": "b_",
+            "prefix": "bm_",
             "final_raster_name": "benchmark_suitability_raster",
             "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
         },
@@ -370,7 +370,7 @@ preset_collection = {
             },
             "protected_area": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
-                # TODO Natura2000
+                # TODO Natura2000 and create test in mcda_vector_raster_test.py
                 "description": "Protected area such as dykes and nature which may have additional rules or policies.",
                 "layer_names": ["bgt_functioneelgebied_V"],
                 "preprocessing_function": ProtectedArea(),
@@ -383,14 +383,14 @@ preset_collection = {
             # TODO restructure tests of mcda vector/raster.
             # TODO make it so that the tests are set to the geopackage of Ede.
             "excluded_area": {
-                "description": "Area to exclude were no utility network can be placed.",
+                "description": "Area to exclude were no utility network can be placed, often drawn manually.",
                 "layer_names": ["area_to_exclude"],
                 "preprocessing_function": ExcludedArea(),
                 # TODO change so that we have group a, b, c. Respectively: painters algo, enhancers, constraints (bool). Remove all constraint options
                 "group": "c",
                 "weight_values": {
-                    # These values do not matter as group c determines that everything is excluded.
-                    "constraint": True,
+                    # The weight value does not matter as group c determines that all features are excluded.
+                    "constraint": 1,
                 },
             },
         },

@@ -7,7 +7,36 @@ import numpy as np
 
 from settings import Config
 from src.models.mcda.exceptions import RasterCellSizeTooSmall, InvalidSuitabilityRasterInput, InvalidGroupValue
+from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from src.models.mcda.mcda_presets import preset_collection
 from src.models.mcda.mcda_rasterizing import rasterize_vector_data, process_rasters
+from src.util.write import reset_geopackage
+
+
+@pytest.fixture
+def setup_clean_start(monkeypatch):
+    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, truncate=False)
+
+
+@pytest.mark.usefixtures("setup_clean_start")
+class TestRasterPreprocessing:
+    def test_preprocess_single_raster(self):
+        preset_to_load = {
+            "general": preset_collection["preset_benchmark_raw"]["general"],
+            "criteria": {
+                "small_above_ground_obstacles": preset_collection["preset_benchmark_raw"]["criteria"][
+                    "small_above_ground_obstacles"
+                ],
+            },
+        }
+        mcda_engine = McdaCostSurfaceEngine(preset_to_load)
+        mcda_engine.preprocess_vectors()
+        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+
+    def test_preprocess_all_rasters(self):
+        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
+        mcda_engine.preprocess_vectors()
+        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
 
 
 def test_rasterize_vector_data_cell_size_error():
@@ -149,6 +178,26 @@ def test_sum_rasters(monkeypatch, debug=False):
         crs=Config.CRS,
         columns=["suitability_value", "geometry"],
     )
+    # 5. group c - overlapping a1
+    criterion_c_1 = gpd.GeoDataFrame(
+        data=[
+            [1, shapely.Polygon([[174729, 451158], [174940, 451115], [174841, 451195], [174729, 451158]])],
+            [10, shapely.Polygon([[174915, 451128], [174924, 451135], [174926, 451109], [174915, 451128]])],
+        ],
+        geometry="geometry",
+        crs=Config.CRS,
+        columns=["suitability_value", "geometry"],
+    )
+    # 6. group c - overlapping b1 and c1
+    criterion_c_2 = gpd.GeoDataFrame(
+        data=[
+            [1, shapely.Polygon([[175090, 450906], [175103, 450905], [175096, 450918], [175090, 450906]])],
+            [39, shapely.Polygon([[174811, 451226], [174834, 451155], [174909, 451174], [174811, 451226]])],
+        ],
+        geometry="geometry",
+        crs=Config.CRS,
+        columns=["suitability_value", "geometry"],
+    )
     points_to_sample = gpd.GeoDataFrame(
         data=[
             [1, 14, shapely.Point(175090.35, 450911.67)],  # overlap between b1 and b2
@@ -164,6 +213,13 @@ def test_sum_rasters(monkeypatch, debug=False):
                 shapely.Point(174763.32, 451347.41),
             ],  # out of the project area, within extent
             [9, 1, shapely.Point(174833.90, 451067.57)],  # b1 and a1 sum is 0 here, reset to a valid value of 1.
+            [10, Config.FINAL_RASTER_NO_DATA, shapely.Point(174878.65, 451132.89)],  # c1 overlaps a1
+            [11, Config.FINAL_RASTER_NO_DATA, shapely.Point(174799.54, 451170.54)],  # c1
+            [12, Config.FINAL_RASTER_NO_DATA, shapely.Point(174921.44, 451123.59)],  # c1 overlapping c1
+            [13, Config.FINAL_RASTER_NO_DATA, shapely.Point(174745.32, 451159.41)],  # c1 outside the project area
+            [14, Config.FINAL_RASTER_NO_DATA, shapely.Point(175092.267, 450908.932)],  # c2 overlapping b2
+            [15, Config.FINAL_RASTER_NO_DATA, shapely.Point(175097.673, 450912.390)],  # c2 overlapping b2, a1
+            [16, Config.FINAL_RASTER_NO_DATA, shapely.Point(174847.32, 451177.96)],  # c2 overlapping c1
         ],
         geometry="geometry",
         crs=Config.CRS,
@@ -175,6 +231,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         criterion_a_2.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_a2.geojson")
         criterion_b_1.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_b1.geojson")
         criterion_b_2.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_b2.geojson")
+        criterion_c_1.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_c1.geojson")
+        criterion_c_2.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_c2.geojson")
         points_to_sample.to_file(Config.PATH_RESULTS / "pytest_sum_points_to_sample.geojson")
 
     rasters_to_merge = []
@@ -183,6 +241,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         ["a", criterion_a_2, "criterion_a2"],
         ["b", criterion_b_1, "criterion_b1"],
         ["b", criterion_b_2, "criterion_b2"],
+        ["c", criterion_c_1, "criterion_c1"],
+        ["c", criterion_c_2, "criterion_c2"],
     ]:
         path_raster = rasterize_vector_data(
             "pytest_",

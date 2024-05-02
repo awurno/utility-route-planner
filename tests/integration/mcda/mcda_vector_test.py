@@ -29,13 +29,17 @@ def setup_clean_start(monkeypatch):
 
 @pytest.mark.usefixtures("setup_clean_start")
 class TestVectorPreprocessing:
-    def test_process_vector_criteria_waterdeel(self):
+    def test_process_single_vector_criteria_waterdeel(self):
         # Filter the preset to only 1 criterion.
         preset_to_load = {
             "general": preset_collection["preset_benchmark_raw"]["general"],
             "criteria": {"waterdeel": preset_collection["preset_benchmark_raw"]["criteria"]["waterdeel"]},
         }
         mcda_engine = McdaCostSurfaceEngine(preset_to_load)
+        mcda_engine.preprocess_vectors()
+
+    def test_process_all_vectors(self):
+        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
         mcda_engine.preprocess_vectors()
 
     def test_process_waterdeel(self):
@@ -1063,28 +1067,3 @@ class TestVectorPreprocessing:
         assert reclassified_gdf.is_empty.value_counts().get(False) == 2
         assert reclassified_gdf.is_empty.value_counts().get(True) is None
         assert reclassified_gdf.geom_type.unique().tolist() == ["Polygon"]
-
-    def test_process_all_vectors(self):
-        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
-        mcda_engine.preprocess_vectors()
-
-
-@pytest.mark.usefixtures("setup_clean_start")
-class TestRasterPreprocessing:
-    def test_preprocess_single_raster(self):
-        preset_to_load = {
-            "general": preset_collection["preset_benchmark_raw"]["general"],
-            "criteria": {
-                "small_above_ground_obstacles": preset_collection["preset_benchmark_raw"]["criteria"][
-                    "small_above_ground_obstacles"
-                ],
-            },
-        }
-        mcda_engine = McdaCostSurfaceEngine(preset_to_load)
-        mcda_engine.preprocess_vectors()
-        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
-
-    def test_preprocess_all_rasters(self):
-        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
-        mcda_engine.preprocess_vectors()
-        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
