@@ -75,9 +75,9 @@ def rasterize_vector_data(
     return path_raster.__str__()
 
 
-def process_rasters(rasters_to_process: list[dict], final_raster_name: str) -> str:
+def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: str) -> str:
     """
-    List of rasters to sum and their respective group.
+    List of rasters to combine and their respective group.
 
     Criteria in group a: highest value in group a is leading.
     Criteria in group b: values in group b are added or subtracted to group a if present.

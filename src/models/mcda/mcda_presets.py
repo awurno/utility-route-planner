@@ -380,13 +380,11 @@ preset_collection = {
                     "kering": 25,  # Dykes, all other features in this layer are removed.
                 },
             },
-            # TODO restructure tests of mcda vector/raster.
             # TODO make it so that the tests are set to the geopackage of Ede.
             "excluded_area": {
                 "description": "Area to exclude were no utility network can be placed, often drawn manually.",
                 "layer_names": ["area_to_exclude"],
                 "preprocessing_function": ExcludedArea(),
-                # TODO change so that we have group a, b, c. Respectively: painters algo, enhancers, constraints (bool). Remove all constraint options
                 "group": "c",
                 "weight_values": {
                     # The weight value does not matter as group c determines that all features are excluded.

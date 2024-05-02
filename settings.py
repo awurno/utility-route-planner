@@ -24,7 +24,7 @@ class Config:
     # Cap final data to the int8 datatype.
     FINAL_RASTER_VALUE_LIMIT_LOWER = 1
     FINAL_RASTER_VALUE_LIMIT_UPPER = 126
-    PATH_INPUT_MCDA_GEOPACKAGE = BASEDIR / "data/examples/ede.gpkg"
+    PATH_INPUT_MCDA_GEOPACKAGE = BASEDIR / "data/examples/ede433.gpkg"
     PATH_OUTPUT_MCDA_GEOPACKAGE = BASEDIR / "data/processed/mcda_output.gpkg"
 
     # LCPA
