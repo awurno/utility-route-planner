@@ -4,6 +4,7 @@ import pytest
 from settings import Config
 from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from src.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from src.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
 from src.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
 from src.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
 from src.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
@@ -1036,6 +1037,32 @@ class TestVectorPreprocessing:
             check_dtype=False,
             check_index=False,
         )
+
+    def test_excluded_area(self):
+        weight_values = {
+            "constraint": 1,
+        }
+        gdf_1 = gpd.GeoDataFrame(
+            [
+                ["the mayors back garden", shapely.Polygon([[1, 1], [0, 0], [1, 0], [1, 1]])],
+                ["a very nice park", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],
+            ],
+            columns=["description", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = ExcludedArea._set_suitability_values(gdf_1, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"],
+            pd.Series([1, 1]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        assert reclassified_gdf.is_empty.value_counts().get(False) == 2
+        assert reclassified_gdf.is_empty.value_counts().get(True) is None
+        assert reclassified_gdf.geom_type.unique().tolist() == ["Polygon"]
 
     def test_process_all_vectors(self):
         mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
