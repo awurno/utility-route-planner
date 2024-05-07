@@ -8,7 +8,7 @@ Building docker image:
 
 `docker build -f ./docker/Dockerfile -t utility-route-planner:latest .`
 
-# license
+# License
 utility-route-designer is under: [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 The software is largely depended on data. Data incorporated in the example folder and their respective licenses are:
