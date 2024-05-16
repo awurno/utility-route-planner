@@ -16,7 +16,14 @@ def setup_mcda_lcpa_testing(monkeypatch):
 
 @pytest.mark.usefixtures("setup_mcda_lcpa_testing")
 class TestMcdaLcpaChain:
-    def test_mcda_lcpa_chain_default(self):
+    @pytest.mark.parametrize(
+        "utility_route_sketch",
+        (
+            [(174896.9, 451130.5), (175279.7, 450519.6)],
+            [(174896.9, 451130.5), (174968.1, 450985.7), (174975.1, 450731.1), (175279.7, 450519.6)],
+        ),
+    )
+    def test_mcda_lcpa_chain_default(self, utility_route_sketch):
         mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
         mcda_engine.preprocess_vectors()
         path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -25,6 +32,6 @@ class TestMcdaLcpaChain:
         lcpa_engine.get_lcpa_route(
             path_suitability_raster,
             mcda_engine.raster_preset.general.project_area_geometry,
-            shapely.LineString([(174896.9, 451130.5), (175279.79, 450519.61)]),
+            shapely.LineString(utility_route_sketch),
         )
         write_results_to_geopackage(Config.PATH_LCPA_GEOPACKAGE, lcpa_engine.lcpa_result, "utility_route_result")
