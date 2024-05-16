@@ -198,7 +198,7 @@ preset_collection = {
                     "windturbine": 126,
                 },
             },
-            # TODO determine if we want to include this. It may be beneficial to place cables there? Can optionally be guessed from the "relative hoogteligging" in wegdeel.
+            # TODO Use this as a multilayer raster. It may be beneficial to place cables there? Can optionally be guessed from the "relative hoogteligging" in wegdeel.
             # "tunneldeel": {
             #     # https://geonovum.github.io/IMGeo-objectenhandboek/tunneldeel
             #     "description": "placeholder",
@@ -370,7 +370,7 @@ preset_collection = {
             },
             "protected_area": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
-                # TODO Natura2000 and create test in mcda_vector_raster_test.py
+                # TODO add Natura2000 and create test in mcda_vector_raster_test.py
                 "description": "Protected area such as dykes and nature which may have additional rules or policies.",
                 "layer_names": ["bgt_functioneelgebied_V"],
                 "preprocessing_function": ProtectedArea(),
