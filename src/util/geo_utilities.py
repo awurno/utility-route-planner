@@ -1,8 +1,6 @@
-import geopandas
 import shapely
 import structlog
-
-from settings import Config
+import geopandas as gpd
 
 logger = structlog.get_logger(__name__)
 
@@ -27,7 +25,7 @@ def coordinates_to_array_index(
     return y_index, x_index  # Note that the order must be y, x because of indexing on the suitability raster.
 
 
-def array_indices_to_linestring(raster_metadata: tuple, array_indices: list) -> geopandas.geoseries.GeoSeries:
+def array_indices_to_linestring(raster_metadata: tuple, array_indices: list) -> shapely.LineString:
     """
     Create a linestring from the raster by stringing the centroids together for each cost path cell.
 
@@ -48,31 +46,29 @@ def array_indices_to_linestring(raster_metadata: tuple, array_indices: list) -> 
         cost_path_coords.append((x, y))
 
     # Create the linestring.
-    cost_path_rdnew = geopandas.GeoSeries(shapely.geometry.LineString(cost_path_coords))
-    cost_path_rdnew.crs = Config.CRS
+    cost_path = shapely.geometry.LineString(cost_path_coords)
 
-    return cost_path_rdnew
+    return cost_path
 
 
-def align_linestring(linestring: "geopandas.geoseries.GeoSeries", cell_size: float) -> "geopandas.geoseries.GeoSeries":
+def align_linestring(linestring: shapely.LineString, cell_size: float) -> shapely.LineString:
     """
-    Write the cost path to a linestring. For now, this is a very primitive function which produces acceptable results.
+    Write the cost path to a linestring. For now, this is a very primitive function.
 
-    In future, possible improvements depending on the environment could be:
-        - Align the linestring to existing trace by comparing the actual geometries to each other. This is more
-        difficult than it may seem as the network can be quite dense at some places. When there are many cables in one
-        'sleuf', it is hard to tell to which cable the linestring needs to be aligned. Ideally, a 'sleuf' dataset
-        should be created which can be used to align tracé to. It could be created by an aggregation of the Alliander
-        network.
-        - Align the linestring to the centerlines of the pavement. If there is no existing cable tracé to follow, we
-        would like to align it to existing infrastructure, for example the pavement. Computing centerlines of the BGT
-        which includes this data is computationally expensive and geometrically complex.
-
-    :param linestring: the resulting vectorized raster cost path as geoseries.
+    :param linestring: the resulting vectorized raster cost path.
     :param cell_size: resolution/cell_size of the raster.
 
-    :return the cost path as linestring in a geodataframe.
+    :return the cost path as simplified linestring.
     """
     aligned_linestring = linestring.simplify(cell_size, preserve_topology=True)
 
     return aligned_linestring
+
+
+def get_empty_geodataframe() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        data=None,
+        columns=["geometry"],
+        geometry="geometry",
+        crs=None,
+    )

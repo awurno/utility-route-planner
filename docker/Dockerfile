@@ -1,4 +1,4 @@
-FROM ghcr.io/osgeo/gdal:ubuntu-small-3.7.0
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.8.5
 
 ARG POETRY_VERSION=1.7.0
     # python

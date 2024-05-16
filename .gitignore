@@ -1,6 +1,7 @@
 ### Custom
 /data/processed
 *.tif.aux.xml
+/cache
 
 ### Python
 # Byte-compiled / optimized / DLL files
