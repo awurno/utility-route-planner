@@ -24,7 +24,7 @@ def get_lcpa_utility_route(path_raster, utility_route_sketch: shapely.LineString
     lcpa_engine.get_lcpa_route(path_raster, project_area, utility_route_sketch)
 
     if Config.DEBUG:
-        write_results_to_geopackage(Config.PATH_LCPA_GEOPACKAGE, lcpa_engine.lcpa_result, "utility_route_result")
+        write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
 
     end = datetime.datetime.now()
     logger.info(f"Calculated cable route in {end - start} time.")

@@ -54,7 +54,7 @@ class TestBaseVectorPreprocessing:
         assert len(result) == len(criterion.layer_names) - 1  # bgt_spoor is not inside the project area
         for gdf in result:
             assert gdf.columns.__contains__("suitability_value")
-        raw = gpd.read_file(Config.PATH_INPUT_MCDA_GEOPACKAGE, layer="bgt_begroeidterreindeel_V")
+        raw = gpd.read_file(Config.PATH_GEOPACKAGE_MCDA_INPUT, layer="bgt_begroeidterreindeel_V")
         assert len(raw) > len(result[0])  # Check that the filtering worked for historic features.
 
     def test_base_prepare_input_data_not_in_project_area(self, setup_base_class, setup_mock_criterion):

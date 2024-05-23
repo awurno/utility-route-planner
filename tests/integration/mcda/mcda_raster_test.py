@@ -15,7 +15,7 @@ from src.util.write import reset_geopackage
 
 @pytest.fixture
 def setup_clean_start(monkeypatch):
-    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, truncate=False)
+    reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
 
 
 @pytest.mark.usefixtures("setup_clean_start")

@@ -24,13 +24,18 @@ class Config:
     # Cap final data to the int8 datatype.
     FINAL_RASTER_VALUE_LIMIT_LOWER = 1
     FINAL_RASTER_VALUE_LIMIT_UPPER = 126
-    PATH_INPUT_MCDA_GEOPACKAGE = BASEDIR / "data/examples/ede.gpkg"
-    PATH_OUTPUT_MCDA_GEOPACKAGE = BASEDIR / "data/processed/mcda_output.gpkg"
+    PATH_GEOPACKAGE_MCDA_INPUT = BASEDIR / "data/examples/ede.gpkg"
+    PATH_GEOPACKAGE_MCDA_OUTPUT = BASEDIR / "data/processed/mcda_output.gpkg"
 
     # LCPA
-    PATH_LCPA_GEOPACKAGE = BASEDIR / "data/processed/lcpa_results.gpkg"
+    PATH_GEOPACKAGE_LCPA_OUTPUT = BASEDIR / "data/processed/lcpa_results.gpkg"
 
     # Testing & input/output paths
     PATH_RESULTS = BASEDIR / "data/processed"
     PATH_EXAMPLE_RASTER_EDE = BASEDIR / "data/examples/pytest_example_suitability_raster_ede.tif"
     PATH_PROJECT_AREA_EDE_COMPONISTENBUURT = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"
+
+    # Research question 1 routes
+    PATH_GEOPACKAGE_CASE_01 = BASEDIR / "data/examples/case_01.gpkg"
+    PATH_PROJECT_AREA_CASE_01 = BASEDIR / "data/examples/case_01_project_area.geojson"
+    PATH_CASE_01_ROUTE = BASEDIR / "data/examples/case_01_human_designed_route.geojson"

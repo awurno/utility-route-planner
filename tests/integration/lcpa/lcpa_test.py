@@ -12,7 +12,7 @@ import numpy as np
 
 @pytest.fixture
 def setup_clean_start(monkeypatch):
-    reset_geopackage(Config.PATH_LCPA_GEOPACKAGE)
+    reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
     monkeypatch.setattr(Config, "DEBUG", True)
 
 

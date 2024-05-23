@@ -51,7 +51,7 @@ class VectorPreprocessorBase(abc.ABC):
         prepared_input = []
         for layer_name in criterion.layer_names:
             gdf = gpd.read_file(
-                Config.PATH_INPUT_MCDA_GEOPACKAGE, layer=layer_name, engine="pyogrio", bbox=project_area.bounds
+                Config.PATH_GEOPACKAGE_MCDA_INPUT, layer=layer_name, engine="pyogrio", bbox=project_area.bounds
             ).clip(project_area)
             # TODO determine a proper datasource (nl extract) which has one of either fields, not both: https://geoforum.nl/t/bgt-begroeid-terreindeel-en-ondersteunend-wegdeel-steeds-vaker-niet-leesbaar-via-gdal/9295/15
             if gdf.columns.__contains__("eindRegistratie"):  # BGT data has this attribute, filter historic items.
@@ -84,4 +84,4 @@ class VectorPreprocessorBase(abc.ABC):
 
     def write_to_file(self, prefix, validated_gdf: gpd.GeoDataFrame) -> None:
         """Write to the geopackage for debugging and rasterizing."""
-        write_results_to_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, validated_gdf, prefix + self.criterion)
+        write_results_to_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, validated_gdf, prefix + self.criterion)

@@ -44,9 +44,11 @@ class LcpaUtilityRouteEngine:
 
         if Config.DEBUG:
             write_results_to_geopackage(
-                Config.PATH_LCPA_GEOPACKAGE, self.route_model.input_linestring, "utility_sketch_route"
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, self.route_model.input_linestring, "utility_sketch_route"
             )
-            write_results_to_geopackage(Config.PATH_LCPA_GEOPACKAGE, self.route_model.route_points, "route_points")
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, self.route_model.route_points, "route_points"
+            )
 
     @staticmethod
     def calculate_least_cost_path(suit_raster_array: np.ndarray, utility_route_model) -> tuple:

@@ -78,7 +78,7 @@ class RasterPresetCriteria(pydantic.BaseModel):
 
     @functools.cached_property
     def get_existing_layers_geopackage(self) -> list:
-        return [layer_name for layer_name in fiona.listlayers(Config.PATH_INPUT_MCDA_GEOPACKAGE)]
+        return [layer_name for layer_name in fiona.listlayers(Config.PATH_GEOPACKAGE_MCDA_INPUT)]
 
 
 class RasterPresetGeneral(pydantic.BaseModel):

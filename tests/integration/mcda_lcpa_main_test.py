@@ -9,8 +9,8 @@ from src.util.write import reset_geopackage, write_results_to_geopackage
 
 @pytest.fixture
 def setup_mcda_lcpa_testing(monkeypatch):
-    reset_geopackage(Config.PATH_LCPA_GEOPACKAGE)
-    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, truncate=False)
+    reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
+    reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     monkeypatch.setattr(Config, "DEBUG", True)
 
 
@@ -34,4 +34,7 @@ class TestMcdaLcpaChain:
             mcda_engine.raster_preset.general.project_area_geometry,
             shapely.LineString(utility_route_sketch),
         )
-        write_results_to_geopackage(Config.PATH_LCPA_GEOPACKAGE, lcpa_engine.lcpa_result, "utility_route_result")
+        write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
+
+
+# TODO add all cases in the tests so we are sure that they will work properly at all time
