@@ -43,17 +43,28 @@ def reset_geopackage(path_geopackage: pathlib.Path, truncate=True) -> None:
 
 
 def write_results_to_geopackage(
-    path_geopackage: pathlib.Path, item_to_write: shapely.Geometry | gpd.GeoDataFrame | gpd.GeoSeries, layer_name: str
+    path_geopackage: pathlib.Path,
+    item_to_write: shapely.Geometry | gpd.GeoDataFrame | gpd.GeoSeries,
+    layer_name: str,
+    overwrite=False,
 ) -> None:
     """
     Write results to a geopackage file which is handy for debugging in QGIS and intermediate storage.
+
+    :param path_geopackage: path to the geopackage as pathlib.Path.
+    :param item_to_write: feature to write to the geopackage.
+    :param layer_name: name of the feature in the geopackage.
+    :param mode: can be 'a' for append or 'w' for (over)write.
     """
     # This will try to append to the layer in the geopackage if it exists.
     logger.info(f"Writing results to geopackage: {layer_name}")
     if isinstance(item_to_write, shapely.Geometry):
         item_to_write = geopandas.GeoSeries(item_to_write, crs=Config.CRS)
-    mode = _get_writing_mode_geopackage(layer_name, path_geopackage)
-    item_to_write.to_file(path_geopackage, layer=layer_name, driver="GPKG", mode=mode)
+    if overwrite:
+        item_to_write.to_file(path_geopackage, layer=layer_name, driver="GPKG", OVERWRITE="YES")
+    else:
+        mode = _get_writing_mode_geopackage(layer_name, path_geopackage)
+        item_to_write.to_file(path_geopackage, layer=layer_name, driver="GPKG", mode=mode)
 
 
 def _get_writing_mode_geopackage(filename, path_geopackage):
