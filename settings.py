@@ -35,7 +35,15 @@ class Config:
     PATH_EXAMPLE_RASTER_EDE = BASEDIR / "data/examples/pytest_example_suitability_raster_ede.tif"
     PATH_PROJECT_AREA_EDE_COMPONISTENBUURT = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"
 
-    # Research question 1 routes
+    # Research question 1 data paths
     PATH_GEOPACKAGE_CASE_01 = BASEDIR / "data/examples/case_01.gpkg"
-    PATH_PROJECT_AREA_CASE_01 = BASEDIR / "data/examples/case_01_project_area.geojson"
-    PATH_CASE_01_ROUTE = BASEDIR / "data/examples/case_01_human_designed_route.geojson"
+    PATH_GEOPACKAGE_CASE_02 = BASEDIR / "data/examples/case_02.gpkg"
+    PATH_GEOPACKAGE_CASE_03 = BASEDIR / "data/examples/case_03.gpkg"
+    PATH_GEOPACKAGE_CASE_04 = BASEDIR / "data/examples/case_04.gpkg"
+    PATH_GEOPACKAGE_CASE_05 = BASEDIR / "data/examples/case_05.gpkg"
+
+    PATH_PROJECT_AREA_CASE_01_LAYER_NAME = "ps_case_01_project_area"
+    PATH_PROJECT_AREA_CASE_02_LAYER_NAME = "ps_case_02_project_area"
+    PATH_PROJECT_AREA_CASE_03_LAYER_NAME = "ps_case_03_project_area"
+    PATH_PROJECT_AREA_CASE_04_LAYER_NAME = "ps_case_04_project_area"
+    PATH_PROJECT_AREA_CASE_05_LAYER_NAME = "ps_case_05_project_area"

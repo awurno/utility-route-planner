@@ -73,12 +73,12 @@ class TestBaseVectorPreprocessing:
     def test_base_validate_result_unhappy(self, setup_base_class, invalid_input):
         base_instance = setup_base_class
         with pytest.raises(InvalidSuitabilityValue):
-            base_instance.validate_result(gpd.GeoDataFrame({"suitability_value": invalid_input}))
+            base_instance.is_valid_result(gpd.GeoDataFrame({"suitability_value": invalid_input}))
 
     @pytest.mark.parametrize("valid_input", [[1, 211, 33], [20, 2, 300.123]])
     def test_base_validate_result_happy(self, setup_base_class, valid_input):
         base_instance = setup_base_class
-        base_instance.validate_result(gpd.GeoDataFrame({"suitability_value": valid_input}))
+        base_instance.is_valid_result(gpd.GeoDataFrame({"suitability_value": valid_input}))
 
 
 def test_all_values_present():

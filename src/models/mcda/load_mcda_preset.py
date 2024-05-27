@@ -1,7 +1,6 @@
-import functools
+import pathlib
 import typing
 
-import fiona
 import pydantic
 import shapely
 import structlog
@@ -37,23 +36,11 @@ class RasterPresetCriteria(pydantic.BaseModel):
     def validate_attributes(self):
         group = self.group
         weight_values = self.weight_values
-        layer_names = self.layer_names
 
         self.validate_group(group)
         self.validate_weights(weight_values)
-        self.validate_layer_names(self.get_existing_layers_geopackage, layer_names)
 
         return self
-
-    @staticmethod
-    def validate_layer_names(existing_layers: list, layer_names: list):
-        for layer_name in layer_names:
-            if not isinstance(layer_name, str):
-                raise InvalidLayerName(f"Invalid value in layer_names: {layer_name}. Should be a string.")
-            if layer_name not in existing_layers:
-                raise InvalidLayerName(
-                    f"{layer_name} is not in the source geopackage. Existing layers: {existing_layers}"
-                )
 
     @staticmethod
     def validate_weights(weight_values):
@@ -76,10 +63,6 @@ class RasterPresetCriteria(pydantic.BaseModel):
         if group not in ["a", "b", "c"]:
             raise InvalidGroupValue(f"Group must be 'a', 'b' or 'c'. Received: {group}")
 
-    @functools.cached_property
-    def get_existing_layers_geopackage(self) -> list:
-        return [layer_name for layer_name in fiona.listlayers(Config.PATH_GEOPACKAGE_MCDA_INPUT)]
-
 
 class RasterPresetGeneral(pydantic.BaseModel):
     """
@@ -97,6 +80,9 @@ class RasterPresetGeneral(pydantic.BaseModel):
     project_area_geometry: shapely.MultiPolygon | shapely.Polygon = pydantic.Field(
         ...,
         description="Shapely geometry to use defining the project area for the utility route.",
+    )
+    path_input_geopackage: pathlib.Path = pydantic.Field(
+        ..., description="Path to the input geopackage containing all input data for MCDA."
     )
 
     @field_validator("project_area_geometry")
@@ -119,11 +105,20 @@ class RasterPreset(pydantic.BaseModel):
     criteria: typing.Dict[str, RasterPresetCriteria]
 
 
-def load_preset(preset_name: str | dict) -> RasterPreset:
+def validate_layer_names(existing_layers, layer_names):
+    for layer_name in layer_names:
+        if not isinstance(layer_name, str):
+            raise InvalidLayerName(f"Invalid value in layer_names: {layer_name}. Should be a string.")
+        if layer_name not in existing_layers:
+            raise InvalidLayerName(f"{layer_name} is not in the source geopackage. Existing layers: {existing_layers}")
+
+
+def load_preset(preset_name: str | dict, path_input_geopackage, project_area_geometry) -> RasterPreset:
     """
     Convert the raw configuration file to a pydantic datamodel.
 
     :param preset_name: preset dictionary to load from the mcda_presets.py.
+    :param path_input_geopackage: path to the geopackage containing the vector geodata to process in a cost-surface.
     :return: datamodel containing configuration for the raster to create.
     """
 
@@ -140,11 +135,14 @@ def load_preset(preset_name: str | dict) -> RasterPreset:
         else:
             logger.error(f"Unsupported input received. Expecting dict or str, received {type(preset_name)}.")
             raise ValueError
-
+        # Add the geopackage to use to the raw dictionary to convert to a pydantic model.
+        preset_to_load_raw["general"]["path_input_geopackage"] = path_input_geopackage
+        preset_to_load_raw["general"]["project_area_geometry"] = project_area_geometry
         preset_model = RasterPreset(
             general=preset_to_load_raw["general"],
             criteria=preset_to_load_raw["criteria"],
         )
+
         logger.info("Successfully loaded the raster preset datamodel.")
         return preset_model
 

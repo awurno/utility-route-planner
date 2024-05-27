@@ -35,6 +35,3 @@ class TestMcdaLcpaChain:
             shapely.LineString(utility_route_sketch),
         )
         write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
-
-
-# TODO add all cases in the tests so we are sure that they will work properly at all time
