@@ -29,7 +29,7 @@ class VegetationObject(VectorPreprocessorBase):
     def _set_suitability_values(input_gdf: list[gpd.GeoDataFrame], weight_values: dict) -> gpd.GeoDataFrame:
         logger.info("Setting suitability values.")
 
-        gdf_vegetation = pd.concat([input_gdf[0], input_gdf[1]])
+        gdf_vegetation = pd.concat([*input_gdf])
         validate_values_to_reclassify(gdf_vegetation["plus-type"].unique().tolist(), weight_values)
 
         # Class is always filled in.

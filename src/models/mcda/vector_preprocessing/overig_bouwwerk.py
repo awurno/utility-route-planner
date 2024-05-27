@@ -33,6 +33,6 @@ class OverigBouwwerk(VectorPreprocessorBase):
         )
         input_gdf = input_gdf[input_gdf["bgt-type"] != "niet-bgt"]
 
-        input_gdf["suitability_value"] = input_gdf["sv_1"]
+        input_gdf.loc[:, "suitability_value"] = input_gdf["sv_1"]
 
         return input_gdf

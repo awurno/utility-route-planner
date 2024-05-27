@@ -56,13 +56,13 @@ def rasterize_vector_data(
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
     # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
-    gdf_to_rasterize.suitability_value.replace(no_data, no_data + 1, inplace=True)
+    gdf_to_rasterize.suitability_value = gdf_to_rasterize.suitability_value.replace(no_data, no_data + 1)
     # Reset values exceeding the min/max.
-    gdf_to_rasterize.suitability_value[
-        gdf_to_rasterize.suitability_value < Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
+    gdf_to_rasterize.loc[
+        gdf_to_rasterize.suitability_value < Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER, "suitability_value"
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
-    gdf_to_rasterize.suitability_value[
-        gdf_to_rasterize.suitability_value > Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
+    gdf_to_rasterize.loc[
+        gdf_to_rasterize.suitability_value > Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER, "suitability_value"
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
     # TODO check if we can use /vsimem/
     path_raster = Config.PATH_RESULTS / f"{raster_prefix+criterion}.tif"
