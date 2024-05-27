@@ -54,10 +54,9 @@ def write_results_to_geopackage(
     :param path_geopackage: path to the geopackage as pathlib.Path.
     :param item_to_write: feature to write to the geopackage.
     :param layer_name: name of the feature in the geopackage.
-    :param mode: can be 'a' for append or 'w' for (over)write.
+    :param overwrite: force overwriting the layer in the geopackage if it exists.
     """
-    # This will try to append to the layer in the geopackage if it exists.
-    logger.info(f"Writing results to geopackage: {layer_name}")
+    logger.info(f"Writing features to geopackage: {layer_name}")
     if isinstance(item_to_write, shapely.Geometry):
         item_to_write = geopandas.GeoSeries(item_to_write, crs=Config.CRS)
     if overwrite:
