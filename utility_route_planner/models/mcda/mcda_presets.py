@@ -240,7 +240,6 @@ preset_collection = {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/sensor
                 # https://geonovum.github.io/IMGeo-objectenhandboek/straatmeubilair
                 "description": "placeholder",
-                # TODO following are not available: "bgt_sensor_P", "bgt_mast_P"
                 # The order of layers matter here, first two must be bgt_scheiding.
                 "layer_names": [
                     "bgt_scheiding_V",
@@ -248,10 +247,10 @@ preset_collection = {
                     "bgt_bak_P",
                     "bgt_bord_P",
                     "bgt_kast_P",
-                    # "bgt_mast_P",
+                    "bgt_mast_P",
                     "bgt_paal_P",
                     "bgt_put_P",
-                    # "bgt_sensor_P",
+                    "bgt_sensor_P",
                     "bgt_straatmeubilair_P",
                 ],
                 "preprocessing_function": SmallAboveGroundObstacles(),

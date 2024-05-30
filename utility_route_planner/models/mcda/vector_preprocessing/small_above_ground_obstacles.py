@@ -27,7 +27,15 @@ class SmallAboveGroundObstacles(VectorPreprocessorBase):
     def _set_suitability_values(input_gdf: list[gpd.GeoDataFrame], weight_values: dict) -> gpd.GeoDataFrame:
         # bgt_scheiding has different fields which we process first (first two gdfs).
         logger.info("Merging bgt scheiding tables.")
-        gdf_bgt_scheiding = pd.concat([input_gdf[0], input_gdf[1]])
+        # identify bgt-type geodataframes, process them first here. do not index
+        bgt_scheiding = []
+        bgt_others = []
+        for gdf in input_gdf:
+            if "bgt-type" in gdf.columns:
+                bgt_scheiding.append(gdf)
+            else:
+                bgt_others.append(gdf)
+        gdf_bgt_scheiding = pd.concat(bgt_scheiding)
         validate_values_to_reclassify(gdf_bgt_scheiding["bgt-type"].unique().tolist(), weight_values)
         logger.info("Setting suitability values.")
         # Function is always filled in.
@@ -39,7 +47,8 @@ class SmallAboveGroundObstacles(VectorPreprocessorBase):
         gdf_bgt_scheiding["suitability_value"] = gdf_bgt_scheiding["sv_1"]
 
         logger.info("Merging remaining obstacles.")
-        gdf_remaining_obstacles = pd.concat([*input_gdf[2:]])
+        gdf_remaining_obstacles = pd.concat(bgt_others)
+        gdf_remaining_obstacles = gdf_remaining_obstacles.dropna(subset=["plus-type", "function"], how="all")
         validate_values_to_reclassify(gdf_remaining_obstacles["plus-type"].unique().tolist(), weight_values)
         # plus-type is not always filled in.
         gdf_remaining_obstacles["sv_1"] = gdf_remaining_obstacles["plus-type"]
