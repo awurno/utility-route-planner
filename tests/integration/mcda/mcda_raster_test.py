@@ -36,6 +36,8 @@ class TestRasterPreprocessing:
         )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        assert mcda_engine.processed_criteria_names == {"small_above_ground_obstacles"}
+        assert mcda_engine.unprocessed_criteria_names == set()
 
     def test_preprocess_all_rasters(self):
         mcda_engine = McdaCostSurfaceEngine(
@@ -45,6 +47,23 @@ class TestRasterPreprocessing:
         )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        assert mcda_engine.processed_criteria_names == {
+            "begroeid_terreindeel",
+            "waterdeel",
+            "ondersteunend_wegdeel",
+            "pand",
+            "wegdeel",
+            "excluded_area",
+            "onbegroeid_terreindeel",
+            "vegetation_object",
+            "small_above_ground_obstacles",
+        }
+        assert mcda_engine.unprocessed_criteria_names == {
+            "ondersteunend_waterdeel",
+            "overig_bouwwerk",
+            "kunstwerkdeel",
+            "protected_area",
+        }
 
 
 def test_rasterize_vector_data_cell_size_error():
