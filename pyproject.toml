@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "utility-route-planner"
+name = "utility_route_planner"
 version = "0.1.0"
 description = ""
 authors = ["Jelmar <jelmar.versleijen@alliander.com>"]
@@ -45,3 +45,6 @@ line_length = 120
 [tool.ruff]
 line-length = 120
 target-version = "py310"
+
+[tool.pytest.ini_options]
+log_cli = true

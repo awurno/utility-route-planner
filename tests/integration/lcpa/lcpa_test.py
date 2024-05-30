@@ -1,11 +1,11 @@
 import pytest
 import shapely
 
-from src.models.lcpa.lcpa_datastructures import LcpaInputModel
-from src.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
-from src.models.lcpa.lcpa_main import get_lcpa_utility_route
+from utility_route_planner.models.lcpa.lcpa_datastructures import LcpaInputModel
+from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
+from utility_route_planner.models.lcpa.lcpa_main import get_lcpa_utility_route
 from settings import Config
-from src.util.write import reset_geopackage
+from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
 import numpy as np
 

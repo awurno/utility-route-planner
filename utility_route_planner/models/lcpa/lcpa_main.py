@@ -4,8 +4,8 @@ import shapely
 import structlog
 
 from settings import Config
-from src.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
-from src.util.write import write_results_to_geopackage
+from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
+from utility_route_planner.util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 

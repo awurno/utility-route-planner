@@ -5,7 +5,7 @@ import rasterio.mask
 import shapely
 import structlog
 
-from src.models.mcda.exceptions import InvalidRasterValues
+from utility_route_planner.models.mcda.exceptions import InvalidRasterValues
 
 logger = structlog.get_logger(__name__)
 

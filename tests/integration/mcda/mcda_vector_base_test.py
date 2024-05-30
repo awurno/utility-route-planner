@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 
 from settings import Config
-from src.models.mcda.exceptions import InvalidSuitabilityValue, UnassignedValueFoundDuringReclassify
+from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue, UnassignedValueFoundDuringReclassify
 
-from src.models.mcda.load_mcda_preset import RasterPresetCriteria
-from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
-from src.models.mcda.vector_preprocessing.validation import validate_values_to_reclassify
+from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria
+from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from utility_route_planner.models.mcda.vector_preprocessing.validation import validate_values_to_reclassify
 
 
 @pytest.fixture

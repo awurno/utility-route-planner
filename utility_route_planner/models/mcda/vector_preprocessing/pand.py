@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 import structlog
 import geopandas as gpd
 import typing
 
 if typing.TYPE_CHECKING:
-    from src.models.mcda.load_mcda_preset import RasterPresetCriteria
+    from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 logger = structlog.get_logger(__name__)
 

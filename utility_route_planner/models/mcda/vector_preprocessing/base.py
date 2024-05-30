@@ -11,12 +11,12 @@ import geopandas as gpd
 import structlog
 
 from settings import Config
-from src.models.mcda.exceptions import InvalidSuitabilityValue
-from src.util.geo_utilities import get_empty_geodataframe
-from src.util.write import write_results_to_geopackage
+from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue
+from utility_route_planner.util.geo_utilities import get_empty_geodataframe
+from utility_route_planner.util.write import write_results_to_geopackage
 
 if typing.TYPE_CHECKING:
-    from src.models.mcda.load_mcda_preset import RasterPresetCriteria, RasterPresetGeneral
+    from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria, RasterPresetGeneral
 
 
 logger = structlog.get_logger(__name__)

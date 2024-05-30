@@ -1,4 +1,4 @@
-from src.models.mcda.exceptions import UnassignedValueFoundDuringReclassify
+from utility_route_planner.models.mcda.exceptions import UnassignedValueFoundDuringReclassify
 
 
 def validate_values_to_reclassify(values_to_reclassify: list, assigned_values: dict):

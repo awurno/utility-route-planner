@@ -1,10 +1,12 @@
 import pytest
 import shapely
 
+from main import run_mcda_lcpa
 from settings import Config
-from src.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
-from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
-from src.util.write import reset_geopackage, write_results_to_geopackage
+from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
+from utility_route_planner.util.write import reset_geopackage, write_results_to_geopackage
 import geopandas as gpd
 
 
@@ -24,7 +26,7 @@ class TestMcdaLcpaChain:
             [(174896.9, 451130.5), (174968.1, 450985.7), (174975.1, 450731.1), (175279.7, 450519.6)],
         ),
     )
-    def test_mcda_lcpa_chain_default(self, utility_route_sketch):
+    def test_mcda_lcpa_chain_pytest_files(self, utility_route_sketch):
         mcda_engine = McdaCostSurfaceEngine(
             "preset_benchmark_raw",
             Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
@@ -40,3 +42,40 @@ class TestMcdaLcpaChain:
             shapely.LineString(utility_route_sketch),
         )
         write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
+
+
+@pytest.mark.parametrize(
+    "path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed",
+    [
+        # (Config.PATH_GEOPACKAGE_CASE_01, Config.LAYER_NAME_PROJECT_AREA_CASE_01, Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01),
+        (
+            Config.PATH_GEOPACKAGE_CASE_02,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_02,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_02,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_03,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_03,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_03,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_04,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_04,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_05,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_05,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_05,
+        ),
+    ],
+)
+def test_mcda_lcpa_chain_case_01(path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed):
+    run_mcda_lcpa(
+        Config.RASTER_PRESET_NAME_BENCHMARK,
+        path_geopackage,
+        gpd.read_file(path_geopackage, layer=layer_name_project_area).geometry.iloc[0],
+        get_first_last_point_from_linestring(
+            gpd.read_file(path_geopackage, layer=layer_name_utility_route_human_designed).geometry.iloc[0]
+        ),
+    )

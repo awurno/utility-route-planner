@@ -6,11 +6,11 @@ import shapely
 import structlog
 from pydantic import model_validator, ConfigDict, field_validator
 
-from src.models.mcda.exceptions import InvalidGroupValue, InvalidSuitabilityValue, InvalidLayerName
-from src.models.mcda.mcda_presets import preset_collection
+from utility_route_planner.models.mcda.exceptions import InvalidGroupValue, InvalidSuitabilityValue, InvalidLayerName
+from utility_route_planner.models.mcda.mcda_presets import preset_collection
 from settings import Config
 
-from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 
 logger = structlog.get_logger(__name__)
 

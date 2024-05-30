@@ -4,10 +4,10 @@ import pytest
 import geopandas as gpd
 
 from settings import Config
-from src.models.mcda.exceptions import InvalidSuitabilityValue, InvalidLayerName, InvalidGroupValue
-from src.models.mcda.load_mcda_preset import load_preset, validate_layer_names
-from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
-from src.models.mcda.load_mcda_preset import RasterPresetCriteria
+from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue, InvalidLayerName, InvalidGroupValue
+from utility_route_planner.models.mcda.load_mcda_preset import load_preset, validate_layer_names
+from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 
 def test_load_benchmark_with_default_settings_as_str():

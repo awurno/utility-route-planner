@@ -46,7 +46,7 @@ RUN poetry export -f requirements.txt --with linting --without-hashes --output r
      && pip install -r requirements.txt
 
 # Creating folders, and files for a project:
-COPY ../src ./src
+COPY ../utility_route_planner ./src
 COPY ../tests ./tests
 COPY ../data/examples ./data/examples
 COPY ../*.py .

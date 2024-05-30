@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 import structlog
 import geopandas as gpd
 import pandas as pd
 import typing
 
-from src.models.mcda.vector_preprocessing.validation import validate_values_to_reclassify
+from utility_route_planner.models.mcda.vector_preprocessing.validation import validate_values_to_reclassify
 
 if typing.TYPE_CHECKING:
-    from src.models.mcda.load_mcda_preset import RasterPresetCriteria
+    from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 logger = structlog.get_logger(__name__)
 

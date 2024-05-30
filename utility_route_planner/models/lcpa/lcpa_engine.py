@@ -4,10 +4,10 @@ import shapely
 from skimage.graph import route_through_array
 
 from settings import Config
-from src.models.lcpa.lcpa_datastructures import LcpaInputModel
-from src.util.geo_utilities import array_indices_to_linestring, align_linestring
-from src.util.load import load_suitability_raster_data
-from src.util.write import write_results_to_geopackage
+from utility_route_planner.models.lcpa.lcpa_datastructures import LcpaInputModel
+from utility_route_planner.util.geo_utilities import array_indices_to_linestring, align_linestring
+from utility_route_planner.util.load import load_suitability_raster_data
+from utility_route_planner.util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 

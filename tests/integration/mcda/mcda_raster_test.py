@@ -6,11 +6,15 @@ import shapely
 import numpy as np
 
 from settings import Config
-from src.models.mcda.exceptions import RasterCellSizeTooSmall, InvalidSuitabilityRasterInput, InvalidGroupValue
-from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
-from src.models.mcda.mcda_presets import preset_collection
-from src.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
-from src.util.write import reset_geopackage
+from utility_route_planner.models.mcda.exceptions import (
+    RasterCellSizeTooSmall,
+    InvalidSuitabilityRasterInput,
+    InvalidGroupValue,
+)
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.models.mcda.mcda_presets import preset_collection
+from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.util.write import reset_geopackage
 
 
 @pytest.fixture

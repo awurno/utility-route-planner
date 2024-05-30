@@ -4,7 +4,7 @@ import geopandas as gpd
 import shapely
 
 from settings import Config
-from src.util.geo_utilities import coordinates_to_array_index
+from utility_route_planner.util.geo_utilities import coordinates_to_array_index
 
 
 @dataclass

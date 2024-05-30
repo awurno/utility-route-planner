@@ -11,7 +11,11 @@ import geopandas as gpd
 import affine
 
 from settings import Config
-from src.models.mcda.exceptions import RasterCellSizeTooSmall, InvalidGroupValue, InvalidSuitabilityRasterInput
+from utility_route_planner.models.mcda.exceptions import (
+    RasterCellSizeTooSmall,
+    InvalidGroupValue,
+    InvalidSuitabilityRasterInput,
+)
 
 logger = structlog.get_logger(__name__)
 

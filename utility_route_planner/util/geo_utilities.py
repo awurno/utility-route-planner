@@ -65,6 +65,16 @@ def align_linestring(linestring: shapely.LineString, cell_size: float) -> shapel
     return aligned_linestring
 
 
+def get_first_last_point_from_linestring(linestring: shapely.LineString) -> tuple:
+    """
+    Get the first and last point of a linestring.
+
+    :param linestring: shapely linestring.
+    :return: tuple containing the first and last point.
+    """
+    return shapely.get_point(linestring, 0), shapely.get_point(linestring, -1)
+
+
 def get_empty_geodataframe() -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(
         data=None,

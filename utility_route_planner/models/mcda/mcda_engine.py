@@ -1,11 +1,11 @@
 import pathlib
 from functools import cached_property
 
-from src.models.mcda.load_mcda_preset import RasterPreset, load_preset
+from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
 
-from src.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
 
 logger = structlog.get_logger(__name__)
 

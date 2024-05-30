@@ -1,14 +1,21 @@
 # TODO: orchestration function for calling MCDA + LCPA (with or without calculating the raster)
+import pathlib
+
 import shapely
 
 from settings import Config
-from src.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
-from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
-from src.util.write import write_results_to_geopackage, reset_geopackage
+from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.util.write import write_results_to_geopackage, reset_geopackage
 import geopandas as gpd
 
 
-def run_mcda_lcpa(preset, path_geopackage_mcda_input, project_area_geometry):
+def run_mcda_lcpa(
+    preset: dict | str,
+    path_geopackage_mcda_input: pathlib.Path,
+    project_area_geometry: shapely.Polygon,
+    start_mid_end_points: list[tuple],
+):
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
 
@@ -20,24 +27,16 @@ def run_mcda_lcpa(preset, path_geopackage_mcda_input, project_area_geometry):
     lcpa_engine.get_lcpa_route(
         path_suitability_raster,
         mcda_engine.raster_preset.general.project_area_geometry,
-        shapely.LineString([(233214.2, 442964.2), (236773.04, 440541.40)]),
+        shapely.LineString(start_mid_end_points),
     )
 
-    # TODO just move to the lcpa engine?
     write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
 
 
 if __name__ == "__main__":
-    # TODO determine how to cope with areas which do not contain all criteria:
-    #  - 1) skip the criteria
-    #  - 2) raise an error
-    #  - 3) filter mcda_preset prior to feeding it to the mcda engine (delete keys)
-    #  - I think 3) is most robust but might be very restrictive and not intuitive. Think about how the flow works. How enforcing should the preset be? Should the raster contain everything in the preset?
-    #  - 4) save used criteria to the mcda engine so we can assert on this in tests. Possible add to the raster metadata later
     run_mcda_lcpa(
         "preset_benchmark_raw",
         Config.PATH_GEOPACKAGE_CASE_01,
-        gpd.read_file(Config.PATH_GEOPACKAGE_CASE_01, layer=Config.PATH_PROJECT_AREA_CASE_01_LAYER_NAME)
-        .iloc[0]
-        .geometry,
+        gpd.read_file(Config.PATH_GEOPACKAGE_CASE_01, layer=Config.LAYER_NAME_PROJECT_AREA_CASE_01).iloc[0].geometry,
+        [(233214.2, 442964.2), (236773.04, 440541.40)],
     )
