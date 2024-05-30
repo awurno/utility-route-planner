@@ -43,7 +43,7 @@ class TestUtilityRoutes:
         ],
     )
     def test_get_utility_route_with_smaller_project_area(self, utility_route_sketch):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry.buffer(-200)
+        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry.buffer(-200)
         lcpa_engine = get_lcpa_utility_route(
             path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
             utility_route_sketch=shapely.LineString(utility_route_sketch),

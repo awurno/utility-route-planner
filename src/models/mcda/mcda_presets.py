@@ -21,7 +21,7 @@ preset_collection = {
             "description": "Preset used for benchmark results.",
             "prefix": "bm_",
             "final_raster_name": "benchmark_suitability_raster",
-            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
+            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
         },
         # BGT attribute explanation: https://docs.geostandaarden.nl/imgeo/catalogus/bgt/#attributen-en-associaties
         "criteria": {

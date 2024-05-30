@@ -10,20 +10,32 @@ from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 from src.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 
-def test_load_benchmark_with_default_settings():
+def test_load_benchmark_with_default_settings_as_str():
     # Pydantic validates the values in the model.
-    load_preset(Config.RASTER_PRESET_NAME, Config.PATH_GEOPACKAGE_MCDA_INPUT)
+    load_preset(
+        Config.RASTER_PRESET_NAME_BENCHMARK,
+        Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+        gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+    )
 
 
 def test_invalid_preset_name():
     with pytest.raises(ValueError):
-        load_preset("this_preset_does_not_exist_and_should_raise_an_error", Config.PATH_GEOPACKAGE_MCDA_INPUT)
+        load_preset(
+            "this_preset_does_not_exist_and_should_raise_an_error",
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
 
 
 @pytest.mark.parametrize("invalid_input", [1, False, None, [1, 2, 3]])
 def test_invalid_input(invalid_input):
     with pytest.raises(ValueError):
-        load_preset(invalid_input, Config.PATH_GEOPACKAGE_MCDA_INPUT)
+        load_preset(
+            invalid_input,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
 
 
 @pytest.fixture
@@ -33,7 +45,7 @@ def setup_raster_preset_dummy():
             "description": "Dummy preset.",
             "prefix": "b_",
             "final_raster_name": "benchmark_suitability_raster",
-            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
+            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
         },
         "criteria": {
             "test_criteria": {

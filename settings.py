@@ -11,7 +11,7 @@ class Config:
     CRS = 28992  # https://epsg.io/28992
 
     # MCDA
-    RASTER_PRESET_NAME = "preset_benchmark_raw"
+    RASTER_PRESET_NAME_BENCHMARK = "preset_benchmark_raw"
     RASTER_CELL_SIZE = 0.5
     RASTER_BLOCK_SIZE = 512
     # No data is ignored during creation of the raster.
@@ -24,18 +24,18 @@ class Config:
     # Cap final data to the int8 datatype.
     FINAL_RASTER_VALUE_LIMIT_LOWER = 1
     FINAL_RASTER_VALUE_LIMIT_UPPER = 126
-    PATH_GEOPACKAGE_MCDA_INPUT = BASEDIR / "data/examples/ede.gpkg"
-    PATH_GEOPACKAGE_MCDA_OUTPUT = BASEDIR / "data/processed/mcda_output.gpkg"
 
-    # LCPA
+    # input/output paths.
+    PATH_RESULTS = BASEDIR / "data/processed"
+    PATH_GEOPACKAGE_MCDA_OUTPUT = BASEDIR / "data/processed/mcda_output.gpkg"
     PATH_GEOPACKAGE_LCPA_OUTPUT = BASEDIR / "data/processed/lcpa_results.gpkg"
 
-    # Testing & input/output paths
-    PATH_RESULTS = BASEDIR / "data/processed"
+    # Testing paths.
     PATH_EXAMPLE_RASTER_EDE = BASEDIR / "data/examples/pytest_example_suitability_raster_ede.tif"
-    PATH_PROJECT_AREA_EDE_COMPONISTENBUURT = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"
+    PATH_PROJECT_AREA_PYTEST_EDE = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"
+    PATH_GEOPACKAGE_MCDA_PYTEST_EDE = BASEDIR / "data/examples/ede.gpkg"
 
-    # Research question 1 data paths
+    # Research question 1 data paths.
     PATH_GEOPACKAGE_CASE_01 = BASEDIR / "data/examples/case_01.gpkg"
     PATH_GEOPACKAGE_CASE_02 = BASEDIR / "data/examples/case_02.gpkg"
     PATH_GEOPACKAGE_CASE_03 = BASEDIR / "data/examples/case_03.gpkg"

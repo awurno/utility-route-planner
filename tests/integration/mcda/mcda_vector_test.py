@@ -35,11 +35,19 @@ class TestVectorPreprocessing:
             "general": preset_collection["preset_benchmark_raw"]["general"],
             "criteria": {"waterdeel": preset_collection["preset_benchmark_raw"]["criteria"]["waterdeel"]},
         }
-        mcda_engine = McdaCostSurfaceEngine(preset_to_load)
+        mcda_engine = McdaCostSurfaceEngine(
+            preset_to_load,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
 
     def test_process_all_vectors(self):
-        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
+        mcda_engine = McdaCostSurfaceEngine(
+            Config.RASTER_PRESET_NAME_BENCHMARK,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
 
     def test_process_waterdeel(self):

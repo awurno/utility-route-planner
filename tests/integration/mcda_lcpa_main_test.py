@@ -5,6 +5,7 @@ from settings import Config
 from src.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from src.util.write import reset_geopackage, write_results_to_geopackage
+import geopandas as gpd
 
 
 @pytest.fixture
@@ -24,7 +25,11 @@ class TestMcdaLcpaChain:
         ),
     )
     def test_mcda_lcpa_chain_default(self, utility_route_sketch):
-        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
+        mcda_engine = McdaCostSurfaceEngine(
+            "preset_benchmark_raw",
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
         path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
 
