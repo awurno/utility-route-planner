@@ -1,4 +1,3 @@
-# TODO: orchestration function for calling MCDA + LCPA (with or without calculating the raster)
 import pathlib
 
 import shapely
