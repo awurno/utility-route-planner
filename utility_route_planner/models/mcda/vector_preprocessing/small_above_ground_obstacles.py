@@ -49,6 +49,10 @@ class SmallAboveGroundObstacles(VectorPreprocessorBase):
         logger.info("Merging remaining obstacles.")
         gdf_remaining_obstacles = pd.concat(bgt_others)
         gdf_remaining_obstacles = gdf_remaining_obstacles.dropna(subset=["plus-type", "function"], how="all")
+        gdf_remaining_obstacles = gdf_remaining_obstacles[
+            ~(gdf_remaining_obstacles["function"].isin(["niet-bgt"]) & gdf_remaining_obstacles["plus-type"].isna())
+        ]
+        gdf_remaining_obstacles = gdf_remaining_obstacles[gdf_remaining_obstacles["function"] != "waardeOnbekend"]
         validate_values_to_reclassify(gdf_remaining_obstacles["plus-type"].unique().tolist(), weight_values)
         # plus-type is not always filled in.
         gdf_remaining_obstacles["sv_1"] = gdf_remaining_obstacles["plus-type"]

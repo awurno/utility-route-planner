@@ -14,7 +14,7 @@ def run_mcda_lcpa(
     preset: dict | str,
     path_geopackage_mcda_input: pathlib.Path,
     project_area_geometry: shapely.Polygon,
-    start_mid_end_points: list[tuple],
+    start_mid_end_points: tuple,
 ):
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
@@ -38,5 +38,5 @@ if __name__ == "__main__":
         "preset_benchmark_raw",
         Config.PATH_GEOPACKAGE_CASE_01,
         gpd.read_file(Config.PATH_GEOPACKAGE_CASE_01, layer=Config.LAYER_NAME_PROJECT_AREA_CASE_01).iloc[0].geometry,
-        [(233214.2, 442964.2), (236773.04, 440541.40)],
+        ((233214.2, 442964.2), (236773.04, 440541.40)),
     )

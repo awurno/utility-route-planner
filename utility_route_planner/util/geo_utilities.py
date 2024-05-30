@@ -72,7 +72,15 @@ def get_first_last_point_from_linestring(linestring: shapely.LineString) -> tupl
     :param linestring: shapely linestring.
     :return: tuple containing the first and last point.
     """
-    return shapely.get_point(linestring, 0), shapely.get_point(linestring, -1)
+    if isinstance(linestring, shapely.LineString):
+        start_end = shapely.get_point(linestring, 0), shapely.get_point(linestring, -1)
+    elif isinstance(linestring, shapely.MultiLineString):
+        start_end = shapely.get_point(shapely.get_geometry(linestring, 0), 0), shapely.get_point(
+            shapely.get_geometry(linestring, -1), -1
+        )
+    else:
+        raise ValueError("Input is not a valid linestring or multilinestring.")
+    return start_end
 
 
 def get_empty_geodataframe() -> gpd.GeoDataFrame:

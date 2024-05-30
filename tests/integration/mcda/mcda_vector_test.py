@@ -803,6 +803,8 @@ class TestVectorPreprocessing:
                 [np.NaN, "telefooncel", shapely.Polygon()],
                 [np.NaN, "waardeOnbekend", shapely.Polygon()],
                 [np.NaN, np.NaN, shapely.Polygon()],  # this one should be deleted.
+                ["niet-bgt", np.NaN, shapely.Polygon()],  # this one should be deleted.
+                ["waardeOnbekend", np.NaN, shapely.Polygon()],  # this one should be deleted.
             ],
             columns=["function", "plus-type", "geometry"],
             crs=Config.CRS,

@@ -47,7 +47,11 @@ class TestMcdaLcpaChain:
 @pytest.mark.parametrize(
     "path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed",
     [
-        # (Config.PATH_GEOPACKAGE_CASE_01, Config.LAYER_NAME_PROJECT_AREA_CASE_01, Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01),
+        (
+            Config.PATH_GEOPACKAGE_CASE_01,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_01,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01,
+        ),
         (
             Config.PATH_GEOPACKAGE_CASE_02,
             Config.LAYER_NAME_PROJECT_AREA_CASE_02,
@@ -70,7 +74,9 @@ class TestMcdaLcpaChain:
         ),
     ],
 )
-def test_mcda_lcpa_chain_case_01(path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed):
+def test_mcda_lcpa_chain_all_benchmark_cases(
+    path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed
+):
     run_mcda_lcpa(
         Config.RASTER_PRESET_NAME_BENCHMARK,
         path_geopackage,
