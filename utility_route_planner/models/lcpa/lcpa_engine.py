@@ -16,7 +16,18 @@ class LcpaUtilityRouteEngine:
     route_model: LcpaInputModel
     lcpa_result: shapely.LineString
 
-    def get_lcpa_route(self, path_raster: str, project_area: shapely.Polygon, utility_route_sketch: shapely.LineString):
+    # TODO set default project area and if/else statement for creating one if not provided, delete main_lcpa
+
+    def get_lcpa_route(
+        self,
+        path_raster: str,
+        utility_route_sketch: shapely.LineString,
+        project_area: shapely.Polygon = shapely.Polygon(),
+    ):
+        # Set a default project area if not provided, this is a bad idea most of the time.
+        if shapely.is_empty(project_area):
+            project_area = utility_route_sketch.buffer(utility_route_sketch.length / 2)
+
         # Creates a numpy array from cost surface raster and saves the metadata for further usage.
         raster_array, raster_geotransform = load_suitability_raster_data(path_raster, project_area)
         # Preprocess input linestring geometry to a structured datamodel.
@@ -29,6 +40,7 @@ class LcpaUtilityRouteEngine:
         linestring_aligned = align_linestring(linestring, Config.RASTER_CELL_SIZE)
 
         self.lcpa_result = linestring_aligned
+        write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, self.lcpa_result, "utility_route_result")
 
     def preprocess_input_linestring(self, geotransform: tuple, utility_route_sketch: shapely.LineString):
         """

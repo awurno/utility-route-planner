@@ -3,7 +3,6 @@ import shapely
 
 from utility_route_planner.models.lcpa.lcpa_datastructures import LcpaInputModel
 from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
-from utility_route_planner.models.lcpa.lcpa_main import get_lcpa_utility_route
 from settings import Config
 from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
@@ -26,9 +25,9 @@ class TestUtilityRoutes:
         ],
     )
     def test_get_utility_routes(self, utility_route_sketch):
-        lcpa_engine = get_lcpa_utility_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
-            utility_route_sketch=shapely.LineString(utility_route_sketch),
+        lcpa_engine = LcpaUtilityRouteEngine()
+        lcpa_engine.get_lcpa_route(
+            path_raster=Config.PATH_EXAMPLE_RASTER_EDE, utility_route_sketch=shapely.LineString(utility_route_sketch)
         )
 
         # Check that the input points are present in the result.
@@ -44,7 +43,8 @@ class TestUtilityRoutes:
     )
     def test_get_utility_route_with_smaller_project_area(self, utility_route_sketch):
         project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry.buffer(-200)
-        lcpa_engine = get_lcpa_utility_route(
+        lcpa_engine = LcpaUtilityRouteEngine()
+        lcpa_engine.get_lcpa_route(
             path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
             utility_route_sketch=shapely.LineString(utility_route_sketch),
             project_area=project_area,
@@ -63,15 +63,11 @@ class TestUtilityRoutes:
     )
     def test_invalid_utility_route_outside_raster(self, utility_route_sketch):
         with pytest.raises(ValueError):
-            get_lcpa_utility_route(
+            lcpa_engine = LcpaUtilityRouteEngine()
+            lcpa_engine.get_lcpa_route(
                 path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
                 utility_route_sketch=shapely.LineString(utility_route_sketch),
             )
-
-
-@pytest.fixture
-def setup_lcpa_engine():
-    yield LcpaUtilityRouteEngine()
 
 
 class TestShortestPath:
@@ -104,8 +100,8 @@ class TestShortestPath:
             ],
         ],
     )
-    def test_get_easy_utility_route(self, setup_lcpa_engine, valid_input):
-        lcpa_engine = setup_lcpa_engine
+    def test_get_easy_utility_route(self, valid_input):
+        lcpa_engine = LcpaUtilityRouteEngine()
         input_model = LcpaInputModel(
             shapely.LineString([[0, 0], [4, -4]]),  # Note the negative y due to rasters starting from top-left side.
             tuple([0, 1, 0, 0, 0, -1]),
@@ -138,8 +134,8 @@ class TestShortestPath:
             ),
         ],
     )
-    def test_get_utility_route_which_is_unsolvable_due_to_no_data(self, setup_lcpa_engine, invalid_input):
-        lcpa_engine = setup_lcpa_engine
+    def test_get_utility_route_which_is_unsolvable_due_to_no_data(self, invalid_input):
+        lcpa_engine = LcpaUtilityRouteEngine()
 
         input_model = LcpaInputModel(
             shapely.LineString([[0, 0], [4, -4]]),  # Note the negative y due to rasters starting from top-left side.
