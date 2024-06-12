@@ -16,8 +16,6 @@ class LcpaUtilityRouteEngine:
     route_model: LcpaInputModel
     lcpa_result: shapely.LineString
 
-    # TODO set default project area and if/else statement for creating one if not provided, delete main_lcpa
-
     def get_lcpa_route(
         self,
         path_raster: str,
