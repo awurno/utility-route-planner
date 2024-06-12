@@ -6,6 +6,7 @@ import structlog
 import geopandas as gpd
 
 from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.util.timer import time_function
 
 logger = structlog.get_logger(__name__)
 
@@ -28,6 +29,7 @@ class McdaCostSurfaceEngine:
     def number_of_criteria_to_rasterize(self):
         return len(self.processed_vectors)
 
+    @time_function
     def preprocess_vectors(self):
         logger.info(
             f"Processing {self.number_of_criteria} criteria using geopackage: {self.raster_preset.general.path_input_geopackage}"
@@ -47,6 +49,7 @@ class McdaCostSurfaceEngine:
             set(self.unprocessed_criteria_names)
         )
 
+    @time_function
     def preprocess_rasters(self, vector_to_convert: dict[str, gpd.GeoDataFrame]) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         rasters_to_sum = []
