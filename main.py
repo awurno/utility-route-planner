@@ -5,7 +5,7 @@ import shapely
 from settings import Config
 from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
-from utility_route_planner.util.write import write_results_to_geopackage, reset_geopackage
+from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
 
 
@@ -25,11 +25,9 @@ def run_mcda_lcpa(
     lcpa_engine = LcpaUtilityRouteEngine()
     lcpa_engine.get_lcpa_route(
         path_suitability_raster,
-        mcda_engine.raster_preset.general.project_area_geometry,
         shapely.LineString(start_mid_end_points),
+        mcda_engine.raster_preset.general.project_area_geometry,
     )
-
-    write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
 
 
 if __name__ == "__main__":
