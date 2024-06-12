@@ -113,10 +113,11 @@ def validate_layer_names(existing_layers, layer_names):
             raise InvalidLayerName(f"{layer_name} is not in the source geopackage. Existing layers: {existing_layers}")
 
 
-def load_preset(preset_name: str | dict, path_input_geopackage, project_area_geometry) -> RasterPreset:
+def load_preset(preset_name: str | dict, path_input_geopackage, project_area_geometry: shapely.Polygon) -> RasterPreset:
     """
     Convert the raw configuration file to a pydantic datamodel.
 
+    :param project_area_geometry: project area in which the route must be calculated.
     :param preset_name: preset dictionary to load from the mcda_presets.py.
     :param path_input_geopackage: path to the geopackage containing the vector geodata to process in a cost-surface.
     :return: datamodel containing configuration for the raster to create.
@@ -150,3 +151,21 @@ def load_preset(preset_name: str | dict, path_input_geopackage, project_area_geo
         logger.error(f"Exception as str: {e}")
         logger.error(e)
         raise
+
+
+if __name__ == "__main__":
+    # Helper function for creating an Excel overview of all available criteria
+    import pandas as pd
+    import geopandas as gpd
+
+    benchmark_preset = load_preset(
+        Config.RASTER_PRESET_NAME_BENCHMARK,
+        Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+        gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).geometry.iloc[0],
+    )
+    data = []
+    for criterion, details in benchmark_preset.criteria.items():
+        for weight_name, weight_value in details.weight_values.items():
+            data.append((criterion, weight_name, weight_value))
+
+    df = pd.DataFrame(data, columns=["Criteria", "weight_name", "Weight Value"])
