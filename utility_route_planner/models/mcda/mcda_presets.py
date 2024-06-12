@@ -109,7 +109,7 @@ preset_collection = {
                 "group": "a",
                 "weight_values": {
                     # bgt_fysiekvoorkomen
-                    "erf": 76,
+                    "erf": 76,  # is now used as an approximation if ground is public or privately owned.
                     "gesloten verharding": 10,
                     "half verhard": 5,
                     "onverhard": 2,
@@ -200,7 +200,7 @@ preset_collection = {
                     "windturbine": 126,
                 },
             },
-            # TODO Use this as a multilayer raster. It may be beneficial to place cables there? Can optionally be guessed from the "relative hoogteligging" in wegdeel.
+            # TODO discuss: Could be used as a multilayer raster. It may be beneficial to place cables there? Can optionally be guessed from the "relative hoogteligging" in wegdeel.
             # "tunneldeel": {
             #     # https://geonovum.github.io/IMGeo-objectenhandboek/tunneldeel
             #     "description": "placeholder",
@@ -210,7 +210,7 @@ preset_collection = {
             #     "group": "a",
             #     "weight_values": {"tunnel": 0},
             # },
-            # TODO Replace high voltage with own datasource
+            # TODO Replace "hoogspanningsmast" with own datasource
             "kunstwerkdeel": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/kunstwerkdeel
                 "description": "placeholder",
@@ -373,18 +373,26 @@ preset_collection = {
             },
             "protected_area": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
-                # TODO add Natura2000 and create test in mcda_vector_raster_test.py
                 "description": "Protected area such as dykes and nature which may have additional rules or policies.",
                 "layer_names": ["bgt_functioneelgebied_V"],
                 "preprocessing_function": ProtectedArea(),
                 "group": "b",
                 "weight_values": {
                     # bgt_type
-                    "kering": 25,  # Dykes, all other features in this layer are removed.
+                    "kering": 25,  # Dykes, all other features of bgt_functioneelgebied are removed.
+                    # TODO add these datasources and expand test in mcda_vector_raster_test.py
+                    # "natura2000": 25,
+                    # "Aardkundig_monument": 1,
+                    # "Archeologisch_monument": 1,
+                    # "niet_gesprongen_explosieven_wo2": 1,
+                    # "transport_gevaarlijke_stoffen_leiding": 1,  # Like Gasunie
+                    # "brosse_leidingen": 1,
+                    # "verontreinigde_grond": 1,
+                    # "groene_en_rijksmonumenten": 1,
                 },
             },
             "excluded_area": {
-                "description": "Area to exclude were no utility network can be placed, often drawn manually.",
+                "description": "Area to exclude were no utility network can be placed, manually provided.",
                 "layer_names": ["area_to_exclude"],
                 "preprocessing_function": ExcludedArea(),
                 "group": "c",
