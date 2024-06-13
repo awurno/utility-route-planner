@@ -28,7 +28,7 @@ class ProtectedArea(VectorPreprocessorBase):
         input_gdf["sv_1"] = input_gdf["sv_1"].case_when(
             [(input_gdf["sv_1"].eq(i), weight_values[i]) for i in weight_values]
         )
-        input_gdf = input_gdf[input_gdf["bgt-type"] == "kering"]
+        input_gdf = input_gdf[input_gdf["bgt-type"] == "kering"].copy()
 
         input_gdf["suitability_value"] = input_gdf["sv_1"]
 

@@ -31,7 +31,7 @@ class OverigBouwwerk(VectorPreprocessorBase):
         input_gdf["sv_1"] = input_gdf["sv_1"].case_when(
             [(input_gdf["sv_1"].eq(i), weight_values[i]) for i in weight_values]
         )
-        input_gdf = input_gdf[input_gdf["bgt-type"] != "niet-bgt"]
+        input_gdf = input_gdf[input_gdf["bgt-type"] != "niet-bgt"].copy()
 
         input_gdf.loc[:, "suitability_value"] = input_gdf["sv_1"]
 

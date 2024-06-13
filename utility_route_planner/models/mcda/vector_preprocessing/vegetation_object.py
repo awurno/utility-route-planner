@@ -37,7 +37,7 @@ class VegetationObject(VectorPreprocessorBase):
         gdf_vegetation["sv_1"] = gdf_vegetation["sv_1"].case_when(
             [(gdf_vegetation["sv_1"].eq(i), weight_values[i]) for i in weight_values]
         )
-        gdf_vegetation = gdf_vegetation[gdf_vegetation["plus-type"] != "waardeOnbekend"]
+        gdf_vegetation = gdf_vegetation[gdf_vegetation["plus-type"] != "waardeOnbekend"].copy()
 
         gdf_vegetation["suitability_value"] = gdf_vegetation["sv_1"]
 
