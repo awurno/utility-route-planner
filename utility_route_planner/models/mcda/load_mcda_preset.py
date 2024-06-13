@@ -166,6 +166,7 @@ if __name__ == "__main__":
     data = []
     for criterion, details in benchmark_preset.criteria.items():
         for weight_name, weight_value in details.weight_values.items():
-            data.append((criterion, weight_name, weight_value))
+            data.append((criterion, weight_name, weight_value, details.group))
 
-    df = pd.DataFrame(data, columns=["Criteria", "weight_name", "Weight Value"])
+    df = pd.DataFrame(data, columns=["Criteria", "weight_name", "Weight Value", "group"])
+    df.to_csv(Config.PATH_RESULTS / "mcda_weights.csv")
