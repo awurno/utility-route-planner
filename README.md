@@ -1,12 +1,17 @@
-# utility-route-designer
+# utility-route-planner
 The utility network needs to be expanded due to the energy transition. Finding a location for new infrastructure is no easy feat considering the amount of involved design criteria. This research includes the creation of a software package for automatic placement of utility network using a combination of geo-information and graph theory.
 
 # Installation
-A docker image is used as interpreter using PyCharm as IDE.
+To install the utility-route-designer package, run:
+```poetry install```
 
-Building docker image:
+# Usage
+Development is done in Pycharm.
 
-`docker build -f ./docker/Dockerfile -t utility-route-planner:latest .`
+Run tests t.b.d.
+Run example t.b.d.
+
+Open results in QGIS or similar GIS GUI.
 
 # License
 utility-route-designer is under: [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
