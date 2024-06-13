@@ -38,8 +38,8 @@ class TestMcdaLcpaChain:
         lcpa_engine = LcpaUtilityRouteEngine()
         lcpa_engine.get_lcpa_route(
             path_suitability_raster,
-            mcda_engine.raster_preset.general.project_area_geometry,
             shapely.LineString(utility_route_sketch),
+            mcda_engine.raster_preset.general.project_area_geometry,
         )
         write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, lcpa_engine.lcpa_result, "utility_route_result")
 

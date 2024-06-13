@@ -5,6 +5,7 @@ import shapely
 from settings import Config
 from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
 from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
 
@@ -31,9 +32,40 @@ def run_mcda_lcpa(
 
 
 if __name__ == "__main__":
+    cases = [
+        (
+            Config.PATH_GEOPACKAGE_CASE_01,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_01,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_02,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_02,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_02,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_03,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_03,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_03,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_04,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_04,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
+        ),
+        (
+            Config.PATH_GEOPACKAGE_CASE_05,
+            Config.LAYER_NAME_PROJECT_AREA_CASE_05,
+            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_05,
+        ),
+    ]
+
+    case_to_run = 1  # 0/1/2/3/4
+    geopackage, layer_project_area, human_designed_route = cases[case_to_run]
+
     run_mcda_lcpa(
         "preset_benchmark_raw",
-        Config.PATH_GEOPACKAGE_CASE_01,
-        gpd.read_file(Config.PATH_GEOPACKAGE_CASE_01, layer=Config.LAYER_NAME_PROJECT_AREA_CASE_01).iloc[0].geometry,
-        ((233214.2, 442964.2), (236773.04, 440541.40)),
+        geopackage,
+        gpd.read_file(geopackage, layer=layer_project_area).iloc[0].geometry,
+        get_first_last_point_from_linestring(gpd.read_file(geopackage, layer=human_designed_route).iloc[0].geometry),
     )

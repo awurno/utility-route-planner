@@ -7,6 +7,7 @@ from settings import Config
 from utility_route_planner.models.lcpa.lcpa_datastructures import LcpaInputModel
 from utility_route_planner.util.geo_utilities import array_indices_to_linestring, align_linestring
 from utility_route_planner.util.load import load_suitability_raster_data
+from utility_route_planner.util.timer import time_function
 from utility_route_planner.util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
@@ -16,6 +17,7 @@ class LcpaUtilityRouteEngine:
     route_model: LcpaInputModel
     lcpa_result: shapely.LineString
 
+    @time_function
     def get_lcpa_route(
         self,
         path_raster: str,
