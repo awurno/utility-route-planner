@@ -22,6 +22,7 @@ rasterio = "^1.3.10"
 boto3 = "^1.34.106"
 sqlalchemy = "^2.0.30"
 psycopg2-binary = "^2.9.9"
+owslib = "^0.31.0"
 
 [build-system]
 requires = ["poetry-core"]
