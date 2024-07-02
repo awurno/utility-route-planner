@@ -210,7 +210,6 @@ preset_collection = {
             #     "group": "a",
             #     "weight_values": {"tunnel": 0},
             # },
-            # TODO Replace "hoogspanningsmast" with own datasource
             "kunstwerkdeel": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/kunstwerkdeel
                 "description": "placeholder",
