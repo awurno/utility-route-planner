@@ -9,6 +9,7 @@ import pandas
 import shapely
 import geopandas as gpd
 import structlog
+from pandas.errors import IntCastingNaNError
 
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue
@@ -80,13 +81,12 @@ class VectorPreprocessorBase(abc.ABC):
 
     def is_valid_result(self, processed_gdf: gpd.GeoDataFrame) -> bool:
         """Validate the result if all features were assigned a valid suitability value."""
-        # TODO add test for this validation
         if processed_gdf.empty:
             logger.warning(f"No data available for criterion: {self.criterion}.")
             return False
         try:
             processed_gdf.astype({"suitability_value": int}, errors="raise")
-        except ValueError:
+        except (ValueError, IntCastingNaNError, TypeError):
             logger.error(
                 f"Suitability value is invalid rows: {processed_gdf.loc[~processed_gdf['suitability_value'].astype(str).str.isnumeric()]}. Check mcda_presets.yaml or preprocessing function for criteria: {self.criterion}."
             )

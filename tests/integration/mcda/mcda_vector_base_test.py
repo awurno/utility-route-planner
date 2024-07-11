@@ -11,6 +11,7 @@ from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria
 from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
 from utility_route_planner.models.mcda.vector_preprocessing.validation import validate_values_to_reclassify
+from utility_route_planner.util.geo_utilities import get_empty_geodataframe
 
 
 @pytest.fixture
@@ -78,7 +79,12 @@ class TestBaseVectorPreprocessing:
     @pytest.mark.parametrize("valid_input", [[1, 211, 33], [20, 2, 300.123]])
     def test_base_validate_result_happy(self, setup_base_class, valid_input):
         base_instance = setup_base_class
-        base_instance.is_valid_result(gpd.GeoDataFrame({"suitability_value": valid_input}))
+        assert base_instance.is_valid_result(gpd.GeoDataFrame({"suitability_value": valid_input}))
+
+    def test_base_validate_result_empty(self, setup_base_class):
+        base_instance = setup_base_class
+        assert not base_instance.is_valid_result(get_empty_geodataframe())
+        assert not base_instance.is_valid_result(gpd.GeoDataFrame())
 
 
 def test_all_values_present():
