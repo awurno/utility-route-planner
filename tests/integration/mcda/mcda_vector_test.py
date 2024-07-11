@@ -566,8 +566,9 @@ class TestVectorPreprocessing:
         weight_values = {
             # bgt_type
             "kering": 1,  # Dykes, delete all other records
+            "natura2000": 2,
         }
-        input_gdf = gpd.GeoDataFrame(
+        input_gdf_bgt = gpd.GeoDataFrame(
             [
                 ["kering", shapely.Polygon()],
                 ["should_be_deleted", shapely.Polygon()],
@@ -577,10 +578,18 @@ class TestVectorPreprocessing:
             crs=Config.CRS,
             geometry="geometry",
         )
-        reclassified_gdf = ProtectedArea._set_suitability_values(input_gdf, weight_values)
+        input_gdf_natura2000 = gpd.GeoDataFrame(
+            [
+                ["some_protected_area", 1, "test", shapely.Polygon()],
+            ],
+            columns=["naamN2K", "nr", "beschermin", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = ProtectedArea._set_suitability_values([input_gdf_bgt, input_gdf_natura2000], weight_values)
         pd.testing.assert_series_equal(
-            reclassified_gdf["sv_1"],
-            pd.Series([1]),
+            reclassified_gdf["type"],
+            pd.Series(["kering", "natura2000"]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
@@ -588,7 +597,7 @@ class TestVectorPreprocessing:
         )
         pd.testing.assert_series_equal(
             reclassified_gdf["suitability_value"],
-            pd.Series([1]),
+            pd.Series([1, 2]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
