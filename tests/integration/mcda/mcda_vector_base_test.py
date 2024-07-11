@@ -68,7 +68,7 @@ class TestBaseVectorPreprocessing:
         assert result[0].empty
 
     @pytest.mark.parametrize(
-        "invalid_input", [[1, 2, 3, "invalid"], [1, 2, 3, np.NaN], [1, 2, 3, [1, 2]], [1, 2, 3, None]]
+        "invalid_input", [[1, 2, 3, "invalid"], [1, 2, 3, np.nan], [1, 2, 3, [1, 2]], [1, 2, 3, None]]
     )
     def test_base_validate_result_unhappy(self, setup_base_class, invalid_input):
         base_instance = setup_base_class
