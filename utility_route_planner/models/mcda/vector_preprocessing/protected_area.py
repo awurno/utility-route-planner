@@ -29,7 +29,7 @@ class ProtectedArea(VectorPreprocessorBase):
         gdf_kering, gdf_natura2000 = get_empty_geodataframe(), get_empty_geodataframe()
         for gdf in input_gdf:
             if "bgt-type" in gdf.columns:
-                gdf_kering = gdf
+                gdf_kering = gdf.copy()
                 # Class is always filled in.
                 gdf_kering["sv_1"] = gdf_kering["bgt-type"]
                 gdf_kering["sv_1"] = gdf_kering["sv_1"].case_when(
@@ -41,7 +41,7 @@ class ProtectedArea(VectorPreprocessorBase):
                 gdf_kering = gdf_kering[["suitability_value", "geometry"]]
                 gdf_kering["type"] = "kering"
             else:
-                gdf_natura2000 = gdf
+                gdf_natura2000 = gdf.copy()
                 gdf_natura2000["suitability_value"] = weight_values.get("natura2000")
                 gdf_natura2000 = gdf_natura2000[["suitability_value", "geometry"]]
                 gdf_natura2000["type"] = "natura2000"

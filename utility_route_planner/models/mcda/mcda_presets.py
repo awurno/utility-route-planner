@@ -373,14 +373,14 @@ preset_collection = {
             "protected_area": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/functioneelgebied
                 "description": "Protected area such as dykes and nature which may have additional rules or policies.",
-                "layer_names": ["bgt_functioneelgebied_V"],
+                "layer_names": ["bgt_functioneelgebied_V", "natura2000"],
                 "preprocessing_function": ProtectedArea(),
                 "group": "b",
                 "weight_values": {
                     # bgt_type
                     "kering": 25,  # Dykes, all other features of bgt_functioneelgebied are removed.
+                    "natura2000": 25,
                     # TODO add these datasources and expand test in mcda_vector_raster_test.py
-                    # "natura2000": 25,
                     # "Aardkundig_monument": 1,
                     # "Archeologisch_monument": 1,
                     # "niet_gesprongen_explosieven_wo2": 1,
