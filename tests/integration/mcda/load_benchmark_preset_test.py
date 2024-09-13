@@ -14,8 +14,8 @@ def test_load_benchmark_with_default_settings_as_str():
     # Pydantic validates the values in the model.
     load_preset(
         Config.RASTER_PRESET_NAME_BENCHMARK,
-        Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-        gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry,
     )
 
 
@@ -23,8 +23,10 @@ def test_invalid_preset_name():
     with pytest.raises(ValueError):
         load_preset(
             "this_preset_does_not_exist_and_should_raise_an_error",
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
 
 
@@ -33,8 +35,10 @@ def test_invalid_input(invalid_input):
     with pytest.raises(ValueError):
         load_preset(
             invalid_input,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
 
 
@@ -45,7 +49,11 @@ def setup_raster_preset_dummy():
             "description": "Dummy preset.",
             "prefix": "b_",
             "final_raster_name": "benchmark_suitability_raster",
-            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            "project_area_geometry": gpd.read_file(
+                Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA
+            )
+            .iloc[0]
+            .geometry,
         },
         "criteria": {
             "test_criteria": {

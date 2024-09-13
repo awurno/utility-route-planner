@@ -32,8 +32,8 @@ class Config:
 
     # Testing paths.
     PATH_EXAMPLE_RASTER_EDE = BASEDIR / "data/examples/pytest_example_suitability_raster_ede.tif"
-    PATH_PROJECT_AREA_PYTEST_EDE = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"
-    PATH_GEOPACKAGE_MCDA_PYTEST_EDE = BASEDIR / "data/examples/ede.gpkg"
+    PYTEST_PATH_GEOPACKAGE_MCDA = BASEDIR / "data/examples/pytest_data.gpkg"
+    PYTEST_LAYER_NAME_PROJECT_AREA = "project_area_ede"
 
     # Research question 1 data paths.
     PATH_GEOPACKAGE_CASE_01 = BASEDIR / "data/examples/case_01.gpkg"
