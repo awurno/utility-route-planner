@@ -1,30 +1,33 @@
+import numpy as np
 import pandas as pd
 import pytest
 
 from settings import Config
-from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
-from src.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
-from src.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
-from src.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
-from src.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
-from src.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
-from src.models.mcda.vector_preprocessing.ondersteunend_wegdeel import OndersteunendWegdeel
-from src.models.mcda.vector_preprocessing.overig_bouwwerk import OverigBouwwerk
-from src.models.mcda.vector_preprocessing.pand import Pand
-from src.models.mcda.vector_preprocessing.protected_area import ProtectedArea
-from src.models.mcda.vector_preprocessing.small_above_ground_obstacles import SmallAboveGroundObstacles
-from src.models.mcda.vector_preprocessing.vegetation_object import VegetationObject
-from src.models.mcda.vector_preprocessing.waterdeel import Waterdeel
-from src.models.mcda.mcda_presets import preset_collection
-from src.models.mcda.vector_preprocessing.wegdeel import Wegdeel
-from src.util.write import reset_geopackage
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from utility_route_planner.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
+from utility_route_planner.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
+from utility_route_planner.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
+from utility_route_planner.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
+from utility_route_planner.models.mcda.vector_preprocessing.ondersteunend_wegdeel import OndersteunendWegdeel
+from utility_route_planner.models.mcda.vector_preprocessing.overig_bouwwerk import OverigBouwwerk
+from utility_route_planner.models.mcda.vector_preprocessing.pand import Pand
+from utility_route_planner.models.mcda.vector_preprocessing.protected_area import ProtectedArea
+from utility_route_planner.models.mcda.vector_preprocessing.small_above_ground_obstacles import (
+    SmallAboveGroundObstacles,
+)
+from utility_route_planner.models.mcda.vector_preprocessing.vegetation_object import VegetationObject
+from utility_route_planner.models.mcda.vector_preprocessing.waterdeel import Waterdeel
+from utility_route_planner.models.mcda.mcda_presets import preset_collection
+from utility_route_planner.models.mcda.vector_preprocessing.wegdeel import Wegdeel
+from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
 import shapely
 
 
 @pytest.fixture
 def setup_clean_start(monkeypatch):
-    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, truncate=False)
+    reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
 
 
 @pytest.mark.usefixtures("setup_clean_start")
@@ -35,11 +38,19 @@ class TestVectorPreprocessing:
             "general": preset_collection["preset_benchmark_raw"]["general"],
             "criteria": {"waterdeel": preset_collection["preset_benchmark_raw"]["criteria"]["waterdeel"]},
         }
-        mcda_engine = McdaCostSurfaceEngine(preset_to_load)
+        mcda_engine = McdaCostSurfaceEngine(
+            preset_to_load,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
 
     def test_process_all_vectors(self):
-        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
+        mcda_engine = McdaCostSurfaceEngine(
+            Config.RASTER_PRESET_NAME_BENCHMARK,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
 
     def test_process_waterdeel(self):
@@ -555,8 +566,9 @@ class TestVectorPreprocessing:
         weight_values = {
             # bgt_type
             "kering": 1,  # Dykes, delete all other records
+            "natura2000": 2,
         }
-        input_gdf = gpd.GeoDataFrame(
+        input_gdf_bgt = gpd.GeoDataFrame(
             [
                 ["kering", shapely.Polygon()],
                 ["should_be_deleted", shapely.Polygon()],
@@ -566,10 +578,18 @@ class TestVectorPreprocessing:
             crs=Config.CRS,
             geometry="geometry",
         )
-        reclassified_gdf = ProtectedArea._set_suitability_values(input_gdf, weight_values)
+        input_gdf_natura2000 = gpd.GeoDataFrame(
+            [
+                ["some_protected_area", 1, "test", shapely.Polygon()],
+            ],
+            columns=["naamN2K", "nr", "beschermin", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = ProtectedArea._set_suitability_values([input_gdf_bgt, input_gdf_natura2000], weight_values)
         pd.testing.assert_series_equal(
-            reclassified_gdf["sv_1"],
-            pd.Series([1]),
+            reclassified_gdf["type"],
+            pd.Series(["kering", "natura2000"]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
@@ -577,7 +597,7 @@ class TestVectorPreprocessing:
         )
         pd.testing.assert_series_equal(
             reclassified_gdf["suitability_value"],
-            pd.Series([1]),
+            pd.Series([1, 2]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
@@ -709,90 +729,93 @@ class TestVectorPreprocessing:
         )
         bgt_bak_bord_kast_paal_put_straatmeubilair = gpd.GeoDataFrame(
             [
-                ["afval apart plaats", shapely.Polygon()],
-                ["afvalbak", shapely.Polygon()],
-                ["bloembak", shapely.Polygon()],
-                ["container", shapely.Polygon()],
-                ["drinkbak", shapely.Polygon()],
-                ["zand- / zoutbak", shapely.Polygon()],
-                ["dynamische snelheidsindicator", shapely.Polygon()],
-                ["informatiebord", shapely.Polygon()],
-                ["plaatsnaambord", shapely.Polygon()],
-                ["reclamebord", shapely.Polygon()],
-                ["scheepvaartbord", shapely.Polygon()],
-                ["straatnaambord", shapely.Polygon()],
-                ["verkeersbord", shapely.Polygon()],
-                ["verklikker transportleiding", shapely.Polygon()],
-                ["waarschuwingshek", shapely.Polygon()],
-                ["wegwijzer", shapely.Polygon()],
-                ["CAI-kast", shapely.Polygon()],
-                ["elektrakast", shapely.Polygon()],
-                ["gaskast", shapely.Polygon()],
-                ["GMS kast", shapely.Polygon()],
-                ["openbare verlichtingkast", shapely.Polygon()],
-                ["rioolkast", shapely.Polygon()],
-                ["telecom kast", shapely.Polygon()],
-                ["telkast", shapely.Polygon()],
-                ["verkeersregelinstallatiekast", shapely.Polygon()],
-                ["bovenleidingmast", shapely.Polygon()],
-                ["laagspanningsmast", shapely.Polygon()],
-                ["radarmast", shapely.Polygon()],
-                ["straalzender", shapely.Polygon()],
-                ["zendmast", shapely.Polygon()],
-                ["afsluitpaal", shapely.Polygon()],
-                ["dijkpaal", shapely.Polygon()],
-                ["drukknoppaal", shapely.Polygon()],
-                ["grensmarkering", shapely.Polygon()],
-                ["haltepaal", shapely.Polygon()],
-                ["hectometerpaal", shapely.Polygon()],
-                ["lichtmast", shapely.Polygon()],
-                ["poller", shapely.Polygon()],
-                ["portaal", shapely.Polygon()],
-                ["praatpaal", shapely.Polygon()],
-                ["sirene", shapely.Polygon()],
-                ["telpaal", shapely.Polygon()],
-                ["verkeersbordpaal", shapely.Polygon()],
-                ["verkeersregelinstallatiepaal", shapely.Polygon()],
-                ["vlaggenmast", shapely.Polygon()],
-                ["benzine- / olieput", shapely.Polygon()],
-                ["brandkraan / -put", shapely.Polygon()],
-                ["drainageput", shapely.Polygon()],
-                ["gasput", shapely.Polygon()],
-                ["inspectie- / rioolput", shapely.Polygon()],
-                ["kolk", shapely.Polygon()],
-                ["waterleidingput", shapely.Polygon()],
-                ["detectielus", shapely.Polygon()],
-                ["camera", shapely.Polygon()],
-                ["debietmeter", shapely.Polygon()],
-                ["flitser", shapely.Polygon()],
-                ["GMS sensor", shapely.Polygon()],
-                ["hoogtedetectieapparaat", shapely.Polygon()],
-                ["lichtcel", shapely.Polygon()],
-                ["radar detector", shapely.Polygon()],
-                ["waterstandmeter", shapely.Polygon()],
-                ["weerstation", shapely.Polygon()],
-                ["windmeter", shapely.Polygon()],
-                ["abri", shapely.Polygon()],
-                ["bank", shapely.Polygon()],
-                ["betaalautomaat", shapely.Polygon()],
-                ["bolder", shapely.Polygon()],
-                ["brievenbus", shapely.Polygon()],
-                ["fietsenkluis", shapely.Polygon()],
-                ["fietsenrek", shapely.Polygon()],
-                ["fontein", shapely.Polygon()],
-                ["herdenkingsmonument", shapely.Polygon()],
-                ["kunstobject", shapely.Polygon()],
-                ["lichtpunt", shapely.Polygon()],
-                ["openbaar toilet", shapely.Polygon()],
-                ["parkeerbeugel", shapely.Polygon()],
-                ["picknicktafel", shapely.Polygon()],
-                ["reclamezuil", shapely.Polygon()],
-                ["slagboom", shapely.Polygon()],
-                ["speelvoorziening", shapely.Polygon()],
-                ["telefooncel", shapely.Polygon()],
-                ["waardeOnbekend", shapely.Polygon()],
+                [np.nan, "afval apart plaats", shapely.Polygon()],
+                [np.nan, "afvalbak", shapely.Polygon()],
+                [np.nan, "bloembak", shapely.Polygon()],
+                [np.nan, "container", shapely.Polygon()],
+                [np.nan, "drinkbak", shapely.Polygon()],
+                [np.nan, "zand- / zoutbak", shapely.Polygon()],
+                [np.nan, "dynamische snelheidsindicator", shapely.Polygon()],
+                [np.nan, "informatiebord", shapely.Polygon()],
+                [np.nan, "plaatsnaambord", shapely.Polygon()],
+                [np.nan, "reclamebord", shapely.Polygon()],
+                [np.nan, "scheepvaartbord", shapely.Polygon()],
+                [np.nan, "straatnaambord", shapely.Polygon()],
+                [np.nan, "verkeersbord", shapely.Polygon()],
+                [np.nan, "verklikker transportleiding", shapely.Polygon()],
+                [np.nan, "waarschuwingshek", shapely.Polygon()],
+                [np.nan, "wegwijzer", shapely.Polygon()],
+                [np.nan, "CAI-kast", shapely.Polygon()],
+                [np.nan, "elektrakast", shapely.Polygon()],
+                [np.nan, "gaskast", shapely.Polygon()],
+                [np.nan, "GMS kast", shapely.Polygon()],
+                [np.nan, "openbare verlichtingkast", shapely.Polygon()],
+                [np.nan, "rioolkast", shapely.Polygon()],
+                [np.nan, "telecom kast", shapely.Polygon()],
+                [np.nan, "telkast", shapely.Polygon()],
+                [np.nan, "verkeersregelinstallatiekast", shapely.Polygon()],
+                [np.nan, "bovenleidingmast", shapely.Polygon()],
+                [np.nan, "laagspanningsmast", shapely.Polygon()],
+                [np.nan, "radarmast", shapely.Polygon()],
+                [np.nan, "straalzender", shapely.Polygon()],
+                [np.nan, "zendmast", shapely.Polygon()],
+                [np.nan, "afsluitpaal", shapely.Polygon()],
+                [np.nan, "dijkpaal", shapely.Polygon()],
+                [np.nan, "drukknoppaal", shapely.Polygon()],
+                [np.nan, "grensmarkering", shapely.Polygon()],
+                [np.nan, "haltepaal", shapely.Polygon()],
+                [np.nan, "hectometerpaal", shapely.Polygon()],
+                [np.nan, "lichtmast", shapely.Polygon()],
+                [np.nan, "poller", shapely.Polygon()],
+                [np.nan, "portaal", shapely.Polygon()],
+                [np.nan, "praatpaal", shapely.Polygon()],
+                [np.nan, "sirene", shapely.Polygon()],
+                [np.nan, "telpaal", shapely.Polygon()],
+                [np.nan, "verkeersbordpaal", shapely.Polygon()],
+                [np.nan, "verkeersregelinstallatiepaal", shapely.Polygon()],
+                [np.nan, "vlaggenmast", shapely.Polygon()],
+                [np.nan, "benzine- / olieput", shapely.Polygon()],
+                [np.nan, "brandkraan / -put", shapely.Polygon()],
+                [np.nan, "drainageput", shapely.Polygon()],
+                [np.nan, "gasput", shapely.Polygon()],
+                [np.nan, "inspectie- / rioolput", shapely.Polygon()],
+                [np.nan, "kolk", shapely.Polygon()],
+                [np.nan, "waterleidingput", shapely.Polygon()],
+                [np.nan, "detectielus", shapely.Polygon()],
+                [np.nan, "camera", shapely.Polygon()],
+                [np.nan, "debietmeter", shapely.Polygon()],
+                [np.nan, "flitser", shapely.Polygon()],
+                [np.nan, "GMS sensor", shapely.Polygon()],
+                [np.nan, "hoogtedetectieapparaat", shapely.Polygon()],
+                [np.nan, "lichtcel", shapely.Polygon()],
+                [np.nan, "radar detector", shapely.Polygon()],
+                [np.nan, "waterstandmeter", shapely.Polygon()],
+                [np.nan, "weerstation", shapely.Polygon()],
+                [np.nan, "windmeter", shapely.Polygon()],
+                [np.nan, "abri", shapely.Polygon()],
+                [np.nan, "bank", shapely.Polygon()],
+                [np.nan, "betaalautomaat", shapely.Polygon()],
+                [np.nan, "bolder", shapely.Polygon()],
+                [np.nan, "brievenbus", shapely.Polygon()],
+                [np.nan, "fietsenkluis", shapely.Polygon()],
+                [np.nan, "fietsenrek", shapely.Polygon()],
+                [np.nan, "fontein", shapely.Polygon()],
+                [np.nan, "herdenkingsmonument", shapely.Polygon()],
+                [np.nan, "kunstobject", shapely.Polygon()],
+                [np.nan, "lichtpunt", shapely.Polygon()],
+                [np.nan, "openbaar toilet", shapely.Polygon()],
+                [np.nan, "parkeerbeugel", shapely.Polygon()],
+                [np.nan, "picknicktafel", shapely.Polygon()],
+                [np.nan, "reclamezuil", shapely.Polygon()],
+                [np.nan, "slagboom", shapely.Polygon()],
+                [np.nan, "speelvoorziening", shapely.Polygon()],
+                [np.nan, "telefooncel", shapely.Polygon()],
+                [np.nan, "waardeOnbekend", shapely.Polygon()],
+                [np.nan, np.nan, shapely.Polygon()],  # this one should be deleted.
+                ["niet-bgt", np.nan, shapely.Polygon()],  # this one should be deleted.
+                ["waardeOnbekend", np.nan, shapely.Polygon()],  # this one should be deleted.
             ],
-            columns=["plus-type", "geometry"],
+            columns=["function", "plus-type", "geometry"],
             crs=Config.CRS,
             geometry="geometry",
         )

@@ -6,16 +6,20 @@ import shapely
 import numpy as np
 
 from settings import Config
-from src.models.mcda.exceptions import RasterCellSizeTooSmall, InvalidSuitabilityRasterInput, InvalidGroupValue
-from src.models.mcda.mcda_engine import McdaCostSurfaceEngine
-from src.models.mcda.mcda_presets import preset_collection
-from src.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
-from src.util.write import reset_geopackage
+from utility_route_planner.models.mcda.exceptions import (
+    RasterCellSizeTooSmall,
+    InvalidSuitabilityRasterInput,
+    InvalidGroupValue,
+)
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.models.mcda.mcda_presets import preset_collection
+from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.util.write import reset_geopackage
 
 
 @pytest.fixture
 def setup_clean_start(monkeypatch):
-    reset_geopackage(Config.PATH_OUTPUT_MCDA_GEOPACKAGE, truncate=False)
+    reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
 
 
 @pytest.mark.usefixtures("setup_clean_start")
@@ -29,19 +33,46 @@ class TestRasterPreprocessing:
                 ],
             },
         }
-        mcda_engine = McdaCostSurfaceEngine(preset_to_load)
+        mcda_engine = McdaCostSurfaceEngine(
+            preset_to_load,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        assert mcda_engine.processed_criteria_names == {"small_above_ground_obstacles"}
+        assert mcda_engine.unprocessed_criteria_names == set()
 
     def test_preprocess_all_rasters(self):
-        mcda_engine = McdaCostSurfaceEngine("preset_benchmark_raw")
+        mcda_engine = McdaCostSurfaceEngine(
+            Config.RASTER_PRESET_NAME_BENCHMARK,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        assert mcda_engine.processed_criteria_names == {
+            "begroeid_terreindeel",
+            "waterdeel",
+            "ondersteunend_wegdeel",
+            "pand",
+            "wegdeel",
+            "excluded_area",
+            "onbegroeid_terreindeel",
+            "vegetation_object",
+            "small_above_ground_obstacles",
+        }
+        assert mcda_engine.unprocessed_criteria_names == {
+            "ondersteunend_waterdeel",
+            "overig_bouwwerk",
+            "kunstwerkdeel",
+            "protected_area",
+        }
 
 
 def test_rasterize_vector_data_cell_size_error():
     with pytest.raises(RasterCellSizeTooSmall):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry
+        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
         rasterize_vector_data("temp", "temp", project_area, gpd.GeoDataFrame(), 500000)
 
 
@@ -103,7 +134,7 @@ def test_rasterize_single_criterion(debug=False):
         rasterized_gdf = rasterize_vector_data(
             "pytest_",
             "test_rasterize",
-            gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
             gdf,
             0.5,
         )
@@ -247,7 +278,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         path_raster = rasterize_vector_data(
             "pytest_",
             i[2],
-            gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
             i[1],
             0.5,
         )

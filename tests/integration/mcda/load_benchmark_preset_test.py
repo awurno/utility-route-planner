@@ -1,30 +1,41 @@
-from unittest import mock
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 
 import pytest
 import geopandas as gpd
 
 from settings import Config
-from src.models.mcda.exceptions import InvalidSuitabilityValue, InvalidLayerName, InvalidGroupValue
-from src.models.mcda.load_mcda_preset import load_preset
-from src.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
-from src.models.mcda.load_mcda_preset import RasterPresetCriteria
+from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue, InvalidLayerName, InvalidGroupValue
+from utility_route_planner.models.mcda.load_mcda_preset import load_preset, validate_layer_names
+from utility_route_planner.models.mcda.vector_preprocessing.base import VectorPreprocessorBase
+from utility_route_planner.models.mcda.load_mcda_preset import RasterPresetCriteria
 
 
-def test_load_benchmark_with_default_settings():
+def test_load_benchmark_with_default_settings_as_str():
     # Pydantic validates the values in the model.
-    load_preset(Config.RASTER_PRESET_NAME)
+    load_preset(
+        Config.RASTER_PRESET_NAME_BENCHMARK,
+        Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+        gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+    )
 
 
 def test_invalid_preset_name():
     with pytest.raises(ValueError):
-        load_preset("this_preset_does_not_exist_and_should_raise_an_error")
+        load_preset(
+            "this_preset_does_not_exist_and_should_raise_an_error",
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
 
 
 @pytest.mark.parametrize("invalid_input", [1, False, None, [1, 2, 3]])
 def test_invalid_input(invalid_input):
     with pytest.raises(ValueError):
-        load_preset(invalid_input)
+        load_preset(
+            invalid_input,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
 
 
 @pytest.fixture
@@ -34,7 +45,7 @@ def setup_raster_preset_dummy():
             "description": "Dummy preset.",
             "prefix": "b_",
             "final_raster_name": "benchmark_suitability_raster",
-            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_EDE_COMPONISTENBUURT).iloc[0].geometry,
+            "project_area_geometry": gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
         },
         "criteria": {
             "test_criteria": {
@@ -100,7 +111,7 @@ class TestCriteriaInput:
     def test_invalid_layer_name_values(self, invalid_input):
         existing_layers = ["valid_layer1", "valid_layer2"]
         with pytest.raises(InvalidLayerName):
-            RasterPresetCriteria.validate_layer_names(existing_layers, invalid_input)
+            validate_layer_names(existing_layers, invalid_input)
 
     @pytest.mark.parametrize(
         "valid_input",
@@ -108,10 +119,4 @@ class TestCriteriaInput:
     )
     def test_valid_layer_name_values(self, valid_input, setup_raster_preset_dummy):
         existing_layers = ["single_layer", "layer1", "layer2"]
-        RasterPresetCriteria.validate_layer_names(existing_layers, valid_input)
-
-    @mock.patch.object(RasterPresetCriteria, "get_existing_layers_geopackage", new_callable=PropertyMock)
-    def test_initialize_raster_criteria(self, patched_get_existing_layers_geopackage, setup_raster_preset_dummy):
-        patched_get_existing_layers_geopackage.return_value = ["my_layer_name"]
-        preset_input_dict = setup_raster_preset_dummy
-        load_preset(preset_input_dict)
+        validate_layer_names(existing_layers, valid_input)

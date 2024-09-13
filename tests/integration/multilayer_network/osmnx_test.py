@@ -1,7 +1,7 @@
 import osmnx
 import pytest
 
-from src.models.multilayer_network.reachability_design import get_network_for_project_area
+from utility_route_planner.models.multilayer_network.reachability_design import get_network_for_project_area
 import geopandas
 from settings import Config
 
