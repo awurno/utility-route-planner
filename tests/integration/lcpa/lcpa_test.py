@@ -27,7 +27,7 @@ class TestUtilityRoutes:
     def test_get_utility_routes(self, utility_route_sketch):
         lcpa_engine = LcpaUtilityRouteEngine()
         lcpa_engine.get_lcpa_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_EDE, utility_route_sketch=shapely.LineString(utility_route_sketch)
+            path_raster=Config.PATH_EXAMPLE_RASTER, utility_route_sketch=shapely.LineString(utility_route_sketch)
         )
 
         # Check that the input points are present in the result.
@@ -49,7 +49,7 @@ class TestUtilityRoutes:
         )
         lcpa_engine = LcpaUtilityRouteEngine()
         lcpa_engine.get_lcpa_route(
-            path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
+            path_raster=Config.PATH_EXAMPLE_RASTER,
             utility_route_sketch=shapely.LineString(utility_route_sketch),
             project_area=project_area,
         )
@@ -69,7 +69,7 @@ class TestUtilityRoutes:
         with pytest.raises(ValueError):
             lcpa_engine = LcpaUtilityRouteEngine()
             lcpa_engine.get_lcpa_route(
-                path_raster=Config.PATH_EXAMPLE_RASTER_EDE,
+                path_raster=Config.PATH_EXAMPLE_RASTER,
                 utility_route_sketch=shapely.LineString(utility_route_sketch),
             )
 

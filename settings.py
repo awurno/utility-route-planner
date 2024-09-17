@@ -31,7 +31,7 @@ class Config:
     PATH_GEOPACKAGE_LCPA_OUTPUT = BASEDIR / "data/processed/lcpa_results.gpkg"
 
     # Testing paths.
-    PATH_EXAMPLE_RASTER_EDE = BASEDIR / "data/examples/pytest_example_suitability_raster_ede.tif"
+    PATH_EXAMPLE_RASTER = BASEDIR / "data/examples/pytest_example_suitability_raster.tif"
     PYTEST_PATH_GEOPACKAGE_MCDA = BASEDIR / "data/examples/pytest_data.gpkg"
     PYTEST_LAYER_NAME_PROJECT_AREA = "project_area_ede"
 
