@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 
 
-# TODO maak dit NIET te generiek, het moet gewoon 1 preset zijn.
 @dataclass
 class McdaModelGeneral:
-    description: str = "Preset voor stedelijk gebied."
+    description: str = "Default preset for benchmark."
     prefix: str = "b_"
     raster_resolution: tuple = (0.5, 0.5)
     final_raster_name: str = "benchmark_suitability_raster"
