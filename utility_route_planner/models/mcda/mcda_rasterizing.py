@@ -148,32 +148,31 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
 def process_raster_groups(group: list, method: str) -> tuple:
     """Per group, process the criteria arrays."""
     # Use numpy masks to ignore the nodata values in the computations.
-    merged_group = []
     blocked_raster_dict = {}
+    raster_meta_data = {}
+
+    # TODO check fill value after stacking, summing. Is this value important? --> part of metadata as well.
     for idx, raster_dict in enumerate(group):
         with rasterio.open(list(raster_dict.keys())[0], "r") as src:
+            raster_meta_data = src.meta.copy()
             for (row, col), window in src.block_windows(1):
                 raster_block = src.read(1, window=window, masked=True)
+
                 if idx == 0:
                     blocked_raster_dict[(row, col)] = raster_block
-                else:
-                    maxed = np.ma.max(np.ma.stack((blocked_raster_dict[(row, col)], raster_block), axis=0), axis=0)
-                    pass
-    pass
-            # if idx == 0:
-            #     merged_group = src.read(1, masked=True)
-            #     out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster.
-            # else:
-            #     match method:
-            #         case "sum":
-            #             merged_group = np.ma.sum([merged_group, src.read(1, masked=True)], axis=0)
-            #         case "max":
-            #             merged_group = np.ma.max(np.ma.stack((merged_group, src.read(1, masked=True)), axis=0), axis=0)
-            #         case _:
-            #             raise InvalidSuitabilityRasterInput(
-            #                 f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
-            #             )
-    return merged_group, None
+
+                match method:
+                    case "sum":
+                        result = np.ma.sum([blocked_raster_dict[(row, col)], raster_block], axis=0)
+                    case "max":
+                        result = np.ma.max(np.ma.stack((blocked_raster_dict[(row, col)], raster_block), axis=0), axis=0)
+                    case _:
+                        raise InvalidSuitabilityRasterInput(
+                            f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
+                        )
+                blocked_raster_dict[(row, col)] = result
+
+    return blocked_raster_dict, raster_meta_data
 
 
 def read_raster_in_windows(src: DatasetReader):
