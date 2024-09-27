@@ -111,7 +111,8 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
         merged_group_c, _ = process_raster_groups(group_c, "sum")
 
     if len(group_b) > 0 and len(group_a) > 0:
-        summed_raster = np.ma.sum([merged_group_a, merged_group_b], axis=0)
+        summed_raster = {key: np.ma.sum([merged_group_a[key], merged_group_b[key]], axis=0) for key in merged_group_a}
+
     elif len(group_b) > 0 and len(group_a) == 0:
         summed_raster = merged_group_b
     elif len(group_a) > 0 and len(group_b) == 0:
@@ -119,7 +120,9 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
     else:
         raise InvalidSuitabilityRasterInput("No rasters to sum, exiting.")
 
-    # Force values to fit in the int8 datatype.
+    # Force values to fit in the int8 datatype. --> zou je hier niet een schaling willen doen eerst om alles
+    # boven de 126 juist te behouden? Maar misschien zou je dan eigenlijk liever andere waardes kiezen om initieel
+    # op te werken. In beide gevallen is deze schaling dan niet nodig
     summed_raster = np.ma.clip(
         summed_raster, Config.FINAL_RASTER_VALUE_LIMIT_LOWER, Config.FINAL_RASTER_VALUE_LIMIT_UPPER
     )
