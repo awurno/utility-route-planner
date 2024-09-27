@@ -9,6 +9,7 @@ import rasterio.mask
 import numpy as np
 import geopandas as gpd
 import affine
+from rasterio import DatasetReader
 
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
@@ -148,19 +149,32 @@ def process_raster_groups(group: list, method: str) -> tuple:
     """Per group, process the criteria arrays."""
     # Use numpy masks to ignore the nodata values in the computations.
     merged_group = []
+    blocked_raster_dict = {}
     for idx, raster_dict in enumerate(group):
         with rasterio.open(list(raster_dict.keys())[0], "r") as src:
-            if idx == 0:
-                merged_group = src.read(1, masked=True)
-                out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster.
-            else:
-                match method:
-                    case "sum":
-                        merged_group = np.ma.sum([merged_group, src.read(1, masked=True)], axis=0)
-                    case "max":
-                        merged_group = np.ma.max(np.ma.stack((merged_group, src.read(1, masked=True)), axis=0), axis=0)
-                    case _:
-                        raise InvalidSuitabilityRasterInput(
-                            f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
-                        )
-    return merged_group, out_meta
+            for (row, col), window in src.block_windows(1):
+                raster_block = src.read(1, window=window, masked=True)
+                if idx == 0:
+                    blocked_raster_dict[(row, col)] = raster_block
+                else:
+                    maxed = np.ma.max(np.ma.stack((blocked_raster_dict[(row, col)], raster_block), axis=0), axis=0)
+                    pass
+    pass
+            # if idx == 0:
+            #     merged_group = src.read(1, masked=True)
+            #     out_meta = src.meta.copy()  # It does not matter which out_meta we use in the final raster.
+            # else:
+            #     match method:
+            #         case "sum":
+            #             merged_group = np.ma.sum([merged_group, src.read(1, masked=True)], axis=0)
+            #         case "max":
+            #             merged_group = np.ma.max(np.ma.stack((merged_group, src.read(1, masked=True)), axis=0), axis=0)
+            #         case _:
+            #             raise InvalidSuitabilityRasterInput(
+            #                 f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
+            #             )
+    return merged_group, None
+
+
+def read_raster_in_windows(src: DatasetReader):
+    pass
