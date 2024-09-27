@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 
 import shapely
 import structlog
@@ -10,6 +11,7 @@ import numpy as np
 import geopandas as gpd
 import affine
 from rasterio import DatasetReader
+from rasterio.windows import Window
 
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
@@ -110,8 +112,11 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
     if len(group_c) > 0:
         merged_group_c, _ = process_raster_groups(group_c, "sum")
 
+    summed_raster = {}
     if len(group_b) > 0 and len(group_a) > 0:
-        summed_raster = {key: np.ma.sum([merged_group_a[key], merged_group_b[key]], axis=0) for key in merged_group_a}
+        for key in merged_group_a:
+            summed_array = np.ma.sum([merged_group_a[key].array, merged_group_b[key].array], axis=0)
+            summed_raster[key] = RasterBlock(array=summed_array, window=merged_group_a[key].window)
 
     elif len(group_b) > 0 and len(group_a) == 0:
         summed_raster = merged_group_b
@@ -120,16 +125,18 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
     else:
         raise InvalidSuitabilityRasterInput("No rasters to sum, exiting.")
 
-    # Force values to fit in the int8 datatype. --> zou je hier niet een schaling willen doen eerst om alles
-    # boven de 126 juist te behouden? Maar misschien zou je dan eigenlijk liever andere waardes kiezen om initieel
-    # op te werken. In beide gevallen is deze schaling dan niet nodig
-    summed_raster = np.ma.clip(
-        summed_raster, Config.FINAL_RASTER_VALUE_LIMIT_LOWER, Config.FINAL_RASTER_VALUE_LIMIT_UPPER
-    )
+    # Force values to fit in the int8 datatype
+    for (row, col), block in summed_raster.items():
+        summed_raster[row, col].array = np.ma.clip(
+            block.array, Config.FINAL_RASTER_VALUE_LIMIT_LOWER, Config.FINAL_RASTER_VALUE_LIMIT_UPPER
+        )
 
     # Update the mask of the summed_raster so that every cell intersecting with group c is set to no data.
     if len(group_c) > 0:
-        summed_raster.mask = np.ma.mask_or(summed_raster.mask, ~merged_group_c.mask)  # type: ignore
+        for window_index in summed_raster.keys():
+            summed_raster[window_index].array.mask = np.ma.mask_or(
+                summed_raster[window_index].array.mask, ~merged_group_c[window_index].array.mask
+            )
 
     out_meta.update(
         {
@@ -141,17 +148,32 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
             "nodata": Config.FINAL_RASTER_NO_DATA,
         }
     )
+
+    complete_raster = np.ma.empty(shape=(out_meta["height"], out_meta["width"]), dtype=out_meta["dtype"])
+
+    for raster_block in summed_raster.values():
+        window = raster_block.window
+        complete_raster[
+            window.row_off : window.row_off + window.height, window.col_off : window.col_off + window.width
+        ] = raster_block.array
+
     final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
     with rasterio.open(final_raster_path, "w", **out_meta) as dest:
-        dest.write(np.ma.filled(summed_raster, Config.FINAL_RASTER_NO_DATA), 1)
+        dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
 
     return final_raster_path.__str__()
 
 
-def process_raster_groups(group: list, method: str) -> tuple:
+@dataclass
+class RasterBlock:
+    array: np.ma.MaskedArray
+    window: Window
+
+
+def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int], RasterBlock], dict]:
     """Per group, process the criteria arrays."""
     # Use numpy masks to ignore the nodata values in the computations.
-    blocked_raster_dict = {}
+    blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
     raster_meta_data = {}
 
     # TODO check fill value after stacking, summing. Is this value important? --> part of metadata as well.
@@ -159,21 +181,24 @@ def process_raster_groups(group: list, method: str) -> tuple:
         with rasterio.open(list(raster_dict.keys())[0], "r") as src:
             raster_meta_data = src.meta.copy()
             for (row, col), window in src.block_windows(1):
-                raster_block = src.read(1, window=window, masked=True)
+                src_block = src.read(1, window=window, masked=True)
+                raster_block = RasterBlock(array=src_block, window=window)
 
                 if idx == 0:
                     blocked_raster_dict[(row, col)] = raster_block
 
                 match method:
                     case "sum":
-                        result = np.ma.sum([blocked_raster_dict[(row, col)], raster_block], axis=0)
+                        result = np.ma.sum([blocked_raster_dict[(row, col)].array, raster_block.array], axis=0)
                     case "max":
-                        result = np.ma.max(np.ma.stack((blocked_raster_dict[(row, col)], raster_block), axis=0), axis=0)
+                        result = np.ma.max(
+                            np.ma.stack((blocked_raster_dict[(row, col)].array, raster_block.array), axis=0), axis=0
+                        )
                     case _:
                         raise InvalidSuitabilityRasterInput(
                             f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
                         )
-                blocked_raster_dict[(row, col)] = result
+                blocked_raster_dict[(row, col)].array = result
 
     return blocked_raster_dict, raster_meta_data
 
