@@ -1,5 +1,4 @@
 import math
-from dataclasses import dataclass
 
 import shapely
 import structlog
@@ -10,9 +9,8 @@ import rasterio.mask
 import numpy as np
 import geopandas as gpd
 import affine
-from rasterio import DatasetReader
-from rasterio.windows import Window
 
+from models.mcda.dataclasses import RasterBlock
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -164,12 +162,6 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
     return final_raster_path.__str__()
 
 
-@dataclass
-class RasterBlock:
-    array: np.ma.MaskedArray
-    window: Window
-
-
 def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int], RasterBlock], dict]:
     """Per group, process the criteria arrays."""
     # Use numpy masks to ignore the nodata values in the computations.
@@ -201,7 +193,3 @@ def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int
                 blocked_raster_dict[(row, col)].array = result
 
     return blocked_raster_dict, raster_meta_data
-
-
-def read_raster_in_windows(src: DatasetReader):
-    pass

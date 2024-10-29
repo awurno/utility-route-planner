@@ -2,8 +2,8 @@ import pathlib
 
 import shapely
 
+from models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from settings import Config
-from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
 from utility_route_planner.util.write import reset_geopackage
