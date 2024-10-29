@@ -176,7 +176,6 @@ def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int
     blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
     raster_meta_data = {}
 
-    # TODO check fill value after stacking, summing. Is this value important? --> part of metadata as well.
     for idx, raster_dict in enumerate(group):
         with rasterio.open(list(raster_dict.keys())[0], "r") as src:
             raster_meta_data = src.meta.copy()
@@ -186,6 +185,7 @@ def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int
 
                 if idx == 0:
                     blocked_raster_dict[(row, col)] = raster_block
+                    continue
 
                 match method:
                     case "sum":
