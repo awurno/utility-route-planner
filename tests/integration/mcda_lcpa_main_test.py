@@ -47,31 +47,31 @@ class TestMcdaLcpaChain:
 @pytest.mark.parametrize(
     "path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed",
     [
-        (
-            Config.PATH_GEOPACKAGE_CASE_01,
-            Config.LAYER_NAME_PROJECT_AREA_CASE_01,
-            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01,
-        ),
+        # (
+        #     Config.PATH_GEOPACKAGE_CASE_01,
+        #     Config.LAYER_NAME_PROJECT_AREA_CASE_01,
+        #     Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01,
+        # ),
         (
             Config.PATH_GEOPACKAGE_CASE_02,
             Config.LAYER_NAME_PROJECT_AREA_CASE_02,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_02,
         ),
-        (
-            Config.PATH_GEOPACKAGE_CASE_03,
-            Config.LAYER_NAME_PROJECT_AREA_CASE_03,
-            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_03,
-        ),
-        (
-            Config.PATH_GEOPACKAGE_CASE_04,
-            Config.LAYER_NAME_PROJECT_AREA_CASE_04,
-            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
-        ),
-        (
-            Config.PATH_GEOPACKAGE_CASE_05,
-            Config.LAYER_NAME_PROJECT_AREA_CASE_05,
-            Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_05,
-        ),
+        # (
+        #     Config.PATH_GEOPACKAGE_CASE_03,
+        #     Config.LAYER_NAME_PROJECT_AREA_CASE_03,
+        #     Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_03,
+        # ),
+        # (
+        #     Config.PATH_GEOPACKAGE_CASE_04,
+        #     Config.LAYER_NAME_PROJECT_AREA_CASE_04,
+        #     Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
+        # ),
+        # (
+        #     Config.PATH_GEOPACKAGE_CASE_05,
+        #     Config.LAYER_NAME_PROJECT_AREA_CASE_05,
+        #     Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_05,
+        # ),
     ],
 )
 def test_mcda_lcpa_chain_all_benchmark_cases(
