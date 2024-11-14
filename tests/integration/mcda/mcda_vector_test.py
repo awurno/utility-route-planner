@@ -1109,8 +1109,8 @@ class TestVectorPreprocessing:
         }
         gdf_high_voltage_above_ground = gpd.GeoDataFrame(
             [
-                [1, 150, "high_voltage_cable_overhead", shapely.LineString()],
-                [1, 0, "high_voltage_cable_overhead", shapely.LineString()],
+                [1, 150, "high_voltage_cable_overhead", shapely.LineString([[3, 3], [1, 0]])],
+                [1, 0, "high_voltage_cable_overhead", shapely.LineString([[2, 2], [1, 0]])],
             ],
             columns=["OBJECTID", "SPANNINGSNIVEAU", "type", "geometry"],
             crs=Config.CRS,
@@ -1118,8 +1118,8 @@ class TestVectorPreprocessing:
         )
         gdf_high_voltage_under_ground = gpd.GeoDataFrame(
             [
-                [1, 50, "high_voltage_cable_underground", shapely.LineString()],
-                [1, 0, "high_voltage_cable_underground", shapely.LineString()],
+                [1, 50, "high_voltage_cable_underground", shapely.LineString([[0, 0], [1, 0]])],
+                [1, 0, "high_voltage_cable_underground", shapely.LineString([[0, 0], [1, 0]])],
             ],
             columns=["OBJECTID", "SPANNINGSNIVEAU", "type", "geometry"],
             crs=Config.CRS,
@@ -1127,14 +1127,14 @@ class TestVectorPreprocessing:
         )
         gasunie_leiding_gdf = gpd.GeoDataFrame(
             [
-                [1, "123", "In Bedrijf", shapely.LineString()],
-                [2, "1234", "Niet in Bedrijf", shapely.LineString()],
+                [1, "123", "In Bedrijf", shapely.LineString([[0, 0], [1, 0]])],
+                [2, "1234", "Niet in Bedrijf", shapely.LineString([[0, 0], [1, 0]])],
             ],
             columns=["OBJECTID", "Leiding", "StatusOperationeel", "geometry"],
             crs=Config.CRS,
             geometry="geometry",
         )
-        reclassified_gdf = ExistingUtilities._set_suitability_values(
+        reclassified_gdf = ExistingUtilities._set_suitability_and_geometry_values(
             [gdf_high_voltage_above_ground, gdf_high_voltage_under_ground, gasunie_leiding_gdf],
             weight_values,
             buffer_values,
