@@ -3,6 +3,7 @@ import geopandas as gpd
 
 from utility_route_planner.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
 from utility_route_planner.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
+from utility_route_planner.models.mcda.vector_preprocessing.existing_utilities import ExistingUtilities
 from utility_route_planner.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
 from utility_route_planner.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
 from utility_route_planner.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
@@ -196,7 +197,7 @@ preset_collection = {
                     "functie": 26,
                     "bassin": 1,
                     "bezinkbak": 1,
-                    "lage trafo": 1,
+                    "lage trafo": 1,  # Includes Alliander substations, but not always. Is overwritten by existing_substation.
                     "niet-bgt": 1,  # Delete these records if they exist.
                     "open loods": 1,
                     "opslagtank": 1,
@@ -388,10 +389,40 @@ preset_collection = {
                     # "Aardkundig_monument": 1,
                     # "Archeologisch_monument": 1,
                     # "niet_gesprongen_explosieven_wo2": 1,
-                    # "transport_gevaarlijke_stoffen_leiding": 1,  # Like Gasunie
                     # "brosse_leidingen": 1,
                     # "verontreinigde_grond": 1,
                     # "groene_en_rijksmonumenten": 1,
+                },
+            },
+            "existing_utlities": {
+                # TenneT, Alliander, Gasunie.
+                "description": "Existing utility assets for gas, electricity.",
+                "layer_names": [
+                    "hoogspanningskabel_bovengronds",
+                    "hoogspanningskabel_ondergronds",
+                    "gasunie_leidingen",
+                ],
+                "preprocessing_function": ExistingUtilities(),
+                "group": "b",
+                "weight_values": {
+                    "hoogspanning_bovengronds": 10,  # TenneT & Alliander combined.
+                    "hoogspanning_ondergronds": 30,  # TenneT & Alliander combined.
+                    "gasunie_leidingen": 20,
+                },
+                "geometry_values": {
+                    "hoogspanning_bovengronds_buffer": 5,
+                    "hoogspanning_ondergronds_buffer": 5,
+                    "gasunie_leidingen_buffer": 5,
+                },
+            },
+            "existing_substations": {
+                "description": "Existing substations.",
+                "layer_names": ["stationsterrein", "stationsgebied"],
+                "preprocessing_function": None,
+                "group": "a",
+                "weight_values": {
+                    "middenspanningsruimte": 2,  # Building footprint of a (sub)station.
+                    "stationsgebied": 1,  # Area surrounding a (sub)station.
                 },
             },
             "excluded_area": {
