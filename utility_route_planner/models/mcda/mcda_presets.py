@@ -395,7 +395,7 @@ preset_collection = {
                     # "groene_en_rijksmonumenten": 1,
                 },
             },
-            "existing_utlities": {
+            "existing_utilities": {
                 # TenneT, Alliander, Gasunie.
                 "description": "Existing utility assets for gas, electricity.",
                 "layer_names": [
