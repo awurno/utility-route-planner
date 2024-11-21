@@ -71,6 +71,8 @@ class TestRasterPreprocessing:
             "overig_bouwwerk",
             "kunstwerkdeel",
             "protected_area",
+            "existing_utlities",
+            "existing_substations",
         }
 
 
