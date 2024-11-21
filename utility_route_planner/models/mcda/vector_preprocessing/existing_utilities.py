@@ -30,11 +30,9 @@ class ExistingUtilities(VectorPreprocessorBase):
     ) -> gpd.GeoDataFrame:
         logger.info("Setting suitability and updating geometry values.")
         # High voltage assets
-        gdf_high_voltage_underground, gdf_high_voltage_overhead, gdf_gasunie_leiding = (
-            get_empty_geodataframe(),
-            get_empty_geodataframe(),
-            get_empty_geodataframe(),
-        )
+        gdf_high_voltage_underground, gdf_high_voltage_overhead, gdf_gasunie_leiding, gdf_substations = [
+            get_empty_geodataframe() for _ in range(4)
+        ]
         for gdf in input_gdf:
             if "type" in gdf.columns:
                 gdf = gdf[gdf["SPANNINGSNIVEAU"] != 0]
@@ -60,8 +58,15 @@ class ExistingUtilities(VectorPreprocessorBase):
                     buffer_values["gasunie_leidingen_buffer"]
                 )
                 gdf_gasunie_leiding = gdf_gasunie_leiding.dissolve()
+            elif "STATIONCOMPLEX" in gdf.columns:
+                gdf_substations = gdf.copy()
+                # Only include highvoltage substation areas.
+                gdf_substations["suitability_value"] = weight_values["alliander_stationsterrein"]
+                gdf_substations = gdf_substations[gdf_substations.area > 30]
             else:
                 logger.warning(f"Unknown layer found in existing utilities: {gdf.columns}.")
 
-        gdf_merged = pd.concat([gdf_high_voltage_underground, gdf_high_voltage_overhead, gdf_gasunie_leiding])
+        gdf_merged = pd.concat(
+            [gdf_high_voltage_underground, gdf_high_voltage_overhead, gdf_gasunie_leiding, gdf_substations]
+        )
         return gdf_merged

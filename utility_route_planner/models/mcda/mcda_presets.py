@@ -2,6 +2,8 @@ from settings import Config
 import geopandas as gpd
 
 from utility_route_planner.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from utility_route_planner.models.mcda.vector_preprocessing.existing_substations import ExistingSubstations
+from utility_route_planner.models.mcda.vector_preprocessing.wegdeel import Wegdeel
 from utility_route_planner.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
 from utility_route_planner.models.mcda.vector_preprocessing.existing_utilities import ExistingUtilities
 from utility_route_planner.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
@@ -16,7 +18,6 @@ from utility_route_planner.models.mcda.vector_preprocessing.small_above_ground_o
 )
 from utility_route_planner.models.mcda.vector_preprocessing.vegetation_object import VegetationObject
 from utility_route_planner.models.mcda.vector_preprocessing.waterdeel import Waterdeel
-from utility_route_planner.models.mcda.vector_preprocessing.wegdeel import Wegdeel
 
 preset_collection = {
     "preset_benchmark_raw": {
@@ -401,6 +402,7 @@ preset_collection = {
                     "hoogspanningskabel_bovengronds",
                     "hoogspanningskabel_ondergronds",
                     "gasunie_leidingen",
+                    "alliander_stationsterrein",
                 ],
                 "preprocessing_function": ExistingUtilities(),
                 "group": "b",
@@ -408,6 +410,7 @@ preset_collection = {
                     "hoogspanning_bovengronds": 10,  # TenneT & Alliander combined.
                     "hoogspanning_ondergronds": 30,  # TenneT & Alliander combined.
                     "gasunie_leidingen": 20,
+                    "alliander_stationsterrein": 10,  # Only the larger (>30m2) areas are included.
                 },
                 "geometry_values": {
                     "hoogspanning_bovengronds_buffer": 5,
@@ -417,12 +420,11 @@ preset_collection = {
             },
             "existing_substations": {
                 "description": "Existing substations.",
-                "layer_names": ["stationsterrein", "stationsgebied"],
-                "preprocessing_function": None,
+                "layer_names": ["alliander_middenspanningsstation"],
+                "preprocessing_function": ExistingSubstations(),
                 "group": "a",
                 "weight_values": {
-                    "middenspanningsruimte": 2,  # Building footprint of a (sub)station.
-                    "stationsgebied": 1,  # Area surrounding a (sub)station.
+                    "alliander_middenspanningsstation": 76,  # Building footprint of a (sub)station.
                 },
             },
             "excluded_area": {
