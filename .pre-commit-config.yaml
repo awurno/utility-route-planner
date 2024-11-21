@@ -4,8 +4,8 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-        exclude: alembic_folder/versions
       - id: check-added-large-files
+        exclude: data/examples
       - id: mixed-line-ending
         args: [--fix=lf]
         files: '\.sh$|^Dockerfile$|^Makefile$'
