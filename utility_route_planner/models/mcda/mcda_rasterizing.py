@@ -69,8 +69,8 @@ def rasterize_vector_data(
     gdf_to_rasterize.loc[
         gdf_to_rasterize.suitability_value > Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER, "suitability_value"
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
-    # TODO check if we can use /vsimem/
-    path_raster = Config.PATH_RESULTS / f"{raster_prefix+criterion}.tif"
+
+    path_raster = f"/vsimem/{raster_prefix+criterion}.tif"
     with rasterio.open(path_raster, "w+", **profile) as out:
         out_arr = out.read(1)
         shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
