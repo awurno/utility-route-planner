@@ -21,7 +21,7 @@ from utility_route_planner.models.mcda.exceptions import (
 logger = structlog.get_logger(__name__)
 
 
-def rasterize_vector_data(
+async def rasterize_vector_data(
     raster_prefix: str,
     criterion: str,
     project_area: shapely.MultiPolygon | shapely.Polygon,
