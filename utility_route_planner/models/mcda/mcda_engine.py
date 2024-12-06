@@ -50,7 +50,6 @@ class McdaCostSurfaceEngine:
             set(self.unprocessed_criteria_names)
         )
 
-    @time_function
     async def run_raster_preprocessing(self, vector_to_convert: dict[str, gpd.GeoDataFrame]):
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         rasters_to_sum = await asyncio.gather(
