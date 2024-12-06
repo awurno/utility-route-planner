@@ -1,8 +1,9 @@
+import asyncio
 import pathlib
 
 import shapely
 
-from models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
+from models.mcda.mcda_rasterizing import merge_criteria_rasters
 from settings import Config
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
@@ -21,14 +22,19 @@ def run_mcda_lcpa(
 
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
     mcda_engine.preprocess_vectors()
-    path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+    rasters_to_sum = asyncio.run(mcda_engine.run_raster_preprocessing(mcda_engine.processed_vectors))
 
-    lcpa_engine = LcpaUtilityRouteEngine()
-    lcpa_engine.get_lcpa_route(
-        path_suitability_raster,
-        shapely.LineString(start_mid_end_points),
-        mcda_engine.raster_preset.general.project_area_geometry,
-    )
+    merge_criteria_rasters(rasters_to_sum, "test.tif")
+    # return path_suitability_raster
+
+    # path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+
+    # lcpa_engine = LcpaUtilityRouteEngine()
+    # lcpa_engine.get_lcpa_route(
+    #     path_suitability_raster,
+    #     shapely.LineString(start_mid_end_points),
+    #     mcda_engine.raster_preset.general.project_area_geometry,
+    # )
 
 
 if __name__ == "__main__":
