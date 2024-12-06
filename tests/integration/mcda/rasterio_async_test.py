@@ -14,8 +14,11 @@ class TestReadRasterAsync:
         await asyncio.sleep(1)
         print(file.shape)
 
+    async def calculate(self):
+        await self.read_raster()
+
     async def main(self):
-        await asyncio.gather(*(self.read_raster() for _ in range(5)))
+        await asyncio.gather(*(self.calculate() for _ in range(50)))
 
     def test_read_raster_async(self):
         asyncio.run(self.main())

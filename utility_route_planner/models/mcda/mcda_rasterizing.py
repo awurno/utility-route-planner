@@ -1,3 +1,4 @@
+import datetime
 import math
 
 import shapely
@@ -32,6 +33,7 @@ async def rasterize_vector_data(
     Burns the vector data to the project area in the desired raster cell size.
     If values overlap in the geodataframe, pick the highest value.
     """
+    start = datetime.datetime.now()
     minx, miny, maxx, maxy = project_area.bounds
 
     # In order to fit the given cell size to the project area bounds, we slightly extend the maxx and maxy accordingly.
@@ -71,11 +73,16 @@ async def rasterize_vector_data(
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
 
     path_raster = f"/vsimem/{raster_prefix+criterion}.tif"
+
+    compute_interval = datetime.datetime.now()
+    logger.info(f"Successfully computed raster: {compute_interval - start}")
     with rasterio.open(path_raster, "w+", **profile) as out:
         out_arr = out.read(1)
         shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
         burned = rasterio.features.rasterize(shapes=shapes, out=out_arr, transform=out.transform, all_touched=False)
         out.write_band(1, burned)
+    io_interval = datetime.datetime.now()
+    logger.info(f"Successfully wrote raster: {io_interval - compute_interval}")
 
     return path_raster.__str__()
 
