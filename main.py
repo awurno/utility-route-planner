@@ -1,13 +1,19 @@
 import pathlib
+import timeit
 
 import shapely
+import structlog
 
 from settings import Config
 from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.models.route_evaluation_metrics import RouteEvaluationMetrics
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
 from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
+
+
+logger = structlog.get_logger(__name__)
 
 
 def run_mcda_lcpa(
@@ -19,6 +25,8 @@ def run_mcda_lcpa(
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
 
+    start_time = timeit.default_timer()
+
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
     mcda_engine.preprocess_vectors()
     path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -29,6 +37,10 @@ def run_mcda_lcpa(
         shapely.LineString(start_mid_end_points),
         mcda_engine.raster_preset.general.project_area_geometry,
     )
+
+    logger.info(f"Route computation time: {timeit.default_timer() - start_time:.2f} seconds.")
+    route_evaluation_metrics = RouteEvaluationMetrics(lcpa_engine.lcpa_result, path_suitability_raster)
+    route_evaluation_metrics.get_route_evaluation_metrics()
 
 
 if __name__ == "__main__":
@@ -60,7 +72,7 @@ if __name__ == "__main__":
         ),
     ]
 
-    case_to_run = 1  # 0/1/2/3/4
+    case_to_run = 0  # 0/1/2/3/4
     geopackage, layer_project_area, human_designed_route = cases[case_to_run]
 
     run_mcda_lcpa(
