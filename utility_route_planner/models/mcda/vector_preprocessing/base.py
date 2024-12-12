@@ -43,7 +43,7 @@ class VectorPreprocessorBase(abc.ABC):
         self.write_to_file(general.prefix, processed_gdf)
 
         end = datetime.datetime.now()
-        logger.info(f"Finished {self.criterion} in: {end - start} time.")
+        logger.info(f"Finished {self.criterion} in: {(end-start).total_seconds():.2f} seconds.")
         return True, processed_gdf
 
     @staticmethod
