@@ -16,16 +16,17 @@ class RouteEvaluationMetrics:
         route_sota: shapely.LineString,
         path_cost_surface: str,
         route_human: shapely.LineString = shapely.LineString(),
+        project_area: shapely.Polygon = shapely.Polygon(),
         debug: bool = False,
     ):
         self.route_sota = route_sota
         self.path_cost_surface = path_cost_surface
         self.route_human = route_human
+        self.project_area = project_area
         self.debug = debug
 
-        self.route_length = 0
-        self.route_relative_cost_sota = 0
-        self.route_relative_cost_human = 0
+        self.route_relative_cost_sota: int = 0
+        self.route_relative_cost_human: int = 0
 
     def get_route_evaluation_metrics(self):
         """
@@ -43,23 +44,26 @@ class RouteEvaluationMetrics:
           - Metadata about route is available for annotation (what type of material is crossed and where)
 
         """
-        self.route_length = self.route_sota.length
-        self.route_relative_cost_sota, cell_size = self.get_route_cost_estimation(
+        self.route_relative_cost_sota, cell_size, raster_shape = self.get_route_cost_estimation(
             self.route_sota, self.path_cost_surface
         )
 
-        logger.info(f"Cost-surface used has a cell size of {cell_size:.2f} meters.")
-        logger.info(f"Route length: {self.route_length:.2f} meters.")
-        logger.info(f"Route relative cost SOTA: {self.route_relative_cost_sota:2f}.")
+        if self.project_area.area > 0:
+            logger.info(f"Project area size is: {self.project_area.area/10000:.2f} hectare.")
+        logger.info(f"Cost-surface used has a shape {raster_shape} and a cell size of {cell_size:.2f} meters.")
+        logger.info(f"Route SOTA length: {self.route_sota.length:.2f} meters.")
+        logger.info(f"Route SOTA relative cost SOTA: {self.route_relative_cost_sota:2f}.")
         if self.route_human.length > 0:
-            self.route_relative_cost_human, cell_size = self.get_route_cost_estimation(
+            logger.info(f"Route human length: {self.route_human.length:.2f} meters.")
+            self.route_relative_cost_human, cell_size, _ = self.get_route_cost_estimation(
                 self.route_human, self.path_cost_surface
             )
-            logger.info(f"Route relative cost human: {self.route_relative_cost_human:2f}.")
+            logger.info(f"Route human relative cost: {self.route_relative_cost_human:2f}.")
 
     def get_route_cost_estimation(self, route: shapely.LineString, path_cost_surface: str) -> tuple:
         with rasterio.Env():
             with rasterio.open(path_cost_surface) as src:
+                raster_shape = src.shape
                 image, transform = rasterio.mask.mask(
                     src,
                     [route],
@@ -97,4 +101,4 @@ class RouteEvaluationMetrics:
                 Config.PATH_GEOPACKAGE_LCPA_OUTPUT, gdf_route_segments, "route_intersection", overwrite=True
             )
 
-        return total_relative_cost, transform[0]
+        return total_relative_cost, transform[0], raster_shape

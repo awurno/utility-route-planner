@@ -6,11 +6,11 @@ from utility_route_planner.models.route_evaluation_metrics import RouteEvaluatio
 
 
 class TestRouteEvaluationMetrics:
-    def test_route_costs_single_input(self):
+    def test_route_costs_single_input_with_project_area(self):
         path_raster = Config.PATH_EXAMPLE_RASTER
         route = shapely.LineString([[174877.07, 451050.52], [174978.55, 451105.11]])
 
-        route_evaluation_metrics = RouteEvaluationMetrics(route, path_raster)
+        route_evaluation_metrics = RouteEvaluationMetrics(route, path_raster, project_area=route.buffer(50))
         route_evaluation_metrics.get_route_evaluation_metrics()
 
         assert round(route_evaluation_metrics.route_relative_cost_sota) == 9969
