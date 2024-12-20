@@ -21,10 +21,10 @@ def run_mcda_lcpa(
     path_geopackage_mcda_input: pathlib.Path,
     project_area_geometry: shapely.Polygon,
     start_mid_end_points: tuple,
+    human_designed_route: shapely.LineString = shapely.LineString(),
 ):
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
-
     start_time = timeit.default_timer()
 
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
@@ -39,7 +39,9 @@ def run_mcda_lcpa(
     )
 
     logger.info(f"Route computation time: {timeit.default_timer() - start_time:.2f} seconds.")
-    route_evaluation_metrics = RouteEvaluationMetrics(lcpa_engine.lcpa_result, path_suitability_raster)
+    route_evaluation_metrics = RouteEvaluationMetrics(
+        lcpa_engine.lcpa_result, path_suitability_raster, human_designed_route, project_area_geometry
+    )
     route_evaluation_metrics.get_route_evaluation_metrics()
 
 
@@ -72,12 +74,16 @@ if __name__ == "__main__":
         ),
     ]
 
-    case_to_run = 0  # 0/1/2/3/4
-    geopackage, layer_project_area, human_designed_route = cases[case_to_run]
+    cases_to_run = [0, 1, 2, 3, 4]  # 0/1/2/3/4
+    for case in cases_to_run:
+        geopackage, layer_project_area, human_designed_route_name = cases[case]
+        human_designed_route = gpd.read_file(geopackage, layer=human_designed_route_name).iloc[0].geometry
+        start_end_point = get_first_last_point_from_linestring(human_designed_route)
 
-    run_mcda_lcpa(
-        "preset_benchmark_raw",
-        geopackage,
-        gpd.read_file(geopackage, layer=layer_project_area).iloc[0].geometry,
-        get_first_last_point_from_linestring(gpd.read_file(geopackage, layer=human_designed_route).iloc[0].geometry),
-    )
+        run_mcda_lcpa(
+            "preset_benchmark_raw",
+            geopackage,
+            gpd.read_file(geopackage, layer=layer_project_area).iloc[0].geometry,
+            start_end_point,
+            human_designed_route,
+        )
