@@ -1,3 +1,4 @@
+import pytest
 import shapely
 
 from settings import Config
@@ -5,15 +6,36 @@ from utility_route_planner.models.route_evaluation_metrics import RouteEvaluatio
 
 
 class TestRouteEvaluationMetrics:
-    def test_route_costs_simple(self):
+    def test_route_costs_single_input(self):
         path_raster = Config.PATH_EXAMPLE_RASTER
         route = shapely.LineString([[174877.07, 451050.52], [174978.55, 451105.11]])
 
         route_evaluation_metrics = RouteEvaluationMetrics(route, path_raster)
         route_evaluation_metrics.get_route_evaluation_metrics()
 
-        assert round(route_evaluation_metrics.route_relative_cost) == 9969
-        assert route_evaluation_metrics.route.length == route.length
+        assert round(route_evaluation_metrics.route_relative_cost_sota) == 9969
+        assert route_evaluation_metrics.route_sota.length == route.length
+
+    def test_route_costs_two_inputs(self):
+        path_raster = Config.PATH_EXAMPLE_RASTER
+        route_sota = shapely.LineString([[174877.07, 451050.52], [174978.55, 451105.11]])
+        route_human = shapely.LineString([[174967.92, 450902.59], [175283.58, 450783.57]])
+
+        route_evaluation_metrics = RouteEvaluationMetrics(route_sota, path_raster, route_human)
+        route_evaluation_metrics.get_route_evaluation_metrics()
+
+        assert round(route_evaluation_metrics.route_relative_cost_sota) == 9969
+        assert round(route_evaluation_metrics.route_relative_cost_human) == 30991
+        assert route_evaluation_metrics.route_sota.length == route_sota.length
+        assert route_evaluation_metrics.route_human.length == route_human.length
+
+    def test_invalid_supplied_route(self):
+        path_raster = Config.PATH_EXAMPLE_RASTER
+        route = shapely.LineString([[0, 0], [1, 1]])  # Not within raster
+
+        with pytest.raises(ValueError):
+            route_evaluation_metrics = RouteEvaluationMetrics(route, path_raster)
+            route_evaluation_metrics.get_route_evaluation_metrics()
 
     def test_route_costs_of_linestring_in_single_cell(self):
         path_raster = Config.PATH_EXAMPLE_RASTER
@@ -31,4 +53,4 @@ class TestRouteEvaluationMetrics:
 
         cost_of_single_cell = 126  # As viewed in QGIS.
 
-        assert round(route_evaluation_metrics.route_relative_cost) == round(cost_of_single_cell * route.length)
+        assert round(route_evaluation_metrics.route_relative_cost_sota) == round(cost_of_single_cell * route.length)

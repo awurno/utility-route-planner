@@ -11,13 +11,21 @@ logger = structlog.get_logger(__name__)
 
 
 class RouteEvaluationMetrics:
-    def __init__(self, route: shapely.LineString, path_cost_surface: str, debug: bool = False):
-        self.route = route
+    def __init__(
+        self,
+        route_sota: shapely.LineString,
+        path_cost_surface: str,
+        route_human: shapely.LineString = shapely.LineString(),
+        debug: bool = False,
+    ):
+        self.route_sota = route_sota
         self.path_cost_surface = path_cost_surface
+        self.route_human = route_human
         self.debug = debug
 
         self.route_length = 0
-        self.route_relative_cost = 0
+        self.route_relative_cost_sota = 0
+        self.route_relative_cost_human = 0
 
     def get_route_evaluation_metrics(self):
         """
@@ -35,13 +43,19 @@ class RouteEvaluationMetrics:
           - Metadata about route is available for annotation (what type of material is crossed and where)
 
         """
-        self.route_length = self.route.length
-        self.route_relative_cost, cell_size = self.get_route_cost_estimation(self.route, self.path_cost_surface)
-
-        logger.info(f"Route length: {self.route_length:.2f} meters.")
-        logger.info(
-            f"Route relative cost: {self.route_relative_cost:2f} on a cost surface with cell size: {cell_size:.2f} meters."
+        self.route_length = self.route_sota.length
+        self.route_relative_cost_sota, cell_size = self.get_route_cost_estimation(
+            self.route_sota, self.path_cost_surface
         )
+
+        logger.info(f"Cost-surface used has a cell size of {cell_size:.2f} meters.")
+        logger.info(f"Route length: {self.route_length:.2f} meters.")
+        logger.info(f"Route relative cost SOTA: {self.route_relative_cost_sota:2f}.")
+        if self.route_human.length > 0:
+            self.route_relative_cost_human, cell_size = self.get_route_cost_estimation(
+                self.route_human, self.path_cost_surface
+            )
+            logger.info(f"Route relative cost human: {self.route_relative_cost_human:2f}.")
 
     def get_route_cost_estimation(self, route: shapely.LineString, path_cost_surface: str) -> tuple:
         with rasterio.Env():
