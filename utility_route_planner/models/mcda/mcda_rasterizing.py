@@ -22,7 +22,7 @@ from utility_route_planner.models.mcda.exceptions import (
 logger = structlog.get_logger(__name__)
 
 
-async def rasterize_vector_data(
+def rasterize_vector_data(
     raster_prefix: str,
     criterion: str,
     project_area: shapely.MultiPolygon | shapely.Polygon,
@@ -74,15 +74,17 @@ async def rasterize_vector_data(
 
     path_raster = f"/vsimem/{raster_prefix+criterion}.tif"
 
-    compute_interval = datetime.datetime.now()
-    logger.info(f"Successfully computed raster: {compute_interval - start}")
     with rasterio.open(path_raster, "w+", **profile) as out:
         out_arr = out.read(1)
         shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
         burned = rasterio.features.rasterize(shapes=shapes, out=out_arr, transform=out.transform, all_touched=False)
+        write_start = datetime.datetime.now()
         out.write_band(1, burned)
-    io_interval = datetime.datetime.now()
-    logger.info(f"Successfully wrote raster: {io_interval - compute_interval}")
+        write_end = datetime.datetime.now()
+        logger.info(f"Writing takes: {(write_end - write_start).microseconds}")
+
+    end = datetime.datetime.now()
+    logger.info(f"Rasterizing of layer took: {(end - start).microseconds}")
 
     return path_raster.__str__()
 
