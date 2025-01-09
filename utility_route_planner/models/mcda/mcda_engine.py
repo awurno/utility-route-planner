@@ -1,4 +1,3 @@
-import asyncio
 import pathlib
 from functools import cached_property
 
@@ -50,20 +49,17 @@ class McdaCostSurfaceEngine:
             set(self.unprocessed_criteria_names)
         )
 
-    async def run_raster_preprocessing(self, vector_to_convert: dict[str, gpd.GeoDataFrame]):
+    def run_raster_preprocessing(self, vector_to_convert: dict[str, gpd.GeoDataFrame]):
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
-        rasters_to_sum = await asyncio.gather(
-            *(
-                self.rasterize_vector(idx, criterion, gdf)
-                for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
-            )
-        )
+        rasters_to_sum = [
+            self.rasterize_vector(idx, criterion, gdf) for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
+        ]
 
         return rasters_to_sum
 
-    async def rasterize_vector(self, idx: int, criterion: str, gdf: gpd.GeoDataFrame) -> dict[str, str]:
+    def rasterize_vector(self, idx: int, criterion: str, gdf: gpd.GeoDataFrame) -> dict[str, str]:
         logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
-        path_raster = await rasterize_vector_data(
+        path_raster = rasterize_vector_data(
             self.raster_preset.general.prefix, criterion, self.raster_preset.general.project_area_geometry, gdf
         )
         return {path_raster: self.raster_preset.criteria[criterion].group}
