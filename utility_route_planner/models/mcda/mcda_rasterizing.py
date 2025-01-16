@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import math
 
@@ -10,6 +11,8 @@ import rasterio.mask
 import numpy as np
 import geopandas as gpd
 import affine
+from rasterio import DatasetReader
+from rasterio.windows import Window
 
 from models.mcda.dataclasses import RasterBlock
 from settings import Config
@@ -112,12 +115,17 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
             else:
                 raise InvalidGroupValue(f"Invalid group value encountered during raster processing: {raster_dict[key]}")
 
+    start = datetime.datetime.now()
     if len(group_a) > 0:
         merged_group_a, out_meta = process_raster_groups(group_a, "max")
+        processor = RasterGroupProcessor(group_a, "max")
+        processor.process_groups()
     if len(group_b) > 0:
         merged_group_b, out_meta = process_raster_groups(group_b, "sum")
     if len(group_c) > 0:
         merged_group_c, _ = process_raster_groups(group_c, "sum")
+    end = datetime.datetime.now()
+    logger.info(f"Processing took: {end - start}")
 
     summed_raster = {}
     if len(group_b) > 0 and len(group_a) > 0:
@@ -169,6 +177,29 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
         dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
 
     return final_raster_path.__str__()
+
+
+class RasterGroupProcessor:
+    def __init__(self, group: list, method: str):
+        self.group = group
+        self.method = method
+        self.blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
+        self.meta_data: dict = {}
+
+    def process_groups(self):
+        for idx, raster_dict in enumerate(self.group):
+            raster_path = list(raster_dict.keys())[0]
+            with rasterio.open(raster_path, "r") as src:
+                asyncio.run(self.read_windows(src))
+            logger.info("Ready")
+
+    async def read_windows(self, src: DatasetReader):
+        return await asyncio.gather(*[self.read_window(src, window) for (row, col), window in src.block_windows(1)])
+
+    @staticmethod
+    async def read_window(src: DatasetReader, window: Window):
+        src_block = src.read(1, window=window, masked=True)
+        return RasterBlock(array=src_block, window=window)
 
 
 def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int], RasterBlock], dict]:
