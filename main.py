@@ -1,5 +1,5 @@
 import pathlib
-import timeit
+import time
 
 import shapely
 import structlog
@@ -25,7 +25,7 @@ def run_mcda_lcpa(
 ):
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
-    start_time = timeit.default_timer()
+    start_cpu_time = time.process_time_ns()
 
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
     mcda_engine.preprocess_vectors()
@@ -38,7 +38,7 @@ def run_mcda_lcpa(
         mcda_engine.raster_preset.general.project_area_geometry,
     )
 
-    logger.info(f"Route computation time: {timeit.default_timer() - start_time:.2f} seconds.")
+    logger.info(f"Route CPU time: {(time.process_time_ns() - start_cpu_time) / 1e9:.2f} seconds.")
     route_evaluation_metrics = RouteEvaluationMetrics(
         lcpa_engine.lcpa_result, path_suitability_raster, human_designed_route, project_area_geometry
     )
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         ),
     ]
 
-    cases_to_run = [0, 1, 2, 3, 4]  # 0/1/2/3/4
+    cases_to_run = [1]  # 0/1/2/3/4
     for case in cases_to_run:
         geopackage, layer_project_area, human_designed_route_name = cases[case]
         human_designed_route = gpd.read_file(geopackage, layer=human_designed_route_name).iloc[0].geometry
