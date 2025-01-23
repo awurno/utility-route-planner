@@ -70,7 +70,7 @@ if __name__ == "__main__":
             Config.PATH_GEOPACKAGE_CASE_04,
             Config.LAYER_NAME_PROJECT_AREA_CASE_04,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
-            "route_3_",
+            "route_4_",
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_05,
