@@ -31,42 +31,31 @@ def rasterize_vector_data(
     project_area: shapely.MultiPolygon | shapely.Polygon,
     gdf_to_rasterize: gpd.GeoDataFrame,
     cell_size: int | float = Config.RASTER_CELL_SIZE,
-) -> str:
+) -> np.ndarray:
     """
     Burns the vector data to the project area in the desired raster cell size.
     If values overlap in the geodataframe, pick the highest value.
     """
-    start = datetime.datetime.now()
     minx, miny, maxx, maxy = project_area.bounds
 
     # In order to fit the given cell size to the project area bounds, we slightly extend the maxx and maxy accordingly.
     if cell_size > maxx - minx or cell_size > maxy - miny:
         raise RasterCellSizeTooSmall("Given raster cell size is too large for the project area.")
 
-    width = math.ceil((maxx - minx) / cell_size)
-    height = math.ceil((maxy - miny) / cell_size)
-
-    no_data = Config.INTERMEDIATE_RASTER_NO_DATA
-    profile = {
-        "driver": "GTiff",
-        "dtype": "int16",
-        "nodata": no_data,
-        "compress": "lzw",
-        "tiled": True,
-        "width": width,
-        "height": height,
-        "blockxsize": Config.RASTER_BLOCK_SIZE,
-        "blockysize": Config.RASTER_BLOCK_SIZE,
-        "count": 1,
-        "crs": rasterio.CRS.from_epsg(code=Config.CRS),
-        "transform": affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
-    }
+    rasterize_settings = dict(
+        width=math.ceil((maxx - minx) / cell_size),
+        height=math.ceil((maxy - miny) / cell_size),
+        no_data=Config.INTERMEDIATE_RASTER_NO_DATA,
+        transformation=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
+    )
 
     logger.info(f"Rasterizing layer: {criterion} in cell size: {cell_size} meters")
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
     # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
-    gdf_to_rasterize.suitability_value = gdf_to_rasterize.suitability_value.replace(no_data, no_data + 1)
+    gdf_to_rasterize.suitability_value = gdf_to_rasterize.suitability_value.replace(
+        rasterize_settings["no_data"], rasterize_settings["no_data"] + 1
+    )
     # Reset values exceeding the min/max.
     gdf_to_rasterize.loc[
         gdf_to_rasterize.suitability_value < Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER, "suitability_value"
@@ -75,21 +64,18 @@ def rasterize_vector_data(
         gdf_to_rasterize.suitability_value > Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER, "suitability_value"
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
 
-    path_raster = f"/vsimem/{raster_prefix+criterion}.tif"
-
-    with rasterio.open(path_raster, "w+", **profile) as out:
-        out_arr = out.read(1)
-        shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
-        burned = rasterio.features.rasterize(shapes=shapes, out=out_arr, transform=out.transform, all_touched=False)
-        write_start = datetime.datetime.now()
-        out.write_band(1, burned)
-        write_end = datetime.datetime.now()
-        logger.info(f"Writing takes: {(write_end - write_start).microseconds}")
-
+    out_array = np.full(
+        (rasterize_settings["height"], rasterize_settings["width"]), Config.INTERMEDIATE_RASTER_NO_DATA, dtype="int16"
+    )
+    start = datetime.datetime.now()
+    shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
+    rasterized_geometries = rasterio.features.rasterize(
+        shapes=shapes, out=out_array, transform=rasterize_settings["transformation"], all_touched=False
+    )
     end = datetime.datetime.now()
-    logger.info(f"Rasterizing of layer took: {(end - start).microseconds}")
+    logger.info(f"Rasterizing steps takes: {end - start}")
 
-    return path_raster.__str__()
+    return rasterized_geometries
 
 
 def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: str) -> str:
@@ -118,8 +104,8 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
     start = datetime.datetime.now()
     if len(group_a) > 0:
         merged_group_a, out_meta = process_raster_groups(group_a, "max")
-        processor = RasterGroupProcessor(group_a, "max")
-        processor.process_groups()
+        # processor = RasterGroupProcessor(group_a, "max")
+        # processor.process_groups()
     if len(group_b) > 0:
         merged_group_b, out_meta = process_raster_groups(group_b, "sum")
     if len(group_c) > 0:
@@ -209,6 +195,7 @@ def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int
     raster_meta_data = {}
 
     for idx, raster_dict in enumerate(group):
+        logger.info(list(raster_dict.keys())[0])
         with rasterio.open(list(raster_dict.keys())[0], "r") as src:
             raster_meta_data = src.meta.copy()
             for (row, col), window in src.block_windows(1):
