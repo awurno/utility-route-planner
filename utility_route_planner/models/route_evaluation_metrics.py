@@ -17,16 +17,19 @@ class RouteEvaluationMetrics:
         path_cost_surface: str,
         route_human: shapely.LineString = shapely.LineString(),
         project_area: shapely.Polygon = shapely.Polygon(),
+        similarity_threshold_m: int = 2,
         debug: bool = False,
     ):
         self.route_sota = route_sota
         self.path_cost_surface = path_cost_surface
         self.route_human = route_human
         self.project_area = project_area
+        self.similarity_threshold_m = similarity_threshold_m
         self.debug = debug
 
         self.route_relative_cost_sota: int = 0
         self.route_relative_cost_human: int = 0
+        self.route_similarity: float = 0
 
     def get_route_evaluation_metrics(self):
         """
@@ -59,6 +62,11 @@ class RouteEvaluationMetrics:
                 self.route_human, self.path_cost_surface
             )
             logger.info(f"Route human relative cost: {round(self.route_relative_cost_human)}.")
+
+            self.route_similarity = self.get_route_similarity(
+                self.route_sota, self.route_human, self.similarity_threshold_m
+            )
+            logger.info(f"SOTA route overlaps: {self.route_similarity}% with the human route.")
 
     def get_route_cost_estimation(self, route: shapely.LineString, path_cost_surface: str) -> tuple:
         with rasterio.Env():
@@ -93,12 +101,35 @@ class RouteEvaluationMetrics:
         total_relative_cost = gdf_route_segments["cost"].sum()
 
         if self.debug:
-            write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, route, "route", overwrite=True)
+            write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, route, "pytest_route", overwrite=True)
             write_results_to_geopackage(
-                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, gdf_cells, "intersecting_cells", overwrite=True
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, gdf_cells, "pytest_intersecting_cells", overwrite=True
             )
             write_results_to_geopackage(
-                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, gdf_route_segments, "route_intersection", overwrite=True
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, gdf_route_segments, "pytest_route_intersection", overwrite=True
             )
 
         return total_relative_cost, transform[0], raster_shape
+
+    def get_route_similarity(
+        self, route_sota: shapely.LineString, route_human: shapely.LineString, threshold_m
+    ) -> float:
+        """Calculates simple overlap between two routes."""
+        overlap_percentage = (
+            100 * route_sota.buffer(threshold_m).intersection(route_human).length
+        ) / route_human.length
+        if self.debug:
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, route_sota, "pytest_route_sota", overwrite=True
+            )
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT, route_human, "pytest_route_human", overwrite=True
+            )
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT,
+                route_sota.buffer(threshold_m).intersection(route_human),
+                "pytest_overlap",
+                overwrite=True,
+            )
+
+        return round(overlap_percentage, 2)
