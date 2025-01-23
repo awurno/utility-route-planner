@@ -49,16 +49,16 @@ class RouteEvaluationMetrics:
         )
 
         if self.project_area.area > 0:
-            logger.info(f"Project area size is: {self.project_area.area/10000:.2f} hectare.")
+            logger.info(f"Project area size is: {round(self.project_area.area/10000)} hectare.")
         logger.info(f"Cost-surface used has a shape {raster_shape} and a cell size of {cell_size:.2f} meters.")
-        logger.info(f"Route SOTA length: {self.route_sota.length:.2f} meters.")
-        logger.info(f"Route SOTA relative cost SOTA: {self.route_relative_cost_sota:2f}.")
+        logger.info(f"Route SOTA length: {round(self.route_sota.length)} meters.")
+        logger.info(f"Route SOTA relative cost SOTA: {round(self.route_relative_cost_sota)}.")
         if self.route_human.length > 0:
-            logger.info(f"Route human length: {self.route_human.length:.2f} meters.")
+            logger.info(f"Route human length: {round(self.route_human.length)} meters.")
             self.route_relative_cost_human, cell_size, _ = self.get_route_cost_estimation(
                 self.route_human, self.path_cost_surface
             )
-            logger.info(f"Route human relative cost: {self.route_relative_cost_human:2f}.")
+            logger.info(f"Route human relative cost: {round(self.route_relative_cost_human)}.")
 
     def get_route_cost_estimation(self, route: shapely.LineString, path_cost_surface: str) -> tuple:
         with rasterio.Env():

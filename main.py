@@ -22,12 +22,13 @@ def run_mcda_lcpa(
     project_area_geometry: shapely.Polygon,
     start_mid_end_points: tuple,
     human_designed_route: shapely.LineString = shapely.LineString(),
+    raster_name_prefix: str = "",
 ):
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
-    reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
+
     start_cpu_time = time.process_time_ns()
 
-    mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
+    mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry, raster_name_prefix)
     mcda_engine.preprocess_vectors()
     path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
 
@@ -51,32 +52,39 @@ if __name__ == "__main__":
             Config.PATH_GEOPACKAGE_CASE_01,
             Config.LAYER_NAME_PROJECT_AREA_CASE_01,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01,
+            "route_1_",
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_02,
             Config.LAYER_NAME_PROJECT_AREA_CASE_02,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_02,
+            "route_2_",
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_03,
             Config.LAYER_NAME_PROJECT_AREA_CASE_03,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_03,
+            "route_3_",
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_04,
             Config.LAYER_NAME_PROJECT_AREA_CASE_04,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
+            "route_3_",
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_05,
             Config.LAYER_NAME_PROJECT_AREA_CASE_05,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_05,
+            "route_5_",
         ),
     ]
 
-    cases_to_run = [1]  # 0/1/2/3/4
+    reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, truncate=True)
+
+    cases_to_run = [0, 1, 2, 3, 4]  # 0/1/2/3/4
     for case in cases_to_run:
-        geopackage, layer_project_area, human_designed_route_name = cases[case]
+        geopackage, layer_project_area, human_designed_route_name, raster_name_prefix = cases[case]
         human_designed_route = gpd.read_file(geopackage, layer=human_designed_route_name).iloc[0].geometry
         start_end_point = get_first_last_point_from_linestring(human_designed_route)
 
@@ -86,4 +94,5 @@ if __name__ == "__main__":
             gpd.read_file(geopackage, layer=layer_project_area).iloc[0].geometry,
             start_end_point,
             human_designed_route,
+            raster_name_prefix,
         )

@@ -15,11 +15,12 @@ class McdaCostSurfaceEngine:
     raster_preset: RasterPreset
     path_geopackage_input: pathlib.Path
 
-    def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry):
+    def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry, raster_name_prefix=""):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
-        self.processed_vectors = {}
-        self.unprocessed_criteria_names = set()
-        self.processed_criteria_names = set()
+        self.processed_vectors: dict = {}
+        self.unprocessed_criteria_names: set = set()
+        self.processed_criteria_names: set = set()
+        self.raster_name_prefix: str = raster_name_prefix
 
     @cached_property
     def number_of_criteria(self):
@@ -60,5 +61,7 @@ class McdaCostSurfaceEngine:
             )
             rasters_to_sum.append({path_raster: self.raster_preset.criteria[criterion].group})
 
-        path_suitability_raster = merge_criteria_rasters(rasters_to_sum, self.raster_preset.general.final_raster_name)
+        path_suitability_raster = merge_criteria_rasters(
+            rasters_to_sum, self.raster_name_prefix + self.raster_preset.general.final_raster_name
+        )
         return path_suitability_raster
