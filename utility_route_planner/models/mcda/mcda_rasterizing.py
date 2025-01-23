@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import math
 
+import affine
 import shapely
 import structlog
 import rasterio
@@ -10,32 +11,23 @@ import rasterio.merge
 import rasterio.mask
 import numpy as np
 import geopandas as gpd
-import affine
 from rasterio import DatasetReader
 from rasterio.windows import Window
 
 from models.mcda.dataclasses import RasterBlock
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
-    RasterCellSizeTooSmall,
     InvalidGroupValue,
     InvalidSuitabilityRasterInput,
+    RasterCellSizeTooSmall,
 )
 
 logger = structlog.get_logger(__name__)
 
 
-def rasterize_vector_data(
-    raster_prefix: str,
-    criterion: str,
-    project_area: shapely.MultiPolygon | shapely.Polygon,
-    gdf_to_rasterize: gpd.GeoDataFrame,
-    cell_size: int | float = Config.RASTER_CELL_SIZE,
-) -> np.ndarray:
-    """
-    Burns the vector data to the project area in the desired raster cell size.
-    If values overlap in the geodataframe, pick the highest value.
-    """
+def get_raster_settings(
+    project_area: shapely.MultiPolygon | shapely.Polygon, cell_size: float = Config.RASTER_CELL_SIZE
+):
     minx, miny, maxx, maxy = project_area.bounds
 
     # In order to fit the given cell size to the project area bounds, we slightly extend the maxx and maxy accordingly.
@@ -45,16 +37,29 @@ def rasterize_vector_data(
     rasterize_settings = dict(
         width=math.ceil((maxx - minx) / cell_size),
         height=math.ceil((maxy - miny) / cell_size),
-        no_data=Config.INTERMEDIATE_RASTER_NO_DATA,
-        transformation=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
+        nodata=Config.INTERMEDIATE_RASTER_NO_DATA,
+        transform=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
     )
+    return rasterize_settings
 
-    logger.info(f"Rasterizing layer: {criterion} in cell size: {cell_size} meters")
+
+def rasterize_vector_data(
+    criterion: str,
+    gdf_to_rasterize: gpd.GeoDataFrame,
+    rasterize_settings: dict,
+) -> np.ndarray:
+    """
+    Burns the vector data to the project area in the desired raster cell size.
+    If values overlap in the geodataframe, pick the highest value.
+    """
+
+    # TODO make raster cell size param dynamic
+    logger.info(f"Rasterizing layer: {criterion} in cell size: {Config.RASTER_CELL_SIZE} meters")
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
     # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
     gdf_to_rasterize.suitability_value = gdf_to_rasterize.suitability_value.replace(
-        rasterize_settings["no_data"], rasterize_settings["no_data"] + 1
+        rasterize_settings["nodata"], rasterize_settings["nodata"] + 1
     )
     # Reset values exceeding the min/max.
     gdf_to_rasterize.loc[
@@ -69,16 +74,18 @@ def rasterize_vector_data(
     )
     start = datetime.datetime.now()
     shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
-    rasterized_geometries = rasterio.features.rasterize(
-        shapes=shapes, out=out_array, transform=rasterize_settings["transformation"], all_touched=False
+    rasterized_vector = rasterio.features.rasterize(
+        shapes=shapes, out=out_array, transform=rasterize_settings["transform"], all_touched=False
     )
     end = datetime.datetime.now()
     logger.info(f"Rasterizing steps takes: {end - start}")
 
-    return rasterized_geometries
+    return rasterized_vector
 
 
-def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: str) -> str:
+def merge_criteria_rasters(
+    rasters_to_process: list[tuple[str, np.ndarray, str]], rasterize_settings: dict, final_raster_name: str
+) -> str:
     """
     List of rasters to combine and their respective group.
 
@@ -90,26 +97,28 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
 
     # Split groups and process accordingly prior to summing all together.
     group_a, group_b, group_c = [], [], []
-    for raster_dict in rasters_to_process:
-        for key in raster_dict:
-            if raster_dict[key] == "a":
-                group_a.append(raster_dict)
-            elif raster_dict[key] == "b":
-                group_b.append(raster_dict)
-            elif raster_dict[key] == "c":
-                group_c.append(raster_dict)
-            else:
-                raise InvalidGroupValue(f"Invalid group value encountered during raster processing: {raster_dict[key]}")
+    for rasterized_vector in rasters_to_process:
+        match rasterized_vector[2]:
+            case "a":
+                group_a.append(rasterized_vector)
+            case "b":
+                group_b.append(rasterized_vector)
+            case "c":
+                group_c.append(rasterized_vector)
+            case _:
+                raise InvalidGroupValue(
+                    f"Invalid group value encountered during raster processing: {rasterized_vector[2]}"
+                )
 
     start = datetime.datetime.now()
     if len(group_a) > 0:
-        merged_group_a, out_meta = process_raster_groups(group_a, "max")
+        merged_group_a = process_raster_groups(group_a, "max")
         # processor = RasterGroupProcessor(group_a, "max")
         # processor.process_groups()
     if len(group_b) > 0:
-        merged_group_b, out_meta = process_raster_groups(group_b, "sum")
+        merged_group_b = process_raster_groups(group_b, "sum")
     if len(group_c) > 0:
-        merged_group_c, _ = process_raster_groups(group_c, "sum")
+        merged_group_c = process_raster_groups(group_c, "sum")
     end = datetime.datetime.now()
     logger.info(f"Processing took: {end - start}")
 
@@ -139,19 +148,23 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
                 summed_raster[window_index].array.mask, ~merged_group_c[window_index].array.mask
             )
 
-    out_meta.update(
+    rasterize_settings.update(
         {
+            "driver": "GTiff",
             "dtype": "int8",
             "compress": "lzw",
             "tiled": True,
             "blockxsize": Config.RASTER_BLOCK_SIZE,
             "blockysize": Config.RASTER_BLOCK_SIZE,
             "nodata": Config.FINAL_RASTER_NO_DATA,
+            "count": 1,
+            "crs": rasterio.CRS.from_epsg(code=Config.CRS),
         }
     )
 
-    complete_raster = np.ma.empty(shape=(out_meta["height"], out_meta["width"]), dtype=out_meta["dtype"])
-
+    complete_raster = np.ma.empty(
+        shape=(rasterize_settings["height"], rasterize_settings["width"]), dtype=rasterize_settings["dtype"]
+    )
     for raster_block in summed_raster.values():
         window = raster_block.window
         complete_raster[
@@ -159,7 +172,7 @@ def merge_criteria_rasters(rasters_to_process: list[dict], final_raster_name: st
         ] = raster_block.array
 
     final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
-    with rasterio.open(final_raster_path, "w", **out_meta) as dest:
+    with rasterio.open(final_raster_path, "w", **rasterize_settings) as dest:
         dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
 
     return final_raster_path.__str__()
@@ -188,35 +201,39 @@ class RasterGroupProcessor:
         return RasterBlock(array=src_block, window=window)
 
 
-def process_raster_groups(group: list, method: str) -> tuple[dict[tuple[int, int], RasterBlock], dict]:
+def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], RasterBlock]:
     """Per group, process the criteria arrays."""
     # Use numpy masks to ignore the nodata values in the computations.
     blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
-    raster_meta_data = {}
 
+    block_height, block_width = 512, 512
     for idx, raster_dict in enumerate(group):
-        logger.info(list(raster_dict.keys())[0])
-        with rasterio.open(list(raster_dict.keys())[0], "r") as src:
-            raster_meta_data = src.meta.copy()
-            for (row, col), window in src.block_windows(1):
-                src_block = src.read(1, window=window, masked=True)
-                raster_block = RasterBlock(array=src_block, window=window)
+        matrix = raster_dict[1]
+        for row, col, raster_block in iter_blocks(matrix, block_height, block_width):
+            if idx == 0:
+                blocked_raster_dict[(row, col)] = raster_block
+                continue
 
-                if idx == 0:
-                    blocked_raster_dict[(row, col)] = raster_block
-                    continue
+            match method:
+                case "sum":
+                    result = np.ma.sum([blocked_raster_dict[(row, col)].array, raster_block.array], axis=0)
+                case "max":
+                    result = np.ma.max(
+                        np.ma.stack((blocked_raster_dict[(row, col)].array, raster_block.array), axis=0), axis=0
+                    )
+                case _:
+                    raise InvalidSuitabilityRasterInput(
+                        f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
+                    )
+            blocked_raster_dict[(row, col)].array = result
 
-                match method:
-                    case "sum":
-                        result = np.ma.sum([blocked_raster_dict[(row, col)].array, raster_block.array], axis=0)
-                    case "max":
-                        result = np.ma.max(
-                            np.ma.stack((blocked_raster_dict[(row, col)].array, raster_block.array), axis=0), axis=0
-                        )
-                    case _:
-                        raise InvalidSuitabilityRasterInput(
-                            f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
-                        )
-                blocked_raster_dict[(row, col)].array = result
+    return blocked_raster_dict
 
-    return blocked_raster_dict, raster_meta_data
+
+def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
+    for row, row_offset in enumerate(range(0, matrix.shape[0], block_width)):
+        for col, coll_offset in enumerate(range(0, matrix.shape[1], block_height)):
+            chunk = matrix[row_offset : row_offset + block_width, coll_offset : coll_offset + block_height]
+            masked_chunk = np.ma.masked_equal(chunk, Config.INTERMEDIATE_RASTER_NO_DATA)
+            window = Window(coll_offset, row_offset, block_width, block_height)
+            yield row, col, RasterBlock(masked_chunk, window)
