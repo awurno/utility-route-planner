@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import math
 
@@ -11,7 +10,6 @@ import rasterio.merge
 import rasterio.mask
 import numpy as np
 import geopandas as gpd
-from rasterio import DatasetReader
 from rasterio.windows import Window
 
 from models.mcda.dataclasses import RasterBlock
@@ -176,29 +174,6 @@ def merge_criteria_rasters(
         dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
 
     return final_raster_path.__str__()
-
-
-class RasterGroupProcessor:
-    def __init__(self, group: list, method: str):
-        self.group = group
-        self.method = method
-        self.blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
-        self.meta_data: dict = {}
-
-    def process_groups(self):
-        for idx, raster_dict in enumerate(self.group):
-            raster_path = list(raster_dict.keys())[0]
-            with rasterio.open(raster_path, "r") as src:
-                asyncio.run(self.read_windows(src))
-            logger.info("Ready")
-
-    async def read_windows(self, src: DatasetReader):
-        return await asyncio.gather(*[self.read_window(src, window) for (row, col), window in src.block_windows(1)])
-
-    @staticmethod
-    async def read_window(src: DatasetReader, window: Window):
-        src_block = src.read(1, window=window, masked=True)
-        return RasterBlock(array=src_block, window=window)
 
 
 def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], RasterBlock]:

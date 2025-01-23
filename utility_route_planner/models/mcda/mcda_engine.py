@@ -1,17 +1,18 @@
-import math
 import pathlib
 from functools import cached_property
 
-import affine
 import numpy as np
 
-from models.mcda.exceptions import RasterCellSizeTooSmall
 from settings import Config
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
 
-from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.models.mcda.mcda_rasterizing import (
+    rasterize_vector_data,
+    merge_criteria_rasters,
+    get_raster_settings,
+)
 from utility_route_planner.util.timer import time_function
 
 logger = structlog.get_logger(__name__)
@@ -55,40 +56,22 @@ class McdaCostSurfaceEngine:
             set(self.unprocessed_criteria_names)
         )
 
-    def run_raster_preprocessing(
+    @time_function
+    def preprocess_rasters(
         self, vector_to_convert: dict[str, gpd.GeoDataFrame], cell_size: float = Config.RASTER_CELL_SIZE
-    ):
+    ) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
 
-        # with ProcessPoolExecutor() as executor:
-        #     futures = [executor.submit(
-        #         self.rasterize_vector,
-        #         idx,
-        #         criterion,
-        #         gdf,
-        #     ) for idx, (criterion, gdf) in enumerate(vector_to_convert.items())]
-        #
-        #     rasters_to_sum = [future.result() for future in as_completed(futures)]
-
-        minx, miny, maxx, maxy = self.raster_preset.general.project_area_geometry.bounds
-
-        # In order to fit the given cell size to the project area bounds, we slightly extend the maxx and maxy accordingly.
-        if cell_size > maxx - minx or cell_size > maxy - miny:
-            raise RasterCellSizeTooSmall("Given raster cell size is too large for the project area.")
-
-        rasterize_settings = dict(
-            width=math.ceil((maxx - minx) / cell_size),
-            height=math.ceil((maxy - miny) / cell_size),
-            nodata=Config.INTERMEDIATE_RASTER_NO_DATA,
-            transform=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
-        )
-
+        raster_settings = get_raster_settings(self.raster_preset.general.project_area_geometry, cell_size)
         rasters_to_sum = [
-            self.rasterize_vector(idx, criterion, gdf, rasterize_settings)
+            self.rasterize_vector(idx, criterion, gdf, raster_settings)
             for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
         ]
 
-        return rasters_to_sum, rasterize_settings
+        path_suitability_raster = merge_criteria_rasters(
+            rasters_to_sum, raster_settings, self.raster_preset.general.final_raster_name
+        )
+        return path_suitability_raster
 
     def rasterize_vector(
         self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, rasterize_settings: dict
@@ -97,32 +80,3 @@ class McdaCostSurfaceEngine:
         rasterized_vector = rasterize_vector_data(criterion, gdf, rasterize_settings)
         raster_criteria = self.raster_preset.criteria[criterion]
         return criterion, rasterized_vector, raster_criteria.group
-
-    @time_function
-    def preprocess_rasters(
-        self, vector_to_convert: dict[str, gpd.GeoDataFrame], cell_size: float = Config.RASTER_CELL_SIZE
-    ) -> str:
-        logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
-
-        minx, miny, maxx, maxy = self.raster_preset.general.project_area_geometry.bounds
-
-        # In order to fit the given cell size to the project area bounds, we slightly extend the maxx and maxy accordingly.
-        if cell_size > maxx - minx or cell_size > maxy - miny:
-            raise RasterCellSizeTooSmall("Given raster cell size is too large for the project area.")
-
-        rasterize_settings = dict(
-            width=math.ceil((maxx - minx) / cell_size),
-            height=math.ceil((maxy - miny) / cell_size),
-            nodata=Config.INTERMEDIATE_RASTER_NO_DATA,
-            transform=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
-        )
-
-        rasters_to_sum = [
-            self.rasterize_vector(idx, criterion, gdf, rasterize_settings)
-            for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
-        ]
-
-        path_suitability_raster = merge_criteria_rasters(
-            rasters_to_sum, rasterize_settings, self.raster_preset.general.final_raster_name
-        )
-        return path_suitability_raster
