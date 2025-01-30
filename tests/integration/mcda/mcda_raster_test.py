@@ -18,6 +18,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
     merge_criteria_rasters,
     get_raster_settings,
+    write_raster,
 )
 from utility_route_planner.util.write import reset_geopackage
 
@@ -283,7 +284,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, rasterize_settings)
         rasters_to_merge.append((criterion_name, rasterized_vector, group))
 
-    path_suitability_raster = merge_criteria_rasters(rasters_to_merge, rasterize_settings, "pytest_suitability_raster")
+    complete_raster = merge_criteria_rasters(rasters_to_merge, rasterize_settings)
+    path_suitability_raster = write_raster(complete_raster, rasterize_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
@@ -300,9 +302,9 @@ def test_sum_rasters(monkeypatch, debug=False):
 )
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        merge_criteria_rasters(invalid_input, {}, "pytest")
+        merge_criteria_rasters(invalid_input, {})
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        merge_criteria_rasters([], {}, "pytest")
+        merge_criteria_rasters([], {})

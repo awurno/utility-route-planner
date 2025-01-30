@@ -36,6 +36,7 @@ def get_raster_settings(
         height=math.ceil((maxy - miny) / cell_size),
         nodata=Config.INTERMEDIATE_RASTER_NO_DATA,
         transform=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
+        dtype="int8",
     )
     return rasterize_settings
 
@@ -77,9 +78,7 @@ def rasterize_vector_data(
     return rasterized_vector
 
 
-def merge_criteria_rasters(
-    rasters_to_process: list[tuple[str, np.ndarray, str]], rasterize_settings: dict, final_raster_name: str
-) -> str:
+def merge_criteria_rasters(rasters_to_process: list[tuple[str, np.ndarray, str]], rasterize_settings: dict) -> str:
     """
     List of rasters to combine and their respective group.
 
@@ -104,11 +103,9 @@ def merge_criteria_rasters(
                     f"Invalid group value encountered during raster processing: {rasterized_vector[2]}"
                 )
 
-    merged_group_a, merged_group_b, merged_group_c = (
-        {},
-        {},
-        {},
-    )
+    merged_group_a = {}
+    merged_group_b = {}
+    merged_group_c = {}
     if len(group_a) > 0:
         merged_group_a = process_raster_groups(group_a, "max")
     if len(group_b) > 0:
@@ -142,34 +139,8 @@ def merge_criteria_rasters(
                 summed_raster[window_index].array.mask, ~merged_group_c[window_index].array.mask
             )
 
-    rasterize_settings.update(
-        {
-            "driver": "GTiff",
-            "dtype": "int8",
-            "compress": "lzw",
-            "tiled": True,
-            "blockxsize": Config.RASTER_BLOCK_SIZE,
-            "blockysize": Config.RASTER_BLOCK_SIZE,
-            "nodata": Config.FINAL_RASTER_NO_DATA,
-            "count": 1,
-            "crs": rasterio.CRS.from_epsg(code=Config.CRS),
-        }
-    )
-
-    complete_raster = np.ma.empty(
-        shape=(rasterize_settings["height"], rasterize_settings["width"]), dtype=rasterize_settings["dtype"]
-    )
-    for raster_block in summed_raster.values():
-        window = raster_block.window
-        complete_raster[
-            window.row_off : window.row_off + window.height, window.col_off : window.col_off + window.width
-        ] = raster_block.array
-
-    final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
-    with rasterio.open(final_raster_path, "w", **rasterize_settings) as dest:
-        dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
-
-    return final_raster_path.__str__()
+    complete_raster = construct_complete_raster(summed_raster, rasterize_settings)
+    return complete_raster
 
 
 def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], RasterBlock]:
@@ -208,3 +179,39 @@ def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
             masked_chunk = np.ma.masked_equal(chunk, Config.INTERMEDIATE_RASTER_NO_DATA)
             window = Window(coll_offset, row_offset, block_width, block_height)
             yield row, col, RasterBlock(masked_chunk, window)
+
+
+def construct_complete_raster(
+    summed_raster: dict[tuple[int, int], RasterBlock], rasterize_settings: dict
+) -> np.ma.array:
+    complete_raster = np.ma.empty(
+        shape=(rasterize_settings["height"], rasterize_settings["width"]), dtype=rasterize_settings["dtype"]
+    )
+    for raster_block in summed_raster.values():
+        window = raster_block.window
+        complete_raster[
+            window.row_off : window.row_off + window.height, window.col_off : window.col_off + window.width
+        ] = raster_block.array
+
+    return complete_raster
+
+
+def write_raster(complete_raster: np.ma.array, rasterize_settings: dict, final_raster_name) -> str:
+    rasterize_settings.update(
+        {
+            "driver": "GTiff",
+            "compress": "lzw",
+            "tiled": True,
+            "blockxsize": Config.RASTER_BLOCK_SIZE,
+            "blockysize": Config.RASTER_BLOCK_SIZE,
+            "nodata": Config.FINAL_RASTER_NO_DATA,
+            "count": 1,
+            "crs": rasterio.CRS.from_epsg(code=Config.CRS),
+        }
+    )
+
+    final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
+    with rasterio.open(final_raster_path, "w", **rasterize_settings) as dest:
+        dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
+
+    return final_raster_path.__str__()
