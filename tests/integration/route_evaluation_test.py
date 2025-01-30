@@ -30,7 +30,7 @@ class TestRouteEvaluationMetrics:
         assert round(route_evaluation_metrics.route_relative_cost_human) == 30991
         assert route_evaluation_metrics.route_sota.length == route_sota.length
         assert route_evaluation_metrics.route_human.length == route_human.length
-        assert route_evaluation_metrics.route_similarity == 0
+        assert route_evaluation_metrics.route_similarity_sota == 0
 
     def test_route_similarity(self):
         path_raster = Config.PATH_EXAMPLE_RASTER
@@ -38,12 +38,17 @@ class TestRouteEvaluationMetrics:
         route_human = shapely.LineString([[0, 0], [1, 5], [3, 5], [3, 10], [0, 10]])
 
         route_evaluation_metrics = RouteEvaluationMetrics(route_sota, path_raster, route_human)
-        similarity = route_evaluation_metrics.get_route_similarity(route_sota, route_human, 2)
+        sota_overlap_percentage, human_overlap_percentage = route_evaluation_metrics.get_route_similarity(
+            route_sota, route_human, 2
+        )
 
-        assert similarity == 53.64
+        assert sota_overlap_percentage == 87.3
+        assert human_overlap_percentage == 53.64
 
-        similarity = route_evaluation_metrics.get_route_similarity(route_sota, route_human, 10)
-        assert similarity == 100
+        sota_overlap_percentage, human_overlap_percentage = route_evaluation_metrics.get_route_similarity(
+            route_sota, route_human, 10
+        )
+        assert sota_overlap_percentage, human_overlap_percentage == 100
 
     def test_invalid_supplied_route(self):
         path_raster = Config.PATH_EXAMPLE_RASTER

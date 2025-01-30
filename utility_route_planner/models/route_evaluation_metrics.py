@@ -29,7 +29,8 @@ class RouteEvaluationMetrics:
 
         self.route_relative_cost_sota: int = 0
         self.route_relative_cost_human: int = 0
-        self.route_similarity: float = 0
+        self.route_similarity_sota: float = 0
+        self.route_similarity_human: float = 0
 
     def get_route_evaluation_metrics(self):
         """
@@ -63,10 +64,11 @@ class RouteEvaluationMetrics:
             )
             logger.info(f"Route human relative cost: {round(self.route_relative_cost_human)}.")
 
-            self.route_similarity = self.get_route_similarity(
+            self.route_similarity_sota, self.route_similarity_human = self.get_route_similarity(
                 self.route_sota, self.route_human, self.similarity_threshold_m
             )
-            logger.info(f"SOTA route overlaps: {self.route_similarity}% with the human route.")
+            logger.info(f"SOTA route overlaps: {self.route_similarity_sota}% with the human route.")
+            logger.info(f"Human route overlaps: {self.route_similarity_human}% with the SOTA route.")
 
     def get_route_cost_estimation(self, route: shapely.LineString, path_cost_surface: str) -> tuple:
         with rasterio.Env():
@@ -113,11 +115,12 @@ class RouteEvaluationMetrics:
 
     def get_route_similarity(
         self, route_sota: shapely.LineString, route_human: shapely.LineString, threshold_m
-    ) -> float:
+    ) -> tuple[float, float]:
         """Calculates simple overlap between two routes."""
-        overlap_percentage = (
-            100 * route_sota.buffer(threshold_m).intersection(route_human).length
-        ) / route_human.length
+        overlap_human = route_sota.buffer(threshold_m).intersection(route_human)
+        overlap_percentage_human = 100 * overlap_human.length / route_human.length
+        overlap_sota = route_human.buffer(threshold_m).intersection(route_sota)
+        overlap_percentage_sota = 100 * overlap_sota.length / route_sota.length
         if self.debug:
             write_results_to_geopackage(
                 Config.PATH_GEOPACKAGE_LCPA_OUTPUT, route_sota, "pytest_route_sota", overwrite=True
@@ -127,9 +130,15 @@ class RouteEvaluationMetrics:
             )
             write_results_to_geopackage(
                 Config.PATH_GEOPACKAGE_LCPA_OUTPUT,
-                route_sota.buffer(threshold_m).intersection(route_human),
-                "pytest_overlap",
+                overlap_human,
+                "pytest_overlap_human",
+                overwrite=True,
+            )
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_LCPA_OUTPUT,
+                overlap_sota,
+                "pytest_overlap_sota",
                 overwrite=True,
             )
 
-        return round(overlap_percentage, 2)
+        return round(overlap_percentage_sota, 2), round(overlap_percentage_human, 2)
