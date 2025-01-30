@@ -72,7 +72,9 @@ class McdaCostSurfaceEngine:
         ]
 
         merged_rasters = merge_criteria_rasters(rasters_to_sum)
-        complete_raster = construct_complete_raster(merged_rasters, raster_settings)
+        complete_raster = construct_complete_raster(
+            merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
+        )
         path_suitability_raster = write_raster(
             complete_raster, raster_settings, self.raster_preset.general.final_raster_name
         )

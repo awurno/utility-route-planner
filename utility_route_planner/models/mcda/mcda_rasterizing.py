@@ -183,9 +183,12 @@ def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
 
 
 def construct_complete_raster(
-    summed_raster: dict[tuple[int, int], McdaRasterBlock], raster_settings: McdaRasterSettings
+    summed_raster: dict[tuple[int, int], McdaRasterBlock],
+    height: int,
+    width: int,
+    dtype: str,
 ) -> np.ma.array:
-    complete_raster = np.ma.empty(shape=(raster_settings.height, raster_settings.width), dtype=raster_settings.dtype)
+    complete_raster = np.ma.empty(shape=(height, width), dtype=dtype)
     for raster_block in summed_raster.values():
         window = raster_block.window
         complete_raster[
