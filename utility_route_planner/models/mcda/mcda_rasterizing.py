@@ -12,8 +12,7 @@ import numpy as np
 import geopandas as gpd
 from rasterio.windows import Window
 
-from models.mcda.dataclasses import RasterBlock
-from models.mcda.mcda_datastructures import McdaRasterSettings
+from models.mcda.mcda_datastructures import McdaRasterSettings, McdaRasterBlock
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     InvalidGroupValue,
@@ -120,7 +119,7 @@ def merge_criteria_rasters(
     if len(group_b) > 0 and len(group_a) > 0:
         for key in merged_group_a:
             summed_array = np.ma.sum([merged_group_a[key].array, merged_group_b[key].array], axis=0)
-            summed_raster[key] = RasterBlock(array=summed_array, window=merged_group_a[key].window)
+            summed_raster[key] = McdaRasterBlock(array=summed_array, window=merged_group_a[key].window)
 
     elif len(group_b) > 0 and len(group_a) == 0:
         summed_raster = merged_group_b
@@ -146,10 +145,10 @@ def merge_criteria_rasters(
     return complete_raster
 
 
-def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], RasterBlock]:
+def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], McdaRasterBlock]:
     """Per group, process the criteria arrays."""
     # Use numpy masks to ignore the nodata values in the computations.
-    blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
+    blocked_raster_dict: dict[tuple[int, int], McdaRasterBlock] = {}
 
     block_height, block_width = Config.RASTER_BLOCK_SIZE, Config.RASTER_BLOCK_SIZE
     for idx, raster_dict in enumerate(group):
@@ -181,11 +180,11 @@ def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
             chunk = matrix[row_offset : row_offset + block_width, coll_offset : coll_offset + block_height]
             masked_chunk = np.ma.masked_equal(chunk, Config.INTERMEDIATE_RASTER_NO_DATA)
             window = Window(coll_offset, row_offset, block_width, block_height)
-            yield row, col, RasterBlock(masked_chunk, window)
+            yield row, col, McdaRasterBlock(masked_chunk, window)
 
 
 def construct_complete_raster(
-    summed_raster: dict[tuple[int, int], RasterBlock], raster_settings: McdaRasterSettings
+    summed_raster: dict[tuple[int, int], McdaRasterBlock], raster_settings: McdaRasterSettings
 ) -> np.ma.array:
     complete_raster = np.ma.empty(shape=(raster_settings.height, raster_settings.width), dtype=raster_settings.dtype)
     for raster_block in summed_raster.values():
