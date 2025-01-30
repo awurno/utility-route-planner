@@ -104,6 +104,11 @@ def merge_criteria_rasters(
                     f"Invalid group value encountered during raster processing: {rasterized_vector[2]}"
                 )
 
+    merged_group_a, merged_group_b, merged_group_c = (
+        {},
+        {},
+        {},
+    )
     if len(group_a) > 0:
         merged_group_a = process_raster_groups(group_a, "max")
     if len(group_b) > 0:
