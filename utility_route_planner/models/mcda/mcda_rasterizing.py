@@ -145,7 +145,15 @@ def merge_criteria_rasters(
 
 
 def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], McdaRasterBlock]:
-    """Per group, process the criteria arrays."""
+    """
+    Iterate over all raster groups and perform the desired method to combine the different groups. Each group is
+    processed in a block-wise fashion to make computations more efficient. For each block the window data is stored, to
+    enable reconstructing the complete raster later on.
+
+    :param group: list of criterion groups to process.
+    :param method: mathematical operation to perform on the rasters. Currently, "sum" and "max" are supported.
+    :return: dictionary containing processed raster blocks
+    """
     # Use numpy masks to ignore the nodata values in the computations.
     blocked_raster_dict: dict[tuple[int, int], McdaRasterBlock] = {}
 
@@ -188,6 +196,15 @@ def construct_complete_raster(
     width: int,
     dtype: str,
 ) -> np.ma.array:
+    """
+    Given a dictionary of processed raster windows, (re)construct the complete raster based on the offsets and size
+    of the respective windows.
+    :param summed_raster: summed_raster: dictionary that contains blocks that will be used to construct the complete raster.
+    :param height: desired height of the complete raster array.
+    :param width: desired width of the complete raster array.
+    :param dtype: desired dtype of the complete raster array.
+    :return: complete raster as masked numpy array
+    """
     complete_raster = np.ma.empty(shape=(height, width), dtype=dtype)
     for raster_block in summed_raster.values():
         window = raster_block.window
