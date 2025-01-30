@@ -50,8 +50,6 @@ def rasterize_vector_data(
     Burns the vector data to the project area in the desired raster cell size.
     If values overlap in the geodataframe, pick the highest value.
     """
-
-    # TODO make raster cell size param dynamic
     logger.info(f"Rasterizing layer: {criterion} in cell size: {Config.RASTER_CELL_SIZE} meters")
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
