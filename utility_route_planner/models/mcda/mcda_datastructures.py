@@ -60,6 +60,13 @@ class McdaRasterSettings:
 
 
 @dataclass
-class McdaRasterBlock:
+class RasterizedCriterion:
+    criterion: str
+    raster: np.ndarray
+    group: str
+
+
+@dataclass
+class RasterBlock:
     array: np.ma.MaskedArray
     window: Window
