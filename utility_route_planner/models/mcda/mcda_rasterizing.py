@@ -79,8 +79,8 @@ def rasterize_vector_data(
 
 
 def merge_criteria_rasters(
-    rasters_to_process: list[tuple[str, np.ndarray, str]], raster_settings: McdaRasterSettings
-) -> str:
+    rasters_to_process: list[tuple[str, np.ndarray, str]],
+) -> dict[tuple[int, int], McdaRasterBlock]:
     """
     List of rasters to combine and their respective group.
 
@@ -141,8 +141,7 @@ def merge_criteria_rasters(
                 summed_raster[window_index].array.mask, ~merged_group_c[window_index].array.mask
             )
 
-    complete_raster = construct_complete_raster(summed_raster, raster_settings)
-    return complete_raster
+    return summed_raster
 
 
 def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], McdaRasterBlock]:
