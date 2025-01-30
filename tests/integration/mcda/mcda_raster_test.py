@@ -7,7 +7,7 @@ import numpy as np
 from rasterio.transform import rowcol
 from rasterio.windows import Window
 
-from models.mcda.mcda_datastructures import McdaRasterSettings, McdaRasterBlock
+from models.mcda.mcda_datastructures import McdaRasterBlock
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -288,7 +288,9 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasters_to_merge.append((criterion_name, rasterized_vector, group))
 
     merged_rasters = merge_criteria_rasters(rasters_to_merge)
-    complete_raster = construct_complete_raster(merged_rasters, raster_settings)
+    complete_raster = construct_complete_raster(
+        merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
+    )
     path_suitability_raster = write_raster(complete_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
@@ -333,8 +335,7 @@ def test_construct_complete_raster():
             window=Window(col_off=2, row_off=2, height=2, width=2),
         ),
     }
-    raster_settings = McdaRasterSettings(width=4, height=4, nodata=Config.INTERMEDIATE_RASTER_NO_DATA)
-    complete_raster_result = construct_complete_raster(raster_blocks, raster_settings)
+    complete_raster_result = construct_complete_raster(raster_blocks, 4, 4, "int8")
 
     expected_raster = np.ma.array(
         [

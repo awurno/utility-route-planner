@@ -50,7 +50,7 @@ class McdaRasterSettings:
     width: int
     height: int
     nodata: int
-    transform: Affine | None = None  # Made optional for easier testing
+    transform: Affine
     driver: str = "GTiff"
     compress: str = "lzw"
     tiled: bool = True
