@@ -287,7 +287,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, raster_settings)
         rasters_to_merge.append((criterion_name, rasterized_vector, group))
 
-    complete_raster = merge_criteria_rasters(rasters_to_merge, raster_settings)
+    merged_rasters = merge_criteria_rasters(rasters_to_merge)
+    complete_raster = construct_complete_raster(merged_rasters, raster_settings)
     path_suitability_raster = write_raster(complete_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
@@ -305,12 +306,12 @@ def test_sum_rasters(monkeypatch, debug=False):
 )
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        merge_criteria_rasters(invalid_input, McdaRasterSettings)
+        merge_criteria_rasters(invalid_input)
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        merge_criteria_rasters([], McdaRasterSettings)
+        merge_criteria_rasters([])
 
 
 def test_construct_complete_raster():

@@ -14,6 +14,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     merge_criteria_rasters,
     get_raster_settings,
     write_raster,
+    construct_complete_raster,
 )
 from utility_route_planner.util.timer import time_function
 
@@ -70,7 +71,8 @@ class McdaCostSurfaceEngine:
             for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
         ]
 
-        complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings)
+        merged_rasters = merge_criteria_rasters(rasters_to_sum)
+        complete_raster = construct_complete_raster(merged_rasters, raster_settings)
         path_suitability_raster = write_raster(
             complete_raster, raster_settings, self.raster_preset.general.final_raster_name
         )
