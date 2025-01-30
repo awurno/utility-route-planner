@@ -1,4 +1,5 @@
 import math
+from dataclasses import asdict
 
 import affine
 import shapely
@@ -12,6 +13,7 @@ import geopandas as gpd
 from rasterio.windows import Window
 
 from models.mcda.dataclasses import RasterBlock
+from models.mcda.mcda_datastructures import McdaRasterSettings
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     InvalidGroupValue,
@@ -24,27 +26,26 @@ logger = structlog.get_logger(__name__)
 
 def get_raster_settings(
     project_area: shapely.MultiPolygon | shapely.Polygon, cell_size: float = Config.RASTER_CELL_SIZE
-):
+) -> McdaRasterSettings:
     minx, miny, maxx, maxy = project_area.bounds
 
     # In order to fit the given cell size to the project area bounds, we slightly extend the maxx and maxy accordingly.
     if cell_size > maxx - minx or cell_size > maxy - miny:
         raise RasterCellSizeTooSmall("Given raster cell size is too large for the project area.")
 
-    rasterize_settings = dict(
+    raster_settings = McdaRasterSettings(
         width=math.ceil((maxx - minx) / cell_size),
         height=math.ceil((maxy - miny) / cell_size),
         nodata=Config.INTERMEDIATE_RASTER_NO_DATA,
         transform=affine.Affine(cell_size, 0.0, round(minx), 0.0, -cell_size, round(maxy)),
-        dtype="int8",
     )
-    return rasterize_settings
+    return raster_settings
 
 
 def rasterize_vector_data(
     criterion: str,
     gdf_to_rasterize: gpd.GeoDataFrame,
-    rasterize_settings: dict,
+    raster_settings: McdaRasterSettings,
 ) -> np.ndarray:
     """
     Burns the vector data to the project area in the desired raster cell size.
@@ -57,7 +58,7 @@ def rasterize_vector_data(
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
     # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
     gdf_to_rasterize.suitability_value = gdf_to_rasterize.suitability_value.replace(
-        rasterize_settings["nodata"], rasterize_settings["nodata"] + 1
+        raster_settings.nodata, raster_settings.nodata + 1
     )
     # Reset values exceeding the min/max.
     gdf_to_rasterize.loc[
@@ -68,17 +69,19 @@ def rasterize_vector_data(
     ] = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
 
     out_array = np.full(
-        (rasterize_settings["height"], rasterize_settings["width"]), Config.INTERMEDIATE_RASTER_NO_DATA, dtype="int16"
+        (raster_settings.height, raster_settings.width), Config.INTERMEDIATE_RASTER_NO_DATA, dtype="int16"
     )
     shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
     rasterized_vector = rasterio.features.rasterize(
-        shapes=shapes, out=out_array, transform=rasterize_settings["transform"], all_touched=False
+        shapes=shapes, out=out_array, transform=raster_settings.transform, all_touched=False
     )
 
     return rasterized_vector
 
 
-def merge_criteria_rasters(rasters_to_process: list[tuple[str, np.ndarray, str]], rasterize_settings: dict) -> str:
+def merge_criteria_rasters(
+    rasters_to_process: list[tuple[str, np.ndarray, str]], raster_settings: McdaRasterSettings
+) -> str:
     """
     List of rasters to combine and their respective group.
 
@@ -139,7 +142,7 @@ def merge_criteria_rasters(rasters_to_process: list[tuple[str, np.ndarray, str]]
                 summed_raster[window_index].array.mask, ~merged_group_c[window_index].array.mask
             )
 
-    complete_raster = construct_complete_raster(summed_raster, rasterize_settings)
+    complete_raster = construct_complete_raster(summed_raster, raster_settings)
     return complete_raster
 
 
@@ -148,7 +151,7 @@ def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], Ras
     # Use numpy masks to ignore the nodata values in the computations.
     blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
 
-    block_height, block_width = 512, 512
+    block_height, block_width = Config.RASTER_BLOCK_SIZE, Config.RASTER_BLOCK_SIZE
     for idx, raster_dict in enumerate(group):
         matrix = raster_dict[1]
         for row, col, raster_block in iter_blocks(matrix, block_height, block_width):
@@ -182,11 +185,9 @@ def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
 
 
 def construct_complete_raster(
-    summed_raster: dict[tuple[int, int], RasterBlock], rasterize_settings: dict
+    summed_raster: dict[tuple[int, int], RasterBlock], raster_settings: McdaRasterSettings
 ) -> np.ma.array:
-    complete_raster = np.ma.empty(
-        shape=(rasterize_settings["height"], rasterize_settings["width"]), dtype=rasterize_settings["dtype"]
-    )
+    complete_raster = np.ma.empty(shape=(raster_settings.height, raster_settings.width), dtype=raster_settings.dtype)
     for raster_block in summed_raster.values():
         window = raster_block.window
         complete_raster[
@@ -196,22 +197,10 @@ def construct_complete_raster(
     return complete_raster
 
 
-def write_raster(complete_raster: np.ma.array, rasterize_settings: dict, final_raster_name) -> str:
-    rasterize_settings.update(
-        {
-            "driver": "GTiff",
-            "compress": "lzw",
-            "tiled": True,
-            "blockxsize": Config.RASTER_BLOCK_SIZE,
-            "blockysize": Config.RASTER_BLOCK_SIZE,
-            "nodata": Config.FINAL_RASTER_NO_DATA,
-            "count": 1,
-            "crs": rasterio.CRS.from_epsg(code=Config.CRS),
-        }
-    )
-
+def write_raster(complete_raster: np.ma.array, raster_settings: McdaRasterSettings, final_raster_name) -> str:
+    raster_settings.nodata = Config.FINAL_RASTER_NO_DATA
     final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
-    with rasterio.open(final_raster_path, "w", **rasterize_settings) as dest:
+    with rasterio.open(final_raster_path, "w", **asdict(raster_settings)) as dest:
         dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
 
     return final_raster_path.__str__()

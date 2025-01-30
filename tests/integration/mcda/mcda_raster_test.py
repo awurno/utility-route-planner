@@ -137,14 +137,14 @@ def test_rasterize_single_criterion(debug=False):
 
     gdfs_to_rasterize = [gdf, sort_desc, sort_asc]
     project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
-    rasterize_settings = get_raster_settings(project_area, 0.5)
+    raster_settings = get_raster_settings(project_area, 0.5)
     for gdf in gdfs_to_rasterize:
-        rasterized_vector = rasterize_vector_data("test_rasterize", gdf, rasterize_settings)
+        rasterized_vector = rasterize_vector_data("test_rasterize", gdf, raster_settings)
         unique_values = np.unique(rasterized_vector)
         assert set(unique_values) == {no_data, min_value, 5, 10, max_value}
         # Check that the overlapping part has the highest value
         for _, row in points_to_sample.iterrows():
-            row_index, col_index = rowcol(rasterize_settings["transform"], row.geometry.x, row.geometry.y)
+            row_index, col_index = rowcol(raster_settings.transform, row.geometry.x, row.geometry.y)
             assert rasterized_vector[int(row_index)][int(col_index)] == row.expected_suitability_value
 
 
@@ -268,7 +268,7 @@ def test_sum_rasters(monkeypatch, debug=False):
 
     rasters_to_merge = []
     project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
-    rasterize_settings = get_raster_settings(project_area, 0.5)
+    raster_settings = get_raster_settings(project_area, 0.5)
     for (
         group,
         criterion_gdf,
@@ -281,11 +281,11 @@ def test_sum_rasters(monkeypatch, debug=False):
         ["c", criterion_c_1, "criterion_c1"],
         ["c", criterion_c_2, "criterion_c2"],
     ]:
-        rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, rasterize_settings)
+        rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, raster_settings)
         rasters_to_merge.append((criterion_name, rasterized_vector, group))
 
-    complete_raster = merge_criteria_rasters(rasters_to_merge, rasterize_settings)
-    path_suitability_raster = write_raster(complete_raster, rasterize_settings, "pytest_suitability_raster")
+    complete_raster = merge_criteria_rasters(rasters_to_merge, raster_settings)
+    path_suitability_raster = write_raster(complete_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
