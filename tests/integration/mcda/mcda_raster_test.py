@@ -5,7 +5,9 @@ import rasterio.sample
 import shapely
 import numpy as np
 from rasterio.transform import rowcol
+from rasterio.windows import Window
 
+from models.mcda.mcda_datastructures import McdaRasterSettings, McdaRasterBlock
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -19,6 +21,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     merge_criteria_rasters,
     get_raster_settings,
     write_raster,
+    construct_complete_raster,
 )
 from utility_route_planner.util.write import reset_geopackage
 
@@ -302,9 +305,43 @@ def test_sum_rasters(monkeypatch, debug=False):
 )
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        merge_criteria_rasters(invalid_input, {})
+        merge_criteria_rasters(invalid_input, McdaRasterSettings)
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        merge_criteria_rasters([], {})
+        merge_criteria_rasters([], McdaRasterSettings)
+
+
+def test_construct_complete_raster():
+    raster_blocks = {
+        (0, 0): McdaRasterBlock(
+            array=np.ma.array([[1, 1], [2, 2]]),
+            window=Window(col_off=0, row_off=0, height=2, width=2),
+        ),
+        (0, 1): McdaRasterBlock(
+            array=np.ma.array([[3, 3], [4, 4]]),
+            window=Window(col_off=2, row_off=0, height=2, width=2),
+        ),
+        (1, 0): McdaRasterBlock(
+            array=np.ma.array([[5, 5], [6, 6]]),
+            window=Window(col_off=0, row_off=2, height=2, width=2),
+        ),
+        (1, 1): McdaRasterBlock(
+            array=np.ma.array([[7, 7], [8, 8]]),
+            window=Window(col_off=2, row_off=2, height=2, width=2),
+        ),
+    }
+    raster_settings = McdaRasterSettings(width=4, height=4, nodata=Config.INTERMEDIATE_RASTER_NO_DATA)
+    complete_raster_result = construct_complete_raster(raster_blocks, raster_settings)
+
+    expected_raster = np.ma.array(
+        [
+            [1, 1, 3, 3],
+            [2, 2, 4, 4],
+            [5, 5, 7, 7],
+            [6, 6, 8, 8],
+        ]
+    )
+
+    assert np.array_equal(expected_raster, complete_raster_result)
