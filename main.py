@@ -3,6 +3,7 @@ import pathlib
 import shapely
 import structlog
 
+from models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from settings import Config
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
@@ -23,14 +24,14 @@ def run_mcda_lcpa(
 
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
     mcda_engine.preprocess_vectors()
-    mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+    path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
 
-    # lcpa_engine = LcpaUtilityRouteEngine()
-    # lcpa_engine.get_lcpa_route(
-    #     path_suitability_raster,
-    #     shapely.LineString(start_mid_end_points),
-    #     mcda_engine.raster_preset.general.project_area_geometry,
-    # )
+    lcpa_engine = LcpaUtilityRouteEngine()
+    lcpa_engine.get_lcpa_route(
+        path_suitability_raster,
+        shapely.LineString(start_mid_end_points),
+        mcda_engine.raster_preset.general.project_area_geometry,
+    )
 
 
 if __name__ == "__main__":
