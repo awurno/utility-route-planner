@@ -1,9 +1,8 @@
 import pathlib
 from functools import cached_property
 
-import numpy as np
 
-from models.mcda.mcda_datastructures import McdaRasterSettings
+from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
@@ -82,8 +81,8 @@ class McdaCostSurfaceEngine:
 
     def rasterize_vector(
         self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, raster_settings: McdaRasterSettings
-    ) -> tuple[str, np.ndarray, str]:
+    ) -> RasterizedCriterion:
         logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
         rasterized_vector = rasterize_vector_data(criterion, gdf, raster_settings)
         raster_criteria = self.raster_preset.criteria[criterion]
-        return criterion, rasterized_vector, raster_criteria.group
+        return RasterizedCriterion(criterion, rasterized_vector, raster_criteria.group)

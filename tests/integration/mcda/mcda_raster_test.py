@@ -7,7 +7,7 @@ import numpy as np
 from rasterio.transform import rowcol
 from rasterio.windows import Window
 
-from models.mcda.mcda_datastructures import McdaRasterBlock
+from models.mcda.mcda_datastructures import RasterBlock, RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -285,7 +285,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         ["c", criterion_c_2, "criterion_c2"],
     ]:
         rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, raster_settings)
-        rasters_to_merge.append((criterion_name, rasterized_vector, group))
+        rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
     merged_rasters = merge_criteria_rasters(rasters_to_merge)
     complete_raster = construct_complete_raster(
@@ -304,7 +304,11 @@ def test_sum_rasters(monkeypatch, debug=False):
 
 @pytest.mark.parametrize(
     "invalid_input",
-    [[("c1", np.array([]), "d")], [("c2", np.array([]), "f")], [("c2", np.array([]), "e"), ("c2", np.array([]), "d")]],
+    [
+        [RasterizedCriterion("c1", np.array([]), "d")],
+        [RasterizedCriterion("c2", np.array([]), "f")],
+        [RasterizedCriterion("c2", np.array([]), "e"), RasterizedCriterion("c2", np.array([]), "d")],
+    ],
 )
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
@@ -318,19 +322,19 @@ def test_invalid_suitability_raster_input():
 
 def test_construct_complete_raster():
     raster_blocks = {
-        (0, 0): McdaRasterBlock(
+        (0, 0): RasterBlock(
             array=np.ma.array([[1, 1], [2, 2]]),
             window=Window(col_off=0, row_off=0, height=2, width=2),
         ),
-        (0, 1): McdaRasterBlock(
+        (0, 1): RasterBlock(
             array=np.ma.array([[3, 3], [4, 4]]),
             window=Window(col_off=2, row_off=0, height=2, width=2),
         ),
-        (1, 0): McdaRasterBlock(
+        (1, 0): RasterBlock(
             array=np.ma.array([[5, 5], [6, 6]]),
             window=Window(col_off=0, row_off=2, height=2, width=2),
         ),
-        (1, 1): McdaRasterBlock(
+        (1, 1): RasterBlock(
             array=np.ma.array([[7, 7], [8, 8]]),
             window=Window(col_off=2, row_off=2, height=2, width=2),
         ),

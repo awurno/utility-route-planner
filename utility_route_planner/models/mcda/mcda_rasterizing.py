@@ -12,7 +12,7 @@ import numpy as np
 import geopandas as gpd
 from rasterio.windows import Window
 
-from models.mcda.mcda_datastructures import McdaRasterSettings, McdaRasterBlock
+from models.mcda.mcda_datastructures import McdaRasterSettings, RasterBlock, RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     InvalidGroupValue,
@@ -76,9 +76,7 @@ def rasterize_vector_data(
     return rasterized_vector
 
 
-def merge_criteria_rasters(
-    rasters_to_process: list[tuple[str, np.ndarray, str]],
-) -> dict[tuple[int, int], McdaRasterBlock]:
+def merge_criteria_rasters(rasters_to_process: list[RasterizedCriterion]) -> dict[tuple[int, int], RasterBlock]:
     """
     List of rasters to combine and their respective group.
 
@@ -91,7 +89,7 @@ def merge_criteria_rasters(
     # Split groups and process accordingly prior to summing all together.
     group_a, group_b, group_c = [], [], []
     for rasterized_vector in rasters_to_process:
-        match rasterized_vector[2]:
+        match rasterized_vector.group:
             case "a":
                 group_a.append(rasterized_vector)
             case "b":
@@ -100,7 +98,7 @@ def merge_criteria_rasters(
                 group_c.append(rasterized_vector)
             case _:
                 raise InvalidGroupValue(
-                    f"Invalid group value encountered during raster processing: {rasterized_vector[2]}"
+                    f"Invalid group value encountered during raster processing: {rasterized_vector.group}"
                 )
 
     merged_group_a = {}
@@ -117,7 +115,7 @@ def merge_criteria_rasters(
     if len(group_b) > 0 and len(group_a) > 0:
         for key in merged_group_a:
             summed_array = np.ma.sum([merged_group_a[key].array, merged_group_b[key].array], axis=0)
-            summed_raster[key] = McdaRasterBlock(array=summed_array, window=merged_group_a[key].window)
+            summed_raster[key] = RasterBlock(array=summed_array, window=merged_group_a[key].window)
 
     elif len(group_b) > 0 and len(group_a) == 0:
         summed_raster = merged_group_b
@@ -142,7 +140,7 @@ def merge_criteria_rasters(
     return summed_raster
 
 
-def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], McdaRasterBlock]:
+def process_raster_groups(group: list[RasterizedCriterion], method: str) -> dict[tuple[int, int], RasterBlock]:
     """
     Iterate over all raster groups and perform the desired method to combine the different groups. Each group is
     processed in a block-wise fashion to make computations more efficient. For each block the window data is stored, to
@@ -153,11 +151,11 @@ def process_raster_groups(group: list, method: str) -> dict[tuple[int, int], Mcd
     :return: dictionary containing processed raster blocks
     """
     # Use numpy masks to ignore the nodata values in the computations.
-    blocked_raster_dict: dict[tuple[int, int], McdaRasterBlock] = {}
+    blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
 
     block_height, block_width = Config.RASTER_BLOCK_SIZE, Config.RASTER_BLOCK_SIZE
-    for idx, raster_dict in enumerate(group):
-        matrix = raster_dict[1]
+    for idx, criterion in enumerate(group):
+        matrix = criterion.raster
         for row, col, raster_block in iter_blocks(matrix, block_height, block_width):
             if idx == 0:
                 blocked_raster_dict[(row, col)] = raster_block
@@ -185,11 +183,11 @@ def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
             chunk = matrix[row_offset : row_offset + block_width, coll_offset : coll_offset + block_height]
             masked_chunk = np.ma.masked_equal(chunk, Config.INTERMEDIATE_RASTER_NO_DATA)
             window = Window(coll_offset, row_offset, block_width, block_height)
-            yield row, col, McdaRasterBlock(masked_chunk, window)
+            yield row, col, RasterBlock(masked_chunk, window)
 
 
 def construct_complete_raster(
-    summed_raster: dict[tuple[int, int], McdaRasterBlock],
+    summed_raster: dict[tuple[int, int], RasterBlock],
     height: int,
     width: int,
     dtype: str,
