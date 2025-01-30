@@ -1,4 +1,3 @@
-import datetime
 import math
 
 import affine
@@ -70,13 +69,10 @@ def rasterize_vector_data(
     out_array = np.full(
         (rasterize_settings["height"], rasterize_settings["width"]), Config.INTERMEDIATE_RASTER_NO_DATA, dtype="int16"
     )
-    start = datetime.datetime.now()
     shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
     rasterized_vector = rasterio.features.rasterize(
         shapes=shapes, out=out_array, transform=rasterize_settings["transform"], all_touched=False
     )
-    end = datetime.datetime.now()
-    logger.info(f"Rasterizing steps takes: {end - start}")
 
     return rasterized_vector
 
@@ -108,17 +104,12 @@ def merge_criteria_rasters(
                     f"Invalid group value encountered during raster processing: {rasterized_vector[2]}"
                 )
 
-    start = datetime.datetime.now()
     if len(group_a) > 0:
         merged_group_a = process_raster_groups(group_a, "max")
-        # processor = RasterGroupProcessor(group_a, "max")
-        # processor.process_groups()
     if len(group_b) > 0:
         merged_group_b = process_raster_groups(group_b, "sum")
     if len(group_c) > 0:
         merged_group_c = process_raster_groups(group_c, "sum")
-    end = datetime.datetime.now()
-    logger.info(f"Processing took: {end - start}")
 
     summed_raster = {}
     if len(group_b) > 0 and len(group_a) > 0:
