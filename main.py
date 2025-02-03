@@ -53,47 +53,47 @@ if __name__ == "__main__":
             Config.LAYER_NAME_PROJECT_AREA_CASE_01,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_01,
             "route_1_",
-            (),
+            [],
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_02,
             Config.LAYER_NAME_PROJECT_AREA_CASE_02,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_02,
             "route_2_",
-            (),
+            [],
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_03,
             Config.LAYER_NAME_PROJECT_AREA_CASE_03,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_03,
             "route_3_",
-            (),
+            [],
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_04,
             Config.LAYER_NAME_PROJECT_AREA_CASE_04,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_04,
             "route_4_",
-            (),
+            [],
         ),
         (
             Config.PATH_GEOPACKAGE_CASE_05,
             Config.LAYER_NAME_PROJECT_AREA_CASE_05,
             Config.LAYER_NAME_HUMAN_DESIGNED_ROUTE_CASE_05,
             "route_5_",
-            ([121462.8, 487153.4]),
+            [[121462.8, 487153.4]],
         ),
     ]
 
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, truncate=True)
 
-    cases_to_run = [0, 1, 2, 3, 4]  # 0/1/2/3/4
+    cases_to_run = [4]  # 0/1/2/3/4
     for case in cases_to_run:
         geopackage, layer_project_area, human_designed_route_name, raster_name_prefix, stops = cases[case]
         human_designed_route = gpd.read_file(geopackage, layer=human_designed_route_name).iloc[0].geometry
         route_stops = get_first_last_point_from_linestring(human_designed_route)
         if stops:
-            route_stops = tuple(list(route_stops)[:1] + [shapely.Point(i) for i in stops] + list(route_stops)[1:])
+            route_stops = list(route_stops)[:1] + [shapely.Point(i) for i in stops] + list(route_stops)[1:]  # type: ignore
 
         run_mcda_lcpa(
             "preset_benchmark_raw",
