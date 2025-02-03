@@ -1,6 +1,8 @@
 import pathlib
 from functools import cached_property
 
+import shapely
+
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
@@ -15,7 +17,13 @@ class McdaCostSurfaceEngine:
     raster_preset: RasterPreset
     path_geopackage_input: pathlib.Path
 
-    def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry, raster_name_prefix=""):
+    def __init__(
+        self,
+        preset_to_load: str,
+        path_geopackage_mcda_input: pathlib.Path,
+        project_area_geometry: shapely.Polygon,
+        raster_name_prefix: str = "",
+    ):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
         self.processed_vectors: dict = {}
         self.unprocessed_criteria_names: set = set()
