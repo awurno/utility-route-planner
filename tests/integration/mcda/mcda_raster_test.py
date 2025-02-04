@@ -7,7 +7,7 @@ import numpy as np
 from rasterio.transform import rowcol
 from rasterio.windows import Window
 
-from models.mcda.mcda_datastructures import RasterBlock, RasterizedCriterion
+from utility_route_planner.models.mcda.mcda_datastructures import RasterBlock, RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -149,18 +149,11 @@ def test_rasterize_single_criterion(debug=False):
     sort_desc = gdf.sort_values("suitability_value", ascending=False).copy()
 
     gdfs_to_rasterize = [gdf, sort_desc, sort_asc]
-    project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
+    project_area = (
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry
+    )
     raster_settings = get_raster_settings(project_area, 0.5)
     for gdf in gdfs_to_rasterize:
-        #         rasterized_gdf = rasterize_vector_data(
-        #             "pytest_",
-        #             "test_rasterize",
-        #             gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
-        #             .iloc[0]
-        #             .geometry,
-        #             gdf,
-        #             0.5,
-        #         )
         rasterized_vector = rasterize_vector_data("test_rasterize", gdf, raster_settings)
         unique_values = np.unique(rasterized_vector)
         assert set(unique_values) == {no_data, min_value, 5, 10, max_value}
@@ -289,7 +282,9 @@ def test_sum_rasters(monkeypatch, debug=False):
         points_to_sample.to_file(Config.PATH_RESULTS / "pytest_sum_points_to_sample.geojson")
 
     rasters_to_merge = []
-    project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
+    project_area = (
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry
+    )
     raster_settings = get_raster_settings(project_area, 0.5)
     for (
         group,

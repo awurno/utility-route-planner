@@ -3,7 +3,7 @@ from functools import cached_property
 
 import shapely
 
-from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
+from utility_route_planner.models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
@@ -82,9 +82,8 @@ class McdaCostSurfaceEngine:
         complete_raster = construct_complete_raster(
             merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
         )
-        # self.raster_name_prefix + self.raster_preset.general.final_raster_name
         path_suitability_raster = write_raster(
-            complete_raster, raster_settings, self.raster_preset.general.final_raster_name
+            complete_raster, raster_settings, self.raster_name_prefix + self.raster_preset.general.final_raster_name
         )
         return path_suitability_raster
 

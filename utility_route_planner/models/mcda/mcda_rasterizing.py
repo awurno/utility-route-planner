@@ -12,7 +12,7 @@ import numpy as np
 import geopandas as gpd
 from rasterio.windows import Window
 
-from models.mcda.mcda_datastructures import McdaRasterSettings, RasterBlock, RasterizedCriterion
+from utility_route_planner.models.mcda.mcda_datastructures import McdaRasterSettings, RasterBlock, RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     InvalidGroupValue,
