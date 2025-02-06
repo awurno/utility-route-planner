@@ -76,7 +76,11 @@ def rasterize_vector_data(
     return rasterized_vector
 
 
-def merge_criteria_rasters(rasters_to_process: list[RasterizedCriterion]) -> dict[tuple[int, int], RasterBlock]:
+def merge_criteria_rasters(
+    rasters_to_process: list[RasterizedCriterion],
+    raster_height: int,
+    raster_width: int,
+) -> dict[tuple[int, int], RasterBlock]:
     """
     List of rasters to combine and their respective group.
 
@@ -101,21 +105,22 @@ def merge_criteria_rasters(rasters_to_process: list[RasterizedCriterion]) -> dic
                     f"Invalid group value encountered during raster processing: {rasterized_vector.group}"
                 )
 
-    merged_group_a = {}
-    merged_group_b = {}
-    merged_group_c = {}
+    merged_group_a = np.ma.empty(shape=(raster_height, raster_width))
+    merged_group_b = np.ma.empty(shape=(raster_height, raster_width))
+    merged_group_c = np.ma.empty(shape=(raster_height, raster_width))
     if len(group_a) > 0:
-        merged_group_a = process_raster_groups(group_a, "max")
+        merged_group_a = process_raster_groups(group_a, "max", raster_height, raster_width)
     if len(group_b) > 0:
-        merged_group_b = process_raster_groups(group_b, "sum")
+        merged_group_b = process_raster_groups(group_b, "sum", raster_height, raster_width)
     if len(group_c) > 0:
-        merged_group_c = process_raster_groups(group_c, "sum")
+        merged_group_c = process_raster_groups(group_c, "sum", raster_height, raster_width)
 
-    summed_raster = {}
+    # summed_raster = {}
     if len(group_b) > 0 and len(group_a) > 0:
-        for key in merged_group_a:
-            summed_array = np.ma.sum([merged_group_a[key].array, merged_group_b[key].array], axis=0)
-            summed_raster[key] = RasterBlock(array=summed_array, window=merged_group_a[key].window)
+        summed_raster = np.ma.sum([merged_group_a, merged_group_b], axis=0)
+        # for key in merged_group_a:
+        #     summed_array = np.ma.sum([merged_group_a[key].array, merged_group_b[key].array], axis=0)
+        #     summed_raster[key] = RasterBlock(array=summed_array, window=merged_group_a[key].window)
 
     elif len(group_b) > 0 and len(group_a) == 0:
         summed_raster = merged_group_b
@@ -125,22 +130,23 @@ def merge_criteria_rasters(rasters_to_process: list[RasterizedCriterion]) -> dic
         raise InvalidSuitabilityRasterInput("No rasters to sum, exiting.")
 
     # Force values to fit in the int8 datatype
-    for (row, col), block in summed_raster.items():
-        summed_raster[row, col].array = np.ma.clip(
-            block.array, Config.FINAL_RASTER_VALUE_LIMIT_LOWER, Config.FINAL_RASTER_VALUE_LIMIT_UPPER
-        )
+    summed_raster = np.ma.clip(
+        summed_raster, Config.FINAL_RASTER_VALUE_LIMIT_LOWER, Config.FINAL_RASTER_VALUE_LIMIT_UPPER
+    )
 
     # Update the mask of the summed_raster so that every cell intersecting with group c is set to no data.
     if len(group_c) > 0:
-        for window_index in summed_raster.keys():
-            summed_raster[window_index].array.mask = np.ma.mask_or(
-                summed_raster[window_index].array.mask, ~merged_group_c[window_index].array.mask
-            )
+        summed_raster.mask = np.ma.mask_or(summed_raster.mask, ~merged_group_c.mask)
 
     return summed_raster
 
 
-def process_raster_groups(group: list[RasterizedCriterion], method: str) -> dict[tuple[int, int], RasterBlock]:
+def process_raster_groups(
+    group: list[RasterizedCriterion],
+    method: str,
+    height: int,
+    width: int,
+) -> np.ma.array:
     """
     Iterate over all raster groups and perform the desired method to combine the different groups. Each group is
     processed in a block-wise fashion to make computations more efficient. For each block the window data is stored, to
@@ -151,30 +157,45 @@ def process_raster_groups(group: list[RasterizedCriterion], method: str) -> dict
     :return: dictionary containing processed raster blocks
     """
     # Use numpy masks to ignore the nodata values in the computations.
-    blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
+    # blocked_raster_dict: dict[tuple[int, int], RasterBlock] = {}
 
-    block_height, block_width = Config.RASTER_BLOCK_SIZE, Config.RASTER_BLOCK_SIZE
+    stacked_raster_groups = np.ma.empty(shape=(len(group), height, width))
+    # block_height, block_width = Config.RASTER_BLOCK_SIZE, Config.RASTER_BLOCK_SIZE
     for idx, criterion in enumerate(group):
-        matrix = criterion.raster
-        for row, col, raster_block in iter_blocks(matrix, block_height, block_width):
-            if idx == 0:
-                blocked_raster_dict[(row, col)] = raster_block
-                continue
+        stacked_raster_groups[idx] = np.ma.masked_equal(criterion.raster, Config.INTERMEDIATE_RASTER_NO_DATA)
 
-            match method:
-                case "sum":
-                    result = np.ma.sum([blocked_raster_dict[(row, col)].array, raster_block.array], axis=0)
-                case "max":
-                    result = np.ma.max(
-                        np.ma.stack((blocked_raster_dict[(row, col)].array, raster_block.array), axis=0), axis=0
-                    )
-                case _:
-                    raise InvalidSuitabilityRasterInput(
-                        f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
-                    )
-            blocked_raster_dict[(row, col)].array = result
+    match method:
+        case "sum":
+            processed_raster = np.ma.sum(stacked_raster_groups, axis=0)
+        case "max":
+            processed_raster = np.ma.max(stacked_raster_groups, axis=0)
+        case _:
+            raise InvalidSuitabilityRasterInput(
+                f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
+            )
 
-    return blocked_raster_dict
+    #     matrix = criterion.raster
+    #     for row, col, raster_block in iter_blocks(matrix, block_height, block_width):
+    #         if idx == 0:
+    #
+    #             blocked_raster_dict[(row, col)] = raster_block
+    #             continue
+    #
+    #         match method:
+    #             case "sum":
+    #                 result = np.ma.sum([blocked_raster_dict[(row, col)].array, raster_block.array], axis=0)
+    #             case "max":
+    #                 result = np.ma.max(
+    #                     np.ma.stack((blocked_raster_dict[(row, col)].array, raster_block.array), axis=0), axis=0
+    #                 )
+    #             case _:
+    #                 raise InvalidSuitabilityRasterInput(
+    #                     f"Invalid method for processing raster group: {method}. Expected 'sum' or 'max'."
+    #                 )
+    #         blocked_raster_dict[(row, col)].array = result
+    #
+    # return blocked_raster_dict
+    return processed_raster
 
 
 def iter_blocks(matrix: np.ndarray, block_width: int, block_height: int):
