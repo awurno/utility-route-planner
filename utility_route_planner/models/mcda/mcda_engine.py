@@ -1,6 +1,8 @@
 import pathlib
 from functools import cached_property
 
+import numpy as np
+from shapely.geometry.geo import box
 
 from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
 from settings import Config
@@ -10,10 +12,6 @@ import geopandas as gpd
 
 from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
-    merge_criteria_rasters,
-    get_raster_settings,
-    write_raster,
-    construct_complete_raster,
 )
 from utility_route_planner.util.timer import time_function
 
@@ -26,6 +24,7 @@ class McdaCostSurfaceEngine:
 
     def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
+        self.project_area_geometry = project_area_geometry
         self.processed_vectors = {}
         self.unprocessed_criteria_names = set()
         self.processed_criteria_names = set()
@@ -44,7 +43,7 @@ class McdaCostSurfaceEngine:
             f"Processing {self.number_of_criteria} criteria using geopackage: {self.raster_preset.general.path_input_geopackage}"
         )
         for idx, criterion in enumerate(self.raster_preset.criteria):
-            logger.info(f"Processing criteria number {idx+1} of {self.number_of_criteria}.")
+            logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria}.")
             is_processed, processed_gdf = self.raster_preset.criteria[criterion].preprocessing_function.execute(
                 self.raster_preset.general, self.raster_preset.criteria[criterion]
             )
@@ -54,9 +53,24 @@ class McdaCostSurfaceEngine:
                 assert processed_gdf.empty
                 self.unprocessed_criteria_names.add(criterion)
 
-        self.processed_criteria_names = set(self.raster_preset.criteria.keys()).difference(
-            set(self.unprocessed_criteria_names)
-        )
+        project_area_grid = self.create_project_area_grid()
+        self.assign_vector_group_to_grid(project_area_grid)
+
+    def create_project_area_grid(self):
+        min_x, min_y, max_x, max_y = self.project_area_geometry
+        grid_size = (max_y - min_y) * 0.1
+        x_coords = np.arange(min_x, max_x, grid_size)
+        y_coords = np.arange(min_y, max_y, grid_size)
+        grid_cells = [box(x, y, x + grid_size, y + grid_size) for x in x_coords for y in y_coords]
+        grid = gpd.GeoDataFrame(grid_cells, columns=["geometry"], crs=Config.CRS)
+        return grid
+
+    def assign_vector_group_to_grid(self, grid: gpd.GeoDataFrame):
+        for processed_group_name, vector in self.processed_vectors.items():
+            vector_with_grid = gpd.sjoin(vector, grid, how="left", predicate="intersects")
+            vector_with_grid = vector_with_grid.rename(columns={"index_right": "tile_id"})
+            vector_with_grid = vector_with_grid.set_index("tile_id", drop=True)
+            self.processed_vectors[processed_group_name] = vector_with_grid
 
     @time_function
     def preprocess_rasters(
@@ -64,20 +78,20 @@ class McdaCostSurfaceEngine:
     ) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
 
-        raster_settings = get_raster_settings(self.raster_preset.general.project_area_geometry, cell_size)
-        rasters_to_sum = [
-            self.rasterize_vector(idx, criterion, gdf, raster_settings)
-            for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
-        ]
+        # raster_settings = get_raster_settings(self.raster_preset.general.project_area_geometry, cell_size)
+        # rasters_to_sum = [
+        #     self.rasterize_vector(idx, criterion, gdf, raster_settings)
+        #     for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
+        # ]
 
-        merged_rasters = merge_criteria_rasters(rasters_to_sum)
-        complete_raster = construct_complete_raster(
-            merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
-        )
-        path_suitability_raster = write_raster(
-            complete_raster, raster_settings, self.raster_preset.general.final_raster_name
-        )
-        return path_suitability_raster
+        # complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
+        # # complete_raster = construct_complete_raster(
+        # #     merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
+        # # )
+        # path_suitability_raster = write_raster(
+        #     complete_raster, raster_settings, self.raster_preset.general.final_raster_name
+        # )
+        return "path_suitability_raster"
 
     def rasterize_vector(
         self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, raster_settings: McdaRasterSettings
