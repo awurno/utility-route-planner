@@ -1,4 +1,6 @@
 import pathlib
+from concurrent.futures import as_completed
+from concurrent.futures.process import ProcessPoolExecutor
 from functools import cached_property
 
 import numpy as np
@@ -77,27 +79,48 @@ class McdaCostSurfaceEngine:
 
     @time_function
     def preprocess_rasters(
-        self, vector_to_convert: dict[str, gpd.GeoDataFrame], cell_size: float = Config.RASTER_CELL_SIZE
-    ) -> str:
+        self,
+        vector_to_convert: dict[str, gpd.GeoDataFrame],
+        cell_size: float = Config.RASTER_CELL_SIZE,
+    ) -> list[str]:
         tile_ids = list(self.project_area_grid.index)
 
         logger.info(
             f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria using {len(tile_ids)} tiles."
         )
-        for tile_id in tile_ids:
-            tile_geometry = self.project_area_grid.iloc[tile_id].values[0]
-            raster_settings = get_raster_settings(tile_geometry, cell_size)
-            rasters_to_sum = [
-                self.rasterize_vector(idx, criterion, gdf, raster_settings)
-                for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
-            ]
 
-            complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
-            # complete_raster = construct_complete_raster(
-            #     merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
-            # )
-            write_raster(complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{tile_id}")
-        return "path_suitability_raster"
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(self.submit_raster_job, tile_id, cell_size, vector_to_convert) for tile_id in tile_ids
+            ]
+            raster_paths = [future.result() for future in as_completed(futures)]
+        # for tile_id in tile_ids:
+        #     tile_geometry = self.project_area_grid.iloc[tile_id].values[0]
+        #     raster_settings = get_raster_settings(tile_geometry, cell_size)
+        #     rasters_to_sum = [
+        #         self.rasterize_vector(idx, criterion, gdf, raster_settings)
+        #         for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
+        #     ]
+        #
+        #     complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
+        #     # complete_raster = construct_complete_raster(
+        #     #     merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
+        #     # )
+        #     write_raster(complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{tile_id}")
+        return raster_paths
+
+    def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
+        tile_geometry = self.project_area_grid.iloc[tile_id].values[0]
+        raster_settings = get_raster_settings(tile_geometry, cell_size)
+        rasters_to_sum = [
+            self.rasterize_vector(idx, criterion, gdf, raster_settings)
+            for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
+        ]
+
+        complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
+        return write_raster(
+            complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{tile_id}"
+        )
 
     def rasterize_vector(
         self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, raster_settings: McdaRasterSettings

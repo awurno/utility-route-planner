@@ -13,7 +13,7 @@ class Config:
     # MCDA
     RASTER_PRESET_NAME_BENCHMARK = "preset_benchmark_raw"
     RASTER_CELL_SIZE = 0.5
-    RASTER_BLOCK_SIZE = 512
+    RASTER_BLOCK_SIZE = 1024
     # No data is ignored during creation of the raster.
     INTERMEDIATE_RASTER_NO_DATA = -32768
     # To prevent unwanted rounding/capping at the intermediate steps, allow larger values as int16 datatype.
