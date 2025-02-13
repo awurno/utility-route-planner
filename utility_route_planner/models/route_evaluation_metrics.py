@@ -1,8 +1,10 @@
+import numpy as np
 import rasterio.mask
 import rasterio.features
 import geopandas as gpd
 import shapely
 import structlog
+from scipy.ndimage import generic_filter
 
 from settings import Config
 from utility_route_planner.util.write import write_results_to_geopackage
@@ -31,6 +33,8 @@ class RouteEvaluationMetrics:
         self.route_relative_cost_human: int = 0
         self.route_similarity_sota: float = 0
         self.route_similarity_human: float = 0
+        self.n_edges: int = 0
+        self.n_nodes: int = 0
 
     def get_route_evaluation_metrics(self):
         """
@@ -53,7 +57,10 @@ class RouteEvaluationMetrics:
         )
 
         if self.project_area.area > 0:
-            logger.info(f"Project area size is: {round(self.project_area.area/10000)} hectare.")
+            logger.info(f"Project area size is: {round(self.project_area.area / 10000)} hectare.")
+            self.n_nodes, self.n_edges = self.get_number_of_nodes_edges(self.path_cost_surface, self.project_area)
+            logger.info(f"Number of nodes for SOTA: {self.n_nodes}.")
+            logger.info(f"Number of edges for SOTA: {self.n_edges}.")
         logger.info(f"Cost-surface used has a shape {raster_shape} and a cell size of {cell_size:.2f} meters.")
         logger.info(f"Route SOTA length: {round(self.route_sota.length)} meters.")
         logger.info(f"Route SOTA relative cost SOTA: {round(self.route_relative_cost_sota)}.")
@@ -142,3 +149,39 @@ class RouteEvaluationMetrics:
             )
 
         return round(overlap_percentage_sota, 2), round(overlap_percentage_human, 2)
+
+    def get_number_of_nodes_edges(self, path_cost_surface: str, project_area: shapely.Polygon) -> tuple[int, int]:
+        """Calculates the graph size as used by the LCPA algorithm."""
+        with rasterio.Env():
+            with rasterio.open(path_cost_surface) as src:
+                no_data = src.nodata
+                image, transform = rasterio.mask.mask(
+                    src,
+                    [project_area],
+                    all_touched=True,  # Include a pixel in the mask if it touches any of the shapes.
+                    crop=False,  # Crop result to input project area.
+                    filled=True,  # Values outside input project area will be set to nodata.
+                    indexes=1,
+                )
+
+        nodes, edges = self.count_cells(image, no_data)
+        return nodes, edges
+
+    @staticmethod
+    def count_cells(image, no_data) -> tuple[int, int]:
+        def count_valid_neighbors(window):
+            center = window[4]
+            if center == 0:
+                return 0  # Ignore no_data cells
+            neighbors = np.array(window)[[0, 1, 2, 3, 5, 6, 7, 8]]
+            return np.sum(neighbors)
+
+        binary_mask = (image != no_data).astype(int)
+        valid_neighbor_counts = generic_filter(
+            binary_mask, count_valid_neighbors, size=3, mode="constant", cval=no_data
+        )
+
+        n_nodes = np.sum(binary_mask)
+        n_edges = np.sum(valid_neighbor_counts)
+
+        return n_nodes, n_edges
