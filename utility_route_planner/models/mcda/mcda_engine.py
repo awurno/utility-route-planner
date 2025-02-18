@@ -8,6 +8,7 @@ import shapely
 from shapely.geometry.geo import box
 
 from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
+from models.mcda.vrt_builder import build_vrt_file
 from settings import Config
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
@@ -17,7 +18,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
     get_raster_settings,
     merge_criteria_rasters,
-    write_raster,
+    write_raster_tile,
 )
 from utility_route_planner.util.timer import time_function
 
@@ -30,6 +31,7 @@ class McdaCostSurfaceEngine:
 
     def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry: shapely.Polygon):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
+        self.project_area_geometry = project_area_geometry
         self.processed_vectors: dict = {}
         self.project_area_grid = self.create_project_area_grid(*project_area_geometry.bounds)
         self.unprocessed_criteria_names: set = set()
@@ -82,7 +84,7 @@ class McdaCostSurfaceEngine:
         self,
         vector_to_convert: dict[str, gpd.GeoDataFrame],
         cell_size: float = Config.RASTER_CELL_SIZE,
-    ) -> list[str]:
+    ) -> str:
         tile_ids = list(self.project_area_grid.index)
 
         logger.info(
@@ -94,20 +96,10 @@ class McdaCostSurfaceEngine:
                 executor.submit(self.submit_raster_job, tile_id, cell_size, vector_to_convert) for tile_id in tile_ids
             ]
             raster_paths = [future.result() for future in as_completed(futures)]
-        # for tile_id in tile_ids:
-        #     tile_geometry = self.project_area_grid.iloc[tile_id].values[0]
-        #     raster_settings = get_raster_settings(tile_geometry, cell_size)
-        #     rasters_to_sum = [
-        #         self.rasterize_vector(idx, criterion, gdf, raster_settings)
-        #         for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
-        #     ]
-        #
-        #     complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
-        #     # complete_raster = construct_complete_raster(
-        #     #     merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
-        #     # )
-        #     write_raster(complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{tile_id}")
-        return raster_paths
+
+        vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
+        build_vrt_file(raster_paths, vrt_path=vrt_path)
+        return str(vrt_path)
 
     def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
         tile_geometry = self.project_area_grid.iloc[tile_id].values[0]
@@ -118,7 +110,7 @@ class McdaCostSurfaceEngine:
         ]
 
         complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
-        return write_raster(
+        return write_raster_tile(
             complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{tile_id}"
         )
 
