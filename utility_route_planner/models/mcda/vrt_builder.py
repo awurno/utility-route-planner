@@ -9,82 +9,95 @@ from pyproj import CRS
 from rasterio.enums import ColorInterp
 
 
-def _add_source_content(source: et.Element, src: rasterio.DatasetReader, type: str, xoff: str, yoff: str) -> None:
-    """Add the content of a sourcefile in xml."""
-    width, height = str(src.width), str(src.height)
-    blockx = str(src.profile.get("blockxsize", ""))
-    blocky = str(src.profile.get("blockysize", ""))
+class VRTBuilder:
+    def __init__(
+        self,
+        tile_files: list[str],
+        crs: CRS,
+        resolution,
+        raster_bounds: list[float],
+        vrt_path: Path,
+    ):
+        self.tile_files = tile_files
+        self.crs = crs
+        self.resolution = resolution
+        self.min_x, self.min_y, self.max_x, self.max_y = raster_bounds
+        self.vrt_path = vrt_path
+        self.xml_datatype = "Int8"
 
-    attr = {
-        "RasterXSize": width,
-        "RasterYSize": height,
-        "DataType": type,
-    }
+    def build_and_write_to_disk(self):
+        vrt_tree, raster_band = self.setup_tree()
+        self.add_tiles_to_band(vrt_band=raster_band)
 
-    # optional attributes
-    if blockx and blocky:
-        attr["BlockXSize"], attr["BlockYSize"] = blockx, blocky
+        self.vrt_path.resolve().write_text(
+            minidom.parseString(et.tostring(vrt_tree).decode("utf-8")).toprettyxml(indent="  ").replace("&quot;", '"')
+        )
 
-    et.SubElement(source, "SourceProperties", attr)
+    def setup_tree(self) -> tuple[et.Element, et.Element]:
+        # Construct the transformation based on the bounding box of the grid
+        transform = rasterio.Affine.from_gdal(self.min_x, self.resolution, 0, self.max_y, 0, -self.resolution)
+        total_width = round((self.max_x - self.min_x) / self.resolution)
+        total_height = round((self.max_y - self.min_y) / self.resolution)
 
-    attr = {"xOff": "0", "yOff": "0", "xSize": width, "ySize": height}
-    et.SubElement(source, "SrcRect", attr)
+        # Initialize the VRT tree
+        vrt_tree = et.Element("VRTDataset", {"rasterXSize": str(total_width), "rasterYSize": str(total_height)})
+        et.SubElement(vrt_tree, "SRS").text = self.crs.to_wkt()
 
-    attr = {"xOff": xoff, "yOff": yoff, "xSize": width, "ySize": height}
-    et.SubElement(source, "DstRect", attr)
+        transform_as_string = ", ".join([str(i) for i in transform.to_gdal()])
+        et.SubElement(vrt_tree, "GeoTransform").text = transform_as_string
+        et.SubElement(vrt_tree, "OverviewList", {"resampling": "nearest"}).text = "2 4 8"
 
+        # Initialize the band on which all tiles will be added
+        vrt_band = et.SubElement(vrt_tree, "VRTRasterBand", {"dataType": "Int8", "band": "1"})
+        et.SubElement(vrt_band, "Offset").text = "0.0"
+        et.SubElement(vrt_band, "Scale").text = "1.0"
+        et.SubElement(vrt_band, "ColorInterp").text = ColorInterp.gray.name.capitalize()
+        et.SubElement(vrt_band, "NoDataValue").text = "0.0"
 
-def build_vrt_file(
-    files: list[str],
-    vrt_path: Path,
-    crs: CRS,
-    raster_resolution: float,
-    min_x: float,
-    min_y: float,
-    max_x: float,
-    max_y: float,
-):
-    # rebuild the affine transformation from gathered information along with total bounds
-    # negative y_res as we start from the top-left corner
-    transform = rasterio.Affine.from_gdal(min_x, raster_resolution, 0, max_y, 0, -raster_resolution)
-    total_width = round((max_x - min_x) / raster_resolution)
-    total_height = round((max_y - min_y) / raster_resolution)
+        return vrt_tree, vrt_band
 
-    # start the tree
-    vrt_dataset = et.Element("VRTDataset", {"rasterXSize": str(total_width), "rasterYSize": str(total_height)})
-    et.SubElement(vrt_dataset, "SRS").text = crs.to_wkt()
+    def add_tiles_to_band(self, vrt_band: et.Element):
+        relative_to_vrt = "1"
+        for f in self.tile_files:
+            with rasterio.open(f) as src:
+                source = et.SubElement(vrt_band, "ComplexSource")
+                transform_as_string = relpath(f, self.vrt_path.parent)
+                et.SubElement(source, "SourceFilename", {"relativeToVRT": relative_to_vrt}).text = transform_as_string
+                et.SubElement(source, "SourceBand").text = "1"
 
-    transform_as_string = ", ".join([str(i) for i in transform.to_gdal()])
-    et.SubElement(vrt_dataset, "GeoTransform").text = transform_as_string
+                self.add_source_content(
+                    source=source,
+                    src=src,
+                    x_off=str(abs(round((src.bounds.left - self.min_x) / self.resolution))),
+                    y_off=str(abs(round((src.bounds.top - self.max_y) / self.resolution))),
+                )
 
-    et.SubElement(vrt_dataset, "OverviewList", {"resampling": "nearest"}).text = "2 4 8"
+                et.SubElement(source, "NODATA").text = "0.0"
 
-    vrt_band = et.SubElement(vrt_dataset, "VRTRasterBand", {"dataType": "Int8", "band": "1"})
+    def add_source_content(self, source: et.Element, src: rasterio.DatasetReader, x_off: str, y_off: str):
+        """
+        Given a tiff file, add its properties to the source element of the raster band row
 
-    et.SubElement(vrt_band, "Offset").text = "0.0"
-    et.SubElement(vrt_band, "Scale").text = "1.0"
-    et.SubElement(vrt_band, "ColorInterp").text = ColorInterp.gray.name.capitalize()
-    et.SubElement(vrt_band, "NoDataValue").text = "0.0"
+        :param source: source element for this raster tile
+        :param src: reader instance which holds the tiff of the current raster tile
+        :param x_off: x offset wrt the total raster size
+        :param y_off: y offset wrt the total raster size
+        """
+        width, height = str(src.width), str(src.height)
+        block_x = str(src.profile.get("blockxsize", ""))
+        block_y = str(src.profile.get("blockysize", ""))
 
-    # add the files
-    relative_to_vrt = "1"
-    for f in files:
-        with rasterio.open(f) as src:
-            source = et.SubElement(vrt_band, "ComplexSource")
-            transform_as_string = relpath(f, vrt_path.parent)
-            et.SubElement(source, "SourceFilename", {"relativeToVRT": relative_to_vrt}).text = transform_as_string
-            et.SubElement(source, "SourceBand").text = "1"
+        et.SubElement(
+            source,
+            "SourceProperties",
+            {
+                "RasterXSize": width,
+                "RasterYSize": height,
+                "DataType": self.xml_datatype,
+                "BlockXSize": block_x,
+                "BlockYSize": block_y,
+            },
+        )
 
-            _add_source_content(
-                source=source,
-                src=src,
-                type="Int8",
-                xoff=str(abs(round((src.bounds.left - min_x) / raster_resolution))),
-                yoff=str(abs(round((src.bounds.top - max_y) / raster_resolution))),
-            )
-
-            et.SubElement(source, "NODATA").text = "0.0"
-
-    vrt_path.resolve().write_text(
-        minidom.parseString(et.tostring(vrt_dataset).decode("utf-8")).toprettyxml(indent="  ").replace("&quot;", '"')
-    )
+        et.SubElement(source, "SrcRect", {"xOff": "0", "yOff": "0", "xSize": width, "ySize": height})
+        et.SubElement(source, "DstRect", {"xOff": x_off, "yOff": y_off, "xSize": width, "ySize": height})
