@@ -1,17 +1,15 @@
-import math
 import pathlib
 from concurrent.futures import as_completed
 from concurrent.futures.process import ProcessPoolExecutor
 from functools import cached_property
 
-import numpy as np
 import shapely
-from shapely.geometry.geo import box
 
 from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
+from models.mcda.mcda_utils import create_project_area_grid
 from models.mcda.vrt_builder import VRTBuilder
 from settings import Config
-from util.write import write_results_to_geopackage
+from util.geo_utilities import get_empty_geodataframe
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
@@ -35,25 +33,9 @@ class McdaCostSurfaceEngine:
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
         self.project_area_geometry = project_area_geometry
         self.processed_vectors: dict = {}
-        self.project_area_grid = self.create_project_area_grid(*project_area_geometry.bounds)
-        write_results_to_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, self.project_area_grid, "grid")
+        self.project_area_grid = get_empty_geodataframe()
         self.unprocessed_criteria_names: set = set()
         self.processed_criteria_names: set = set()
-
-    @staticmethod
-    def create_project_area_grid(min_x: float, min_y: float, max_x: float, max_y: float):
-        # The tile size is computed based on the preferred number of tiles on each axis. In case this would exceed the
-        # max tile size, the max tile is used to constrain the amount of memory required.
-        tile_width = min(math.ceil((max_x - min_x) / Config.RASTER_NR_OF_TILES_ON_AXIS), Config.MAX_TILE_SIZE)
-        tile_height = min(math.ceil((max_y - min_y) / Config.RASTER_NR_OF_TILES_ON_AXIS), Config.MAX_TILE_SIZE)
-
-        x_coords = np.arange(min_x, max_x, tile_width)
-        y_coords = np.arange(min_y, max_y, tile_height)
-        grid_cells = [box(x, y, x + tile_width, y + tile_height) for x in x_coords for y in y_coords]
-        grid = gpd.GeoDataFrame(grid_cells, columns=["geometry"], crs=Config.CRS)
-
-        write_results_to_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, grid, "raster_grid")
-        return grid
 
     @cached_property
     def number_of_criteria(self):
@@ -82,6 +64,7 @@ class McdaCostSurfaceEngine:
         self.processed_criteria_names = set(self.raster_preset.criteria.keys()).difference(
             set(self.unprocessed_criteria_names)
         )
+        self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
         self.assign_vector_group_to_grid()
 
     def assign_vector_group_to_grid(self):
