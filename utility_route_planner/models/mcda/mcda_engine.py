@@ -64,18 +64,6 @@ class McdaCostSurfaceEngine:
         self.processed_criteria_names = set(self.raster_preset.criteria.keys()).difference(
             set(self.unprocessed_criteria_names)
         )
-        self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
-        self.assign_vector_group_to_grid()
-
-    def assign_vector_group_to_grid(self):
-        """
-        For each processed vector, assign the vector to the intersecting project area grid tile based on intersection.
-        """
-        for processed_group_name, vector in self.processed_vectors.items():
-            vector_with_grid = gpd.sjoin(vector, self.project_area_grid, how="left", predicate="intersects")
-            vector_with_grid = vector_with_grid.rename(columns={"index_right": "tile_id"})
-            vector_with_grid = vector_with_grid.set_index("tile_id", drop=True)
-            self.processed_vectors[processed_group_name] = vector_with_grid
 
     @time_function
     def preprocess_rasters(
@@ -83,11 +71,10 @@ class McdaCostSurfaceEngine:
         vector_to_convert: dict[str, gpd.GeoDataFrame],
         cell_size: float = Config.RASTER_CELL_SIZE,
     ) -> str:
+        logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
+        self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
+        self.assign_vector_groups_to_grid()
         tile_ids = list(self.project_area_grid.index)
-
-        logger.info(
-            f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria using {len(tile_ids)} tiles."
-        )
 
         with ProcessPoolExecutor() as executor:
             futures = [
@@ -107,6 +94,16 @@ class McdaCostSurfaceEngine:
         )
         vrt_builder.build_and_write_to_disk()
         return str(vrt_path)
+
+    def assign_vector_groups_to_grid(self):
+        """
+        For each processed vector, assign the vector to the intersecting project area grid tile based on intersection.
+        """
+        for processed_group_name, vector in self.processed_vectors.items():
+            vector_with_grid = gpd.sjoin(vector, self.project_area_grid, how="left", predicate="intersects")
+            vector_with_grid = vector_with_grid.rename(columns={"index_right": "tile_id"})
+            vector_with_grid = vector_with_grid.set_index("tile_id", drop=True)
+            self.processed_vectors[processed_group_name] = vector_with_grid
 
     def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
         tile_geometry = self.project_area_grid.iloc[tile_id].values[0]

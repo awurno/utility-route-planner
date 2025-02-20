@@ -1,3 +1,5 @@
+import xml.etree.ElementTree as et
+
 import pytest
 import geopandas as gpd
 import rasterio
@@ -75,6 +77,35 @@ class TestRasterPreprocessing:
             "kunstwerkdeel",
             "protected_area",
         }
+
+    def test_preprocess_all_rasters_correct_in_vrt_file(self):
+        mcda_engine = McdaCostSurfaceEngine(
+            Config.RASTER_PRESET_NAME_BENCHMARK,
+            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
+            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+        )
+        mcda_engine.preprocess_vectors()
+        path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+
+        # Verify that the raster can be opened by rasterio
+        band_nr = 1
+        with rasterio.open(path_suitability_raster, "r") as src:
+            src.read(band_nr)
+            raster_meta_data = src.meta
+
+        # Verify the CRS is correct
+        assert raster_meta_data["crs"] == Config.CRS
+
+        # Verify size of raster is equal to size of project area grid
+        x_min, y_min, x_max, y_max = mcda_engine.project_area_grid.total_bounds
+        assert (x_max - x_min) / Config.RASTER_CELL_SIZE == raster_meta_data["width"]
+        assert (y_max - y_min) / Config.RASTER_CELL_SIZE == raster_meta_data["height"]
+
+        # Verify that all raster tiles are present in the VRT file
+        vrt_tree = et.parse(path_suitability_raster)
+        bands = vrt_tree.getroot().find("VRTRasterBand")
+        sources = bands.findall("ComplexSource")
+        assert len(sources) == len(mcda_engine.project_area_grid)
 
 
 def test_rasterize_vector_data_cell_size_error():
