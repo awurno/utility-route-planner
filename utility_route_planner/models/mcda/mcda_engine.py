@@ -77,9 +77,15 @@ class McdaCostSurfaceEngine:
                 assert processed_gdf.empty
                 self.unprocessed_criteria_names.add(criterion)
 
+        self.processed_criteria_names = set(self.raster_preset.criteria.keys()).difference(
+            set(self.unprocessed_criteria_names)
+        )
         self.assign_vector_group_to_grid()
 
     def assign_vector_group_to_grid(self):
+        """
+        For each processed vector, assign the vector to the intersecting project area grid tile based on intersection.
+        """
         for processed_group_name, vector in self.processed_vectors.items():
             vector_with_grid = gpd.sjoin(vector, self.project_area_grid, how="left", predicate="intersects")
             vector_with_grid = vector_with_grid.rename(columns={"index_right": "tile_id"})
@@ -106,7 +112,17 @@ class McdaCostSurfaceEngine:
 
         vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
         raster_settings = get_raster_settings(self.project_area_geometry)
-        build_vrt_file(raster_paths, vrt_path=vrt_path, raster_settings=raster_settings)
+        min_x, min_y, max_x, max_y = self.project_area_grid.total_bounds
+        build_vrt_file(
+            raster_paths,
+            vrt_path=vrt_path,
+            crs=raster_settings.crs,
+            raster_resolution=Config.RASTER_CELL_SIZE,
+            min_x=min_x,
+            min_y=min_y,
+            max_x=max_x,
+            max_y=max_y,
+        )
         return str(vrt_path)
 
     def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
