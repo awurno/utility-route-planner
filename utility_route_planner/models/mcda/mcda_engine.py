@@ -9,7 +9,7 @@ import shapely
 from shapely.geometry.geo import box
 
 from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
-from models.mcda.vrt_builder import build_vrt_file
+from models.mcda.vrt_builder import VRTBuilder
 from settings import Config
 from util.write import write_results_to_geopackage
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
@@ -114,17 +114,15 @@ class McdaCostSurfaceEngine:
 
         vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
         raster_settings = get_raster_settings(self.project_area_geometry)
-        min_x, min_y, max_x, max_y = self.project_area_grid.total_bounds
-        build_vrt_file(
-            raster_paths,
-            vrt_path=vrt_path,
+
+        vrt_builder = VRTBuilder(
+            tile_files=raster_paths,
             crs=raster_settings.crs,
-            raster_resolution=Config.RASTER_CELL_SIZE,
-            min_x=min_x,
-            min_y=min_y,
-            max_x=max_x,
-            max_y=max_y,
+            resolution=Config.RASTER_CELL_SIZE,
+            raster_bounds=self.project_area_grid.total_bounds,
+            vrt_path=vrt_path,
         )
+        vrt_builder.build_and_write_to_disk()
         return str(vrt_path)
 
     def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
