@@ -1,3 +1,4 @@
+import math
 import pathlib
 from concurrent.futures import as_completed
 from concurrent.futures.process import ProcessPoolExecutor
@@ -10,6 +11,7 @@ from shapely.geometry.geo import box
 from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
 from models.mcda.vrt_builder import build_vrt_file
 from settings import Config
+from util.write import write_results_to_geopackage
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
@@ -34,16 +36,21 @@ class McdaCostSurfaceEngine:
         self.project_area_geometry = project_area_geometry
         self.processed_vectors: dict = {}
         self.project_area_grid = self.create_project_area_grid(*project_area_geometry.bounds)
+        write_results_to_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, self.project_area_grid, "grid")
         self.unprocessed_criteria_names: set = set()
         self.processed_criteria_names: set = set()
 
     @staticmethod
     def create_project_area_grid(min_x: float, min_y: float, max_x: float, max_y: float):
-        grid_size = Config.RASTER_BLOCK_SIZE
-        x_coords = np.arange(min_x, max_x, grid_size)
-        y_coords = np.arange(min_y, max_y, grid_size)
-        grid_cells = [box(x, y, x + grid_size, y + grid_size) for x in x_coords for y in y_coords]
+        tile_width = math.ceil((max_x - min_x) / Config.RASTER_NR_OF_TILES_ON_AXIS)
+        tile_height = math.ceil((max_y - min_y) / Config.RASTER_NR_OF_TILES_ON_AXIS)
+
+        x_coords = np.arange(min_x, max_x, tile_width)
+        y_coords = np.arange(min_y, max_y, tile_height)
+        grid_cells = [box(x, y, x + tile_width, y + tile_height) for x in x_coords for y in y_coords]
         grid = gpd.GeoDataFrame(grid_cells, columns=["geometry"], crs=Config.CRS)
+
+        write_results_to_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, grid, "raster_grid")
         return grid
 
     @cached_property
@@ -98,7 +105,8 @@ class McdaCostSurfaceEngine:
             raster_paths = [future.result() for future in as_completed(futures)]
 
         vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
-        build_vrt_file(raster_paths, vrt_path=vrt_path)
+        raster_settings = get_raster_settings(self.project_area_geometry)
+        build_vrt_file(raster_paths, vrt_path=vrt_path, raster_settings=raster_settings)
         return str(vrt_path)
 
     def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
