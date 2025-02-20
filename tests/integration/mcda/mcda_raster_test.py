@@ -5,9 +5,8 @@ import rasterio.sample
 import shapely
 import numpy as np
 from rasterio.transform import rowcol
-from rasterio.windows import Window
 
-from models.mcda.mcda_datastructures import RasterBlock, RasterizedCriterion
+from models.mcda.mcda_datastructures import RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -20,8 +19,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
     merge_criteria_rasters,
     get_raster_settings,
-    write_raster,
-    construct_complete_raster,
+    write_raster_tile,
 )
 from utility_route_planner.util.write import reset_geopackage
 
@@ -287,11 +285,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, raster_settings)
         rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
-    merged_rasters = merge_criteria_rasters(rasters_to_merge)
-    complete_raster = construct_complete_raster(
-        merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
-    )
-    path_suitability_raster = write_raster(complete_raster, raster_settings, "pytest_suitability_raster")
+    merged_raster = merge_criteria_rasters(rasters_to_merge, raster_settings.height, raster_settings.width)
+    path_suitability_raster = write_raster_tile(merged_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
@@ -312,42 +307,9 @@ def test_sum_rasters(monkeypatch, debug=False):
 )
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        merge_criteria_rasters(invalid_input)
+        merge_criteria_rasters(invalid_input, 10, 10)
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        merge_criteria_rasters([])
-
-
-def test_construct_complete_raster():
-    raster_blocks = {
-        (0, 0): RasterBlock(
-            array=np.ma.array([[1, 1], [2, 2]]),
-            window=Window(col_off=0, row_off=0, height=2, width=2),
-        ),
-        (0, 1): RasterBlock(
-            array=np.ma.array([[3, 3], [4, 4]]),
-            window=Window(col_off=2, row_off=0, height=2, width=2),
-        ),
-        (1, 0): RasterBlock(
-            array=np.ma.array([[5, 5], [6, 6]]),
-            window=Window(col_off=0, row_off=2, height=2, width=2),
-        ),
-        (1, 1): RasterBlock(
-            array=np.ma.array([[7, 7], [8, 8]]),
-            window=Window(col_off=2, row_off=2, height=2, width=2),
-        ),
-    }
-    complete_raster_result = construct_complete_raster(raster_blocks, 4, 4, "int8")
-
-    expected_raster = np.ma.array(
-        [
-            [1, 1, 3, 3],
-            [2, 2, 4, 4],
-            [5, 5, 7, 7],
-            [6, 6, 8, 8],
-        ]
-    )
-
-    assert np.array_equal(expected_raster, complete_raster_result)
+        merge_criteria_rasters([], 10, 10)
