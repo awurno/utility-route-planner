@@ -15,9 +15,6 @@ import geopandas as gpd
 logger = structlog.get_logger(__name__)
 
 
-logger = structlog.get_logger(__name__)
-
-
 def run_mcda_lcpa(
     preset: str,
     path_geopackage_mcda_input: pathlib.Path,

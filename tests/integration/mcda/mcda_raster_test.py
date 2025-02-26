@@ -1,3 +1,5 @@
+import xml.etree.ElementTree as et
+
 import pytest
 import geopandas as gpd
 import rasterio
@@ -5,9 +7,8 @@ import rasterio.sample
 import shapely
 import numpy as np
 from rasterio.transform import rowcol
-from rasterio.windows import Window
 
-from utility_route_planner.models.mcda.mcda_datastructures import RasterBlock, RasterizedCriterion
+from utility_route_planner.models.mcda.mcda_datastructures import RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -20,8 +21,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
     merge_criteria_rasters,
     get_raster_settings,
-    write_raster,
-    construct_complete_raster,
+    write_raster_tile,
 )
 from utility_route_planner.util.write import reset_geopackage
 
@@ -83,6 +83,37 @@ class TestRasterPreprocessing:
             "existing_utilities",
             "existing_substations",
         }
+
+    def test_preprocess_all_rasters_correct_in_vrt_file(self):
+        mcda_engine = McdaCostSurfaceEngine(
+            Config.RASTER_PRESET_NAME_BENCHMARK,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
+        )
+        mcda_engine.preprocess_vectors()
+        path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+
+        # Verify that the raster can be opened by rasterio
+        band_nr = 1
+        with rasterio.open(path_suitability_raster, "r") as src:
+            src.read(band_nr)
+            raster_meta_data = src.meta
+
+        # Verify the CRS is correct
+        assert raster_meta_data["crs"] == Config.CRS
+
+        # Verify size of raster is equal to size of project area grid
+        x_min, y_min, x_max, y_max = mcda_engine.project_area_grid.total_bounds
+        assert (x_max - x_min) / Config.RASTER_CELL_SIZE == raster_meta_data["width"]
+        assert (y_max - y_min) / Config.RASTER_CELL_SIZE == raster_meta_data["height"]
+
+        # Verify that all raster tiles are present in the VRT file
+        vrt_tree = et.parse(path_suitability_raster)
+        bands = vrt_tree.getroot().find("VRTRasterBand")
+        sources = bands.findall("ComplexSource")
+        assert len(sources) == len(mcda_engine.project_area_grid)
 
 
 def test_rasterize_vector_data_cell_size_error():
@@ -301,11 +332,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, raster_settings)
         rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
-    merged_rasters = merge_criteria_rasters(rasters_to_merge)
-    complete_raster = construct_complete_raster(
-        merged_rasters, raster_settings.height, raster_settings.width, raster_settings.dtype
-    )
-    path_suitability_raster = write_raster(complete_raster, raster_settings, "pytest_suitability_raster")
+    merged_raster = merge_criteria_rasters(rasters_to_merge, raster_settings.height, raster_settings.width)
+    path_suitability_raster = write_raster_tile(merged_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
@@ -326,42 +354,9 @@ def test_sum_rasters(monkeypatch, debug=False):
 )
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        merge_criteria_rasters(invalid_input)
+        merge_criteria_rasters(invalid_input, 10, 10)
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        merge_criteria_rasters([])
-
-
-def test_construct_complete_raster():
-    raster_blocks = {
-        (0, 0): RasterBlock(
-            array=np.ma.array([[1, 1], [2, 2]]),
-            window=Window(col_off=0, row_off=0, height=2, width=2),
-        ),
-        (0, 1): RasterBlock(
-            array=np.ma.array([[3, 3], [4, 4]]),
-            window=Window(col_off=2, row_off=0, height=2, width=2),
-        ),
-        (1, 0): RasterBlock(
-            array=np.ma.array([[5, 5], [6, 6]]),
-            window=Window(col_off=0, row_off=2, height=2, width=2),
-        ),
-        (1, 1): RasterBlock(
-            array=np.ma.array([[7, 7], [8, 8]]),
-            window=Window(col_off=2, row_off=2, height=2, width=2),
-        ),
-    }
-    complete_raster_result = construct_complete_raster(raster_blocks, 4, 4, "int8")
-
-    expected_raster = np.ma.array(
-        [
-            [1, 1, 3, 3],
-            [2, 2, 4, 4],
-            [5, 5, 7, 7],
-            [6, 6, 8, 8],
-        ]
-    )
-
-    assert np.array_equal(expected_raster, complete_raster_result)
+        merge_criteria_rasters([], 10, 10)
