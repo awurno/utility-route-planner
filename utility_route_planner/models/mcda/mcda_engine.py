@@ -106,7 +106,6 @@ class McdaCostSurfaceEngine:
         """
         For each processed vector, assign the vector to the intersecting project area grid tile based on intersection.
         """
-        # TODO check if this works with overlapping vector stuff
         for processed_group_name, vector in self.processed_vectors.items():
             vector_with_grid = gpd.sjoin(vector, self.project_area_grid, how="left", predicate="intersects")
             vector_with_grid = vector_with_grid.rename(columns={"index_right": "tile_id"})
