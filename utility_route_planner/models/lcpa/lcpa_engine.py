@@ -5,8 +5,11 @@ from skimage.graph import route_through_array
 
 from settings import Config
 from utility_route_planner.models.lcpa.lcpa_datastructures import LcpaInputModel
-from utility_route_planner.util.geo_utilities import array_indices_to_linestring, align_linestring
-from utility_route_planner.util.load import load_suitability_raster_data
+from utility_route_planner.util.geo_utilities import (
+    array_indices_to_linestring,
+    align_linestring,
+    load_suitability_raster_data,
+)
 from utility_route_planner.util.timer import time_function
 from utility_route_planner.util.write import write_results_to_geopackage
 
