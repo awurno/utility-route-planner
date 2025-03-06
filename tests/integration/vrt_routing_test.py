@@ -45,8 +45,8 @@ class TestVRTRouting:
     def test_vrt_results_in_same_route_as_single_tiff(
         self,
         preprocessed_vectors: McdaCostSurfaceEngine,
-        start_end_point_route,
-        route_for_tiff_file,
+        start_end_point_route: tuple[shapely.Point, shapely.Point],
+        route_for_tiff_file: shapely.LineString,
         max_block_size: int,
         monkeypatch,
     ):
