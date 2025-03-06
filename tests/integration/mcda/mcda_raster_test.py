@@ -331,7 +331,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
     merged_raster = merge_criteria_rasters(rasters_to_merge, raster_settings.height, raster_settings.width)
-    path_suitability_raster = write_raster_block(merged_raster, raster_settings, "pytest_suitability_raster")
+    path_suitability_raster, _ = write_raster_block(merged_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
