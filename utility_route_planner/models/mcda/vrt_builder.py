@@ -24,7 +24,17 @@ class VRTBuilder:
         self.resolution = resolution
         self.vrt_path = vrt_path
         self.xml_datatype = "Int8"
-        self.min_x, self.min_y, self.max_x, self.max_y = np.array(block_bboxes).min(axis=0)
+        self.min_x, self.min_y, self.max_x, self.max_y = self.get_raster_extends(block_bboxes)
+
+    @staticmethod
+    def get_raster_extends(block_bboxes: list[float]) -> tuple[float, float, float, float]:
+        block_bboxes_matrix = np.array(block_bboxes)
+        min_x = block_bboxes_matrix[:, 0].min()
+        min_y = block_bboxes_matrix[:, 1].min()
+        max_x = block_bboxes_matrix[:, 2].max()
+        max_y = block_bboxes_matrix[:, 3].max()
+
+        return min_x, min_y, max_x, max_y
 
     def build_and_write_to_disk(self):
         vrt_tree, raster_band = self.setup_tree()
