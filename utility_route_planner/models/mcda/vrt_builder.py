@@ -4,6 +4,7 @@ from pathlib import Path
 import xml.etree.cElementTree as et
 from xml.dom import minidom
 
+import numpy as np
 import rasterio
 from pyproj import CRS
 from rasterio.enums import ColorInterp
@@ -13,17 +14,17 @@ class VRTBuilder:
     def __init__(
         self,
         block_files: list[str],
+        block_bboxes: list[float],
         crs: CRS,
         resolution,
-        raster_bounds: list[float],
         vrt_path: Path,
     ):
         self.block_files = block_files
         self.crs = crs
         self.resolution = resolution
-        self.min_x, self.min_y, self.max_x, self.max_y = raster_bounds
         self.vrt_path = vrt_path
         self.xml_datatype = "Int8"
+        self.min_x, self.min_y, self.max_x, self.max_y = np.array(block_bboxes).min(axis=0)
 
     def build_and_write_to_disk(self):
         vrt_tree, raster_band = self.setup_tree()

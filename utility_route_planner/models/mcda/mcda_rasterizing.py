@@ -168,10 +168,13 @@ def process_raster_groups(
     return processed_raster
 
 
-def write_raster_block(complete_raster: np.ma.array, raster_settings: McdaRasterSettings, final_raster_name) -> str:
+def write_raster_block(
+    complete_raster: np.ma.array, raster_settings: McdaRasterSettings, final_raster_name
+) -> tuple[str, list[float]]:
     raster_settings.nodata = Config.FINAL_RASTER_NO_DATA
     final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
     with rasterio.open(final_raster_path, "w", **asdict(raster_settings)) as dest:
         dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
+        bbox = list(dest.bounds)
 
-    return final_raster_path.__str__()
+    return final_raster_path.__str__(), bbox

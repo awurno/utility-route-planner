@@ -81,16 +81,17 @@ class McdaCostSurfaceEngine:
                 executor.submit(self.submit_raster_job, block_id, cell_size, vector_to_convert)
                 for block_id in block_ids
             ]
-            raster_paths = [future.result() for future in as_completed(futures)]
+            rasters = [future.result() for future in as_completed(futures)]
 
+        block_paths, block_bboxes = zip(*rasters)
         vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
         raster_settings = get_raster_settings(self.project_area_geometry)
 
         vrt_builder = VRTBuilder(
-            block_files=raster_paths,
+            block_files=block_paths,
+            block_bboxes=block_bboxes,
             crs=raster_settings.crs,
             resolution=Config.RASTER_CELL_SIZE,
-            raster_bounds=self.project_area_grid.total_bounds,
             vrt_path=vrt_path,
         )
         vrt_builder.build_and_write_to_disk()
