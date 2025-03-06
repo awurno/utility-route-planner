@@ -42,6 +42,8 @@ class LcpaUtilityRouteEngine:
         self.lcpa_result = linestring_aligned
         write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, self.lcpa_result, "utility_route_result")
 
+        return self.lcpa_result
+
     def preprocess_input_linestring(self, geotransform: tuple, utility_route_sketch: shapely.LineString):
         """
         Convert input to a dictionary for further processing and check if we have optional stops. The current input is
