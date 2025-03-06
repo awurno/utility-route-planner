@@ -76,6 +76,7 @@ class McdaCostSurfaceEngine:
         self.assign_vector_groups_to_grid()
         block_ids = list(self.project_area_grid.index)
 
+        logger.info(f"Rasterizing takes place in {len(block_ids)} blocks")
         with ProcessPoolExecutor() as executor:
             futures = [
                 executor.submit(self.submit_raster_job, block_id, cell_size, vector_to_convert)
@@ -123,7 +124,7 @@ class McdaCostSurfaceEngine:
     def rasterize_vector(
         self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, raster_settings: McdaRasterSettings
     ) -> RasterizedCriterion:
-        logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
+        logger.debug(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
         rasterized_vector = rasterize_vector_data(criterion, gdf, raster_settings)
         raster_criteria = self.raster_preset.criteria[criterion]
         return RasterizedCriterion(criterion, rasterized_vector, raster_criteria.group)

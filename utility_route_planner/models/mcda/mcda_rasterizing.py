@@ -49,7 +49,7 @@ def rasterize_vector_data(
     Burns the vector data to the project area in the desired raster cell size.
     If values overlap in the geodataframe, pick the highest value.
     """
-    logger.info(f"Rasterizing layer: {criterion} in cell size: {Config.RASTER_CELL_SIZE} meters")
+    logger.debug(f"Rasterizing layer: {criterion} in cell size: {Config.RASTER_CELL_SIZE} meters")
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
     # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
@@ -87,7 +87,7 @@ def merge_criteria_rasters(
     Criteria in group b: values in group b are added or subtracted to group a if present.
     Criteria in group c: mark as no data if present, overruling group a and b.
     """
-    logger.info(f"Starting summing {len(rasters_to_process)} rasters into the final cost surface.")
+    logger.debug(f"Starting summing {len(rasters_to_process)} rasters into the final cost surface.")
 
     # Split groups and process accordingly prior to summing all together.
     group_a, group_b, group_c = [], [], []
