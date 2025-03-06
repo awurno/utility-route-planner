@@ -44,8 +44,10 @@ class TestRasterPreprocessing:
         }
         mcda_engine = McdaCostSurfaceEngine(
             preset_to_load,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -55,8 +57,10 @@ class TestRasterPreprocessing:
     def test_preprocess_all_rasters(self):
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -81,8 +85,10 @@ class TestRasterPreprocessing:
     def test_preprocess_all_rasters_correct_in_vrt_file(self):
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
         path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -110,7 +116,11 @@ class TestRasterPreprocessing:
 
 def test_rasterize_vector_data_cell_size_error():
     with pytest.raises(RasterCellSizeTooSmall):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
+        project_area = (
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry
+        )
         get_raster_settings(project_area, cell_size=500000)
 
 
@@ -168,7 +178,9 @@ def test_rasterize_single_criterion(debug=False):
     sort_desc = gdf.sort_values("suitability_value", ascending=False).copy()
 
     gdfs_to_rasterize = [gdf, sort_desc, sort_asc]
-    project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
+    project_area = (
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry
+    )
     raster_settings = get_raster_settings(project_area, 0.5)
     for gdf in gdfs_to_rasterize:
         rasterized_vector = rasterize_vector_data("test_rasterize", gdf, raster_settings)
@@ -299,7 +311,9 @@ def test_sum_rasters(monkeypatch, debug=False):
         points_to_sample.to_file(Config.PATH_RESULTS / "pytest_sum_points_to_sample.geojson")
 
     rasters_to_merge = []
-    project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
+    project_area = (
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry
+    )
     raster_settings = get_raster_settings(project_area, 0.5)
     for (
         group,

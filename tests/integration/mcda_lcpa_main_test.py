@@ -6,15 +6,8 @@ from settings import Config
 from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
-from utility_route_planner.util.write import reset_geopackage, write_results_to_geopackage
+from utility_route_planner.util.write import write_results_to_geopackage
 import geopandas as gpd
-
-
-@pytest.fixture
-def setup_mcda_lcpa_testing(monkeypatch):
-    reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
-    reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
-    monkeypatch.setattr(Config, "DEBUG", True)
 
 
 @pytest.mark.usefixtures("setup_mcda_lcpa_testing")
@@ -29,8 +22,10 @@ class TestMcdaLcpaChain:
     def test_mcda_lcpa_chain_pytest_files(self, utility_route_sketch):
         mcda_engine = McdaCostSurfaceEngine(
             "preset_benchmark_raw",
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
         path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)

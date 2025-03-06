@@ -7,7 +7,7 @@ from models.mcda.mcda_engine import McdaCostSurfaceEngine
 from settings import Config
 
 
-class TestVRTBuilder:
+class TestVRTRouting:
     @pytest.fixture(scope="session")
     def project_area(self) -> shapely.Polygon:
         return gpd.read_file(
@@ -41,6 +41,7 @@ class TestVRTBuilder:
         return lcpa_route
 
     @pytest.mark.parametrize("max_block_size", [512, 1024, 2048])
+    @pytest.mark.usefixtures("setup_mcda_lcpa_testing")
     def test_vrt_results_in_same_route_as_single_tiff(
         self,
         preprocessed_vectors: McdaCostSurfaceEngine,
