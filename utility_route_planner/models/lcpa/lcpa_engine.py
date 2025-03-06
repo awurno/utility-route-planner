@@ -23,7 +23,7 @@ class LcpaUtilityRouteEngine:
         path_raster: str,
         utility_route_sketch: shapely.LineString,
         project_area: shapely.Polygon = shapely.Polygon(),
-    ):
+    ) -> shapely.LineString:
         # Set a default project area if not provided, this is a bad idea most of the time.
         if shapely.is_empty(project_area):
             project_area = utility_route_sketch.buffer(utility_route_sketch.length / 2)
