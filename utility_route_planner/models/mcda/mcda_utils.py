@@ -13,9 +13,6 @@ def create_project_area_grid(min_x: float, min_y: float, max_x: float, max_y: fl
     size and the project area bounding box. In case width or height % max_block_size != 0, the block size is decreased
     such that each block is equally sized and the remainder on the project area boundaries is minimized.
     """
-
-    # The tile size is computed based on the preferred number of tiles on each axis. In case this would exceed the
-    # max tile size, the max tile is used to constrain the amount of memory required.
     project_area_width = max_x - min_x
     project_area_heigth = max_y - min_y
 

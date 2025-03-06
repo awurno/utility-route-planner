@@ -18,7 +18,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
     get_raster_settings,
     merge_criteria_rasters,
-    write_raster_tile,
+    write_raster_block,
 )
 from utility_route_planner.util.timer import time_function
 
@@ -74,11 +74,12 @@ class McdaCostSurfaceEngine:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
         self.assign_vector_groups_to_grid()
-        tile_ids = list(self.project_area_grid.index)
+        block_ids = list(self.project_area_grid.index)
 
         with ProcessPoolExecutor() as executor:
             futures = [
-                executor.submit(self.submit_raster_job, tile_id, cell_size, vector_to_convert) for tile_id in tile_ids
+                executor.submit(self.submit_raster_job, block_id, cell_size, vector_to_convert)
+                for block_id in block_ids
             ]
             raster_paths = [future.result() for future in as_completed(futures)]
 
@@ -86,7 +87,7 @@ class McdaCostSurfaceEngine:
         raster_settings = get_raster_settings(self.project_area_geometry)
 
         vrt_builder = VRTBuilder(
-            tile_files=raster_paths,
+            block_files=raster_paths,
             crs=raster_settings.crs,
             resolution=Config.RASTER_CELL_SIZE,
             raster_bounds=self.project_area_grid.total_bounds,
@@ -97,25 +98,25 @@ class McdaCostSurfaceEngine:
 
     def assign_vector_groups_to_grid(self):
         """
-        For each processed vector, assign the vector to the intersecting project area grid tile based on intersection.
+        For each processed vector, assign the vector to the intersecting project area grid block based on intersection.
         """
         for processed_group_name, vector in self.processed_vectors.items():
             vector_with_grid = gpd.sjoin(vector, self.project_area_grid, how="left", predicate="intersects")
-            vector_with_grid = vector_with_grid.rename(columns={"index_right": "tile_id"})
-            vector_with_grid = vector_with_grid.set_index("tile_id", drop=True)
+            vector_with_grid = vector_with_grid.rename(columns={"index_right": "block_id"})
+            vector_with_grid = vector_with_grid.set_index("block_id", drop=True)
             self.processed_vectors[processed_group_name] = vector_with_grid
 
-    def submit_raster_job(self, tile_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
-        tile_geometry = self.project_area_grid.iloc[tile_id].values[0]
-        raster_settings = get_raster_settings(tile_geometry, cell_size)
+    def submit_raster_job(self, block_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
+        block_geometry = self.project_area_grid.iloc[block_id].values[0]
+        raster_settings = get_raster_settings(block_geometry, cell_size)
         rasters_to_sum = [
             self.rasterize_vector(idx, criterion, gdf, raster_settings)
             for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
         ]
 
         complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
-        return write_raster_tile(
-            complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{tile_id}"
+        return write_raster_block(
+            complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{block_id}"
         )
 
     def rasterize_vector(
