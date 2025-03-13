@@ -19,7 +19,7 @@ class RouteEvaluationMetrics:
         path_cost_surface: str,
         route_human: shapely.LineString = shapely.LineString(),
         project_area: shapely.Polygon = shapely.Polygon(),
-        similarity_threshold_m: int = 2,
+        similarity_threshold_m: float = 7.50,  # max width of a provincial road https://www.crow.nl/blog/zijn-80-km-wegen-te-smal/
         debug: bool = False,
     ):
         self.route_sota = route_sota
