@@ -1,10 +1,14 @@
+import xml.etree.ElementTree as et
+
 import pytest
 import geopandas as gpd
 import rasterio
 import rasterio.sample
 import shapely
 import numpy as np
+from rasterio.transform import rowcol
 
+from models.mcda.mcda_datastructures import RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -13,7 +17,12 @@ from utility_route_planner.models.mcda.exceptions import (
 )
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.mcda.mcda_presets import preset_collection
-from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.models.mcda.mcda_rasterizing import (
+    rasterize_vector_data,
+    merge_criteria_rasters,
+    get_raster_settings,
+    write_raster_block,
+)
 from utility_route_planner.util.write import reset_geopackage
 
 
@@ -35,8 +44,10 @@ class TestRasterPreprocessing:
         }
         mcda_engine = McdaCostSurfaceEngine(
             preset_to_load,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -46,8 +57,10 @@ class TestRasterPreprocessing:
     def test_preprocess_all_rasters(self):
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
         mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
@@ -69,11 +82,46 @@ class TestRasterPreprocessing:
             "protected_area",
         }
 
+    def test_preprocess_all_rasters_correct_in_vrt_file(self):
+        mcda_engine = McdaCostSurfaceEngine(
+            Config.RASTER_PRESET_NAME_BENCHMARK,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
+        )
+        mcda_engine.preprocess_vectors()
+        path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+
+        # Verify that the raster can be opened by rasterio
+        band_nr = 1
+        with rasterio.open(path_suitability_raster, "r") as src:
+            src.read(band_nr)
+            raster_meta_data = src.meta
+
+        # Verify the CRS is correct
+        assert raster_meta_data["crs"] == Config.CRS
+
+        # Verify size of raster is equal to size of project area grid
+        x_min, y_min, x_max, y_max = mcda_engine.project_area_grid.total_bounds
+        assert (x_max - x_min) / Config.RASTER_CELL_SIZE == raster_meta_data["width"]
+        assert (y_max - y_min) / Config.RASTER_CELL_SIZE == raster_meta_data["height"]
+
+        # Verify that all raster blocks are present in the VRT file
+        vrt_tree = et.parse(path_suitability_raster)
+        bands = vrt_tree.getroot().find("VRTRasterBand")
+        sources = bands.findall("ComplexSource")
+        assert len(sources) == len(mcda_engine.project_area_grid)
+
 
 def test_rasterize_vector_data_cell_size_error():
     with pytest.raises(RasterCellSizeTooSmall):
-        project_area = gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry
-        rasterize_vector_data("temp", "temp", project_area, gpd.GeoDataFrame(), 500000)
+        project_area = (
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry
+        )
+        get_raster_settings(project_area, cell_size=500000)
 
 
 def test_rasterize_single_criterion(debug=False):
@@ -130,22 +178,18 @@ def test_rasterize_single_criterion(debug=False):
     sort_desc = gdf.sort_values("suitability_value", ascending=False).copy()
 
     gdfs_to_rasterize = [gdf, sort_desc, sort_asc]
+    project_area = (
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry
+    )
+    raster_settings = get_raster_settings(project_area, 0.5)
     for gdf in gdfs_to_rasterize:
-        rasterized_gdf = rasterize_vector_data(
-            "pytest_",
-            "test_rasterize",
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
-            gdf,
-            0.5,
-        )
-        with rasterio.open(rasterized_gdf, "r") as out:
-            result = out.read(1)
-            unique_values = np.unique(result)
-            assert set(unique_values) == {no_data, min_value, 5, 10, max_value}
-            # Check that the overlapping part has the highest value
-            for _, row in points_to_sample.iterrows():
-                values = list(rasterio.sample.sample_gen(out, [[row.geometry.x, row.geometry.y]]))
-                assert values[0][0] == row.expected_suitability_value
+        rasterized_vector = rasterize_vector_data("test_rasterize", gdf, raster_settings)
+        unique_values = np.unique(rasterized_vector)
+        assert set(unique_values) == {no_data, min_value, 5, 10, max_value}
+        # Check that the overlapping part has the highest value
+        for _, row in points_to_sample.iterrows():
+            row_index, col_index = rowcol(raster_settings.transform, row.geometry.x, row.geometry.y)
+            assert rasterized_vector[int(row_index)][int(col_index)] == row.expected_suitability_value
 
 
 def test_sum_rasters(monkeypatch, debug=False):
@@ -267,7 +311,15 @@ def test_sum_rasters(monkeypatch, debug=False):
         points_to_sample.to_file(Config.PATH_RESULTS / "pytest_sum_points_to_sample.geojson")
 
     rasters_to_merge = []
-    for i in [
+    project_area = (
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry
+    )
+    raster_settings = get_raster_settings(project_area, 0.5)
+    for (
+        group,
+        criterion_gdf,
+        criterion_name,
+    ) in [
         ["a", criterion_a_1, "criterion_a1"],
         ["a", criterion_a_2, "criterion_a2"],
         ["b", criterion_b_1, "criterion_b1"],
@@ -275,16 +327,11 @@ def test_sum_rasters(monkeypatch, debug=False):
         ["c", criterion_c_1, "criterion_c1"],
         ["c", criterion_c_2, "criterion_c2"],
     ]:
-        path_raster = rasterize_vector_data(
-            "pytest_",
-            i[2],
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
-            i[1],
-            0.5,
-        )
-        rasters_to_merge.append({path_raster: i[0]})
+        rasterized_vector = rasterize_vector_data(criterion_name, criterion_gdf, raster_settings)
+        rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
-    path_suitability_raster = merge_criteria_rasters(rasters_to_merge, "pytest_suitability_raster")
+    merged_raster = merge_criteria_rasters(rasters_to_merge, raster_settings.height, raster_settings.width)
+    path_suitability_raster, _ = write_raster_block(merged_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)
@@ -295,12 +342,19 @@ def test_sum_rasters(monkeypatch, debug=False):
             assert values[0][0] == row.expected_suitability_value
 
 
-@pytest.mark.parametrize("invalid_input", [[{"key": "d"}], [{"key": "f"}], [{"key": "e"}, {"key": "d"}]])
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        [RasterizedCriterion("c1", np.array([]), "d")],
+        [RasterizedCriterion("c2", np.array([]), "f")],
+        [RasterizedCriterion("c2", np.array([]), "e"), RasterizedCriterion("c2", np.array([]), "d")],
+    ],
+)
 def test_invalid_group_value_in_suitability_raster(invalid_input):
     with pytest.raises(InvalidGroupValue):
-        merge_criteria_rasters(invalid_input, "pytest")
+        merge_criteria_rasters(invalid_input, 10, 10)
 
 
 def test_invalid_suitability_raster_input():
     with pytest.raises(InvalidSuitabilityRasterInput):
-        merge_criteria_rasters([], "pytest")
+        merge_criteria_rasters([], 10, 10)

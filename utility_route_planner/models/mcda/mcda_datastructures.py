@@ -1,5 +1,12 @@
 from dataclasses import dataclass
 
+import numpy as np
+from affine import Affine
+from pyproj import CRS
+from rasterio.windows import Window
+
+from settings import Config
+
 
 # TODO maak dit NIET te generiek, het moet gewoon 1 preset zijn.
 @dataclass
@@ -36,3 +43,30 @@ class McdaModelPreset:
     # https://geoforum.nl/t/bgt-data-inlezen-in-python-met-geopandas/8047/5
     general = McdaModelGeneral
     criteria = McdaModelCriteria
+
+
+@dataclass
+class McdaRasterSettings:
+    width: int
+    height: int
+    nodata: int
+    transform: Affine
+    driver: str = "GTiff"
+    compress: str = "lzw"
+    tiled: bool = True
+    dtype: str = "int8"
+    count: int = 1
+    crs: CRS = CRS.from_epsg(code=Config.CRS)
+
+
+@dataclass
+class RasterizedCriterion:
+    criterion: str
+    raster: np.ndarray
+    group: str
+
+
+@dataclass
+class RasterBlock:
+    array: np.ma.MaskedArray
+    window: Window

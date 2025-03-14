@@ -160,8 +160,8 @@ if __name__ == "__main__":
 
     benchmark_preset = load_preset(
         Config.RASTER_PRESET_NAME_BENCHMARK,
-        Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-        gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).geometry.iloc[0],
+        Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+        gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA).iloc[0].geometry,
     )
     data = []
     for criterion, details in benchmark_preset.criteria.items():

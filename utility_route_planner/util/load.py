@@ -10,7 +10,7 @@ from utility_route_planner.models.mcda.exceptions import InvalidRasterValues
 logger = structlog.get_logger(__name__)
 
 
-def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.Polygon):
+def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.Polygon) -> tuple:
     """
     Read only the intersection of the project area with the large suitability raster from S3 (or local).
     """

@@ -1,13 +1,16 @@
 import pathlib
 
 import shapely
+import structlog
 
+from models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from settings import Config
-from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
 from utility_route_planner.util.write import reset_geopackage
 import geopandas as gpd
+
+logger = structlog.get_logger(__name__)
 
 
 def run_mcda_lcpa(
@@ -15,20 +18,21 @@ def run_mcda_lcpa(
     path_geopackage_mcda_input: pathlib.Path,
     project_area_geometry: shapely.Polygon,
     start_mid_end_points: tuple,
-):
+) -> shapely.LineString:
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
     reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
 
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry)
     mcda_engine.preprocess_vectors()
-    path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+    raster_path = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
 
     lcpa_engine = LcpaUtilityRouteEngine()
-    lcpa_engine.get_lcpa_route(
-        path_suitability_raster,
+    lcpa_route = lcpa_engine.get_lcpa_route(
+        raster_path,
         shapely.LineString(start_mid_end_points),
         mcda_engine.raster_preset.general.project_area_geometry,
     )
+    return lcpa_route
 
 
 if __name__ == "__main__":

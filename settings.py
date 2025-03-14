@@ -13,7 +13,7 @@ class Config:
     # MCDA
     RASTER_PRESET_NAME_BENCHMARK = "preset_benchmark_raw"
     RASTER_CELL_SIZE = 0.5
-    RASTER_BLOCK_SIZE = 512
+    MAX_BLOCK_SIZE = 2048
     # No data is ignored during creation of the raster.
     INTERMEDIATE_RASTER_NO_DATA = -32768
     # To prevent unwanted rounding/capping at the intermediate steps, allow larger values as int16 datatype.
@@ -31,9 +31,9 @@ class Config:
     PATH_GEOPACKAGE_LCPA_OUTPUT = BASEDIR / "data/processed/lcpa_results.gpkg"
 
     # Testing paths.
-    PATH_EXAMPLE_RASTER_EDE = BASEDIR / "data/examples/pytest_example_suitability_raster_ede.tif"
-    PATH_PROJECT_AREA_PYTEST_EDE = BASEDIR / "data/examples/project_area_ede_componistenbuurt.geojson"
-    PATH_GEOPACKAGE_MCDA_PYTEST_EDE = BASEDIR / "data/examples/ede.gpkg"
+    PATH_EXAMPLE_RASTER = BASEDIR / "data/examples/pytest_example_suitability_raster.tif"
+    PYTEST_PATH_GEOPACKAGE_MCDA = BASEDIR / "data/examples/pytest_data.gpkg"
+    PYTEST_LAYER_NAME_PROJECT_AREA = "project_area_ede"
 
     # Research question 1 data paths.
     PATH_GEOPACKAGE_CASE_01 = BASEDIR / "data/examples/case_01.gpkg"

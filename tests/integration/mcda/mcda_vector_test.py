@@ -40,16 +40,20 @@ class TestVectorPreprocessing:
         }
         mcda_engine = McdaCostSurfaceEngine(
             preset_to_load,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
 
     def test_process_all_vectors(self):
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
-            Config.PATH_GEOPACKAGE_MCDA_PYTEST_EDE,
-            gpd.read_file(Config.PATH_PROJECT_AREA_PYTEST_EDE).iloc[0].geometry,
+            Config.PYTEST_PATH_GEOPACKAGE_MCDA,
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry,
         )
         mcda_engine.preprocess_vectors()
 

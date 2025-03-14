@@ -1,11 +1,25 @@
 import pathlib
+from concurrent.futures import as_completed
+from concurrent.futures.process import ProcessPoolExecutor
 from functools import cached_property
 
+import shapely
+
+from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
+from models.mcda.mcda_utils import create_project_area_grid
+from models.mcda.vrt_builder import VRTBuilder
+from settings import Config
+from util.geo_utilities import get_empty_geodataframe
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
 
-from utility_route_planner.models.mcda.mcda_rasterizing import rasterize_vector_data, merge_criteria_rasters
+from utility_route_planner.models.mcda.mcda_rasterizing import (
+    rasterize_vector_data,
+    get_raster_settings,
+    merge_criteria_rasters,
+    write_raster_block,
+)
 from utility_route_planner.util.timer import time_function
 
 logger = structlog.get_logger(__name__)
@@ -15,11 +29,13 @@ class McdaCostSurfaceEngine:
     raster_preset: RasterPreset
     path_geopackage_input: pathlib.Path
 
-    def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry):
+    def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry: shapely.Polygon):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
-        self.processed_vectors = {}
-        self.unprocessed_criteria_names = set()
-        self.processed_criteria_names = set()
+        self.project_area_geometry = project_area_geometry
+        self.processed_vectors: dict = {}
+        self.project_area_grid = get_empty_geodataframe()
+        self.unprocessed_criteria_names: set = set()
+        self.processed_criteria_names: set = set()
 
     @cached_property
     def number_of_criteria(self):
@@ -35,7 +51,7 @@ class McdaCostSurfaceEngine:
             f"Processing {self.number_of_criteria} criteria using geopackage: {self.raster_preset.general.path_input_geopackage}"
         )
         for idx, criterion in enumerate(self.raster_preset.criteria):
-            logger.info(f"Processing criteria number {idx+1} of {self.number_of_criteria}.")
+            logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria}.")
             is_processed, processed_gdf = self.raster_preset.criteria[criterion].preprocessing_function.execute(
                 self.raster_preset.general, self.raster_preset.criteria[criterion]
             )
@@ -50,15 +66,65 @@ class McdaCostSurfaceEngine:
         )
 
     @time_function
-    def preprocess_rasters(self, vector_to_convert: dict[str, gpd.GeoDataFrame]) -> str:
+    def preprocess_rasters(
+        self,
+        vector_to_convert: dict[str, gpd.GeoDataFrame],
+        cell_size: float = Config.RASTER_CELL_SIZE,
+    ) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
-        rasters_to_sum = []
-        for idx, (criterion, gdf) in enumerate(vector_to_convert.items()):
-            logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
-            path_raster = rasterize_vector_data(
-                self.raster_preset.general.prefix, criterion, self.raster_preset.general.project_area_geometry, gdf
-            )
-            rasters_to_sum.append({path_raster: self.raster_preset.criteria[criterion].group})
+        self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
+        self.assign_vector_groups_to_grid()
+        block_ids = list(self.project_area_grid.index)
 
-        path_suitability_raster = merge_criteria_rasters(rasters_to_sum, self.raster_preset.general.final_raster_name)
-        return path_suitability_raster
+        logger.info(f"Rasterizing takes place in {len(block_ids)} blocks")
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(self.submit_raster_job, block_id, cell_size, vector_to_convert)
+                for block_id in block_ids
+            ]
+            rasters = [future.result() for future in as_completed(futures)]
+
+        block_paths, block_bboxes = zip(*rasters)
+        vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
+        raster_settings = get_raster_settings(self.project_area_geometry)
+
+        vrt_builder = VRTBuilder(
+            block_files=block_paths,
+            block_bboxes=block_bboxes,
+            crs=raster_settings.crs,
+            resolution=Config.RASTER_CELL_SIZE,
+            vrt_path=vrt_path,
+        )
+        vrt_builder.build_and_write_to_disk()
+        return str(vrt_path)
+
+    def assign_vector_groups_to_grid(self):
+        """
+        For each processed vector, assign the vector to the intersecting project area grid block based on intersection.
+        """
+        for processed_group_name, vector in self.processed_vectors.items():
+            vector_with_grid = gpd.sjoin(vector, self.project_area_grid, how="left", predicate="intersects")
+            vector_with_grid = vector_with_grid.rename(columns={"index_right": "block_id"})
+            vector_with_grid = vector_with_grid.set_index("block_id", drop=True)
+            self.processed_vectors[processed_group_name] = vector_with_grid
+
+    def submit_raster_job(self, block_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
+        block_geometry = self.project_area_grid.iloc[block_id].values[0]
+        raster_settings = get_raster_settings(block_geometry, cell_size)
+        rasters_to_sum = [
+            self.rasterize_vector(idx, criterion, gdf, raster_settings)
+            for idx, (criterion, gdf) in enumerate(vector_to_convert.items())
+        ]
+
+        complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
+        return write_raster_block(
+            complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{block_id}"
+        )
+
+    def rasterize_vector(
+        self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, raster_settings: McdaRasterSettings
+    ) -> RasterizedCriterion:
+        logger.debug(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
+        rasterized_vector = rasterize_vector_data(criterion, gdf, raster_settings)
+        raster_criteria = self.raster_preset.criteria[criterion]
+        return RasterizedCriterion(criterion, rasterized_vector, raster_criteria.group)
