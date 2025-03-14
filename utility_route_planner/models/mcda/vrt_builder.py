@@ -4,6 +4,7 @@ from pathlib import Path
 import xml.etree.cElementTree as et
 from xml.dom import minidom
 
+import numpy as np
 import rasterio
 from pyproj import CRS
 from rasterio.enums import ColorInterp
@@ -12,22 +13,32 @@ from rasterio.enums import ColorInterp
 class VRTBuilder:
     def __init__(
         self,
-        tile_files: list[str],
+        block_files: list[str],
+        block_bboxes: list[float],
         crs: CRS,
         resolution,
-        raster_bounds: list[float],
         vrt_path: Path,
     ):
-        self.tile_files = tile_files
+        self.block_files = block_files
         self.crs = crs
         self.resolution = resolution
-        self.min_x, self.min_y, self.max_x, self.max_y = raster_bounds
         self.vrt_path = vrt_path
         self.xml_datatype = "Int8"
+        self.min_x, self.min_y, self.max_x, self.max_y = self.get_raster_extends(block_bboxes)
+
+    @staticmethod
+    def get_raster_extends(block_bboxes: list[float]) -> tuple[float, float, float, float]:
+        block_bboxes_matrix = np.array(block_bboxes)
+        min_x = block_bboxes_matrix[:, 0].min()
+        min_y = block_bboxes_matrix[:, 1].min()
+        max_x = block_bboxes_matrix[:, 2].max()
+        max_y = block_bboxes_matrix[:, 3].max()
+
+        return min_x, min_y, max_x, max_y
 
     def build_and_write_to_disk(self):
         vrt_tree, raster_band = self.setup_tree()
-        self.add_tiles_to_band(vrt_band=raster_band)
+        self.add_blocks_to_band(vrt_band=raster_band)
 
         self.vrt_path.resolve().write_text(
             minidom.parseString(et.tostring(vrt_tree).decode("utf-8")).toprettyxml(indent="  ").replace("&quot;", '"')
@@ -47,7 +58,7 @@ class VRTBuilder:
         et.SubElement(vrt_tree, "GeoTransform").text = transform_as_string
         et.SubElement(vrt_tree, "OverviewList", {"resampling": "nearest"}).text = "2 4 8"
 
-        # Initialize the band on which all tiles will be added
+        # Initialize the band on which all blocks will be added
         vrt_band = et.SubElement(vrt_tree, "VRTRasterBand", {"dataType": "Int8", "band": "1"})
         et.SubElement(vrt_band, "Offset").text = "0.0"
         et.SubElement(vrt_band, "Scale").text = "1.0"
@@ -56,9 +67,9 @@ class VRTBuilder:
 
         return vrt_tree, vrt_band
 
-    def add_tiles_to_band(self, vrt_band: et.Element):
+    def add_blocks_to_band(self, vrt_band: et.Element):
         relative_to_vrt = "1"
-        for f in self.tile_files:
+        for f in self.block_files:
             with rasterio.open(f) as src:
                 source = et.SubElement(vrt_band, "ComplexSource")
                 transform_as_string = relpath(f, self.vrt_path.parent)
@@ -78,8 +89,8 @@ class VRTBuilder:
         """
         Given a tiff file, add its properties to the source element of the raster band row
 
-        :param source: source element for this raster tile
-        :param src: reader instance which holds the tiff of the current raster tile
+        :param source: source element for this raster block
+        :param src: reader instance which holds the tiff of the current raster block
         :param x_off: x offset wrt the total raster size
         :param y_off: y offset wrt the total raster size
         """

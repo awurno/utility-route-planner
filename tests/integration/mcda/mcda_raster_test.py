@@ -21,7 +21,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     rasterize_vector_data,
     merge_criteria_rasters,
     get_raster_settings,
-    write_raster_tile,
+    write_raster_block,
 )
 from utility_route_planner.util.write import reset_geopackage
 
@@ -109,7 +109,7 @@ class TestRasterPreprocessing:
         assert (x_max - x_min) / Config.RASTER_CELL_SIZE == raster_meta_data["width"]
         assert (y_max - y_min) / Config.RASTER_CELL_SIZE == raster_meta_data["height"]
 
-        # Verify that all raster tiles are present in the VRT file
+        # Verify that all raster blocks are present in the VRT file
         vrt_tree = et.parse(path_suitability_raster)
         bands = vrt_tree.getroot().find("VRTRasterBand")
         sources = bands.findall("ComplexSource")
@@ -333,7 +333,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
     merged_raster = merge_criteria_rasters(rasters_to_merge, raster_settings.height, raster_settings.width)
-    path_suitability_raster = write_raster_tile(merged_raster, raster_settings, "pytest_suitability_raster")
+    path_suitability_raster, _ = write_raster_block(merged_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
         unique_values = np.unique(result)

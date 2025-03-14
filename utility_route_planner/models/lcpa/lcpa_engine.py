@@ -26,7 +26,7 @@ class LcpaUtilityRouteEngine:
         path_raster: str,
         utility_route_sketch: shapely.LineString,
         project_area: shapely.Polygon = shapely.Polygon(),
-    ):
+    ) -> shapely.LineString:
         # Set a default project area if not provided, this is a bad idea most of the time.
         if shapely.is_empty(project_area):
             project_area = utility_route_sketch.buffer(utility_route_sketch.length / 2)
@@ -44,6 +44,8 @@ class LcpaUtilityRouteEngine:
 
         self.lcpa_result = linestring_aligned
         write_results_to_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT, self.lcpa_result, "utility_route_result")
+
+        return self.lcpa_result
 
     def preprocess_input_linestring(self, geotransform: tuple, utility_route_sketch: shapely.LineString):
         """

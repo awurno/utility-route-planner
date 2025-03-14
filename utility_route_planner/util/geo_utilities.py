@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import rasterio
+import rasterio.mask
 import shapely
 import structlog
 import geopandas as gpd

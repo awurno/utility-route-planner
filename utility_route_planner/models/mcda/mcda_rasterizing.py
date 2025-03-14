@@ -49,7 +49,7 @@ def rasterize_vector_data(
     Burns the vector data to the project area in the desired raster cell size.
     If values overlap in the geodataframe, pick the highest value.
     """
-    logger.info(f"Rasterizing layer: {criterion} in cell size: {Config.RASTER_CELL_SIZE} meters")
+    logger.debug(f"Rasterizing layer: {criterion} in cell size: {Config.RASTER_CELL_SIZE} meters")
     # Highest value is leading within a criteria, using sorting we create the reverse painters algorithm effect.
     gdf_to_rasterize.sort_values("suitability_value", ascending=True, inplace=True)
     # Bump values which would be no-data prior to rasterizing to avoid marking them as no-data unwanted.
@@ -87,7 +87,7 @@ def merge_criteria_rasters(
     Criteria in group b: values in group b are added or subtracted to group a if present.
     Criteria in group c: mark as no data if present, overruling group a and b.
     """
-    logger.info(f"Starting summing {len(rasters_to_process)} rasters into the final cost surface.")
+    logger.debug(f"Starting summing {len(rasters_to_process)} rasters into the final cost surface.")
 
     # Split groups and process accordingly prior to summing all together.
     group_a, group_b, group_c = [], [], []
@@ -168,10 +168,13 @@ def process_raster_groups(
     return processed_raster
 
 
-def write_raster_tile(complete_raster: np.ma.array, raster_settings: McdaRasterSettings, final_raster_name) -> str:
+def write_raster_block(
+    complete_raster: np.ma.array, raster_settings: McdaRasterSettings, final_raster_name
+) -> tuple[str, list[float]]:
     raster_settings.nodata = Config.FINAL_RASTER_NO_DATA
     final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
     with rasterio.open(final_raster_path, "w", **asdict(raster_settings)) as dest:
         dest.write(np.ma.filled(complete_raster, Config.FINAL_RASTER_NO_DATA), 1)
+        bbox = list(dest.bounds)
 
-    return final_raster_path.__str__()
+    return final_raster_path.__str__(), bbox

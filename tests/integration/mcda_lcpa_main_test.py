@@ -6,15 +6,8 @@ from settings import Config
 from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.util.geo_utilities import get_first_last_point_from_linestring
-from utility_route_planner.util.write import reset_geopackage, write_results_to_geopackage
+from utility_route_planner.util.write import write_results_to_geopackage
 import geopandas as gpd
-
-
-@pytest.fixture
-def setup_mcda_lcpa_testing(monkeypatch):
-    reset_geopackage(Config.PATH_GEOPACKAGE_LCPA_OUTPUT)
-    reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
-    monkeypatch.setattr(Config, "DEBUG", True)
 
 
 @pytest.mark.usefixtures("setup_mcda_lcpa_testing")
