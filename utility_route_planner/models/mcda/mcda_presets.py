@@ -31,7 +31,6 @@ preset_collection = {
             .iloc[0]
             .geometry,
         },
-        # TODO note to self, compare the old preset to the new weights and check the order to see if they remain more or less similar
         # BGT attribute explanation: https://docs.geostandaarden.nl/imgeo/catalogus/bgt/#attributen-en-associaties
         "criteria": {
             # https://geonovum.github.io/IMGeo-objectenhandboek/waterdeel
@@ -42,19 +41,19 @@ preset_collection = {
                 "group": "a",
                 "weight_values": {
                     # Column "class"
-                    "greppel, droge sloot": 3,
+                    "greppel, droge sloot": 13,
                     "waterloop": 126,
                     "watervlakte": 126,
                     "zee": 126,
                     # Column "plus-type"
                     "rivier": 126,
-                    "sloot": 126,
+                    "sloot": 21,
                     "kanaal": 126,
                     "beek": 126,
                     "gracht": 126,
                     "bron": 126,
                     "haven": 126,
-                    "meer, plas, ven, vijver": 13,
+                    "meer, plas, ven, vijver": 21,
                 },
                 "geometry_values": {"zee": 20},
             },
@@ -67,20 +66,20 @@ preset_collection = {
                 "weight_values": {
                     # Column "bgt_functie"
                     "baan voor vliegverkeer": 126,
-                    "fietspad": 5,
+                    "fietspad": 4,
                     "inrit": 5,
-                    "OV-baan": 9,
+                    "OV-baan": 5,
                     "overweg": 120,
                     "parkeervlak": 3,
                     "rijbaan autosnelweg": 126,  # Motorway
                     "rijbaan autoweg": 126,  # Motorway
-                    "rijbaan lokale weg": 9,
-                    "rijbaan regionale weg": 38,  # Provincial road
+                    "rijbaan lokale weg": 6,
+                    "rijbaan regionale weg": 9,  # Provincial road
                     "ruiterpad": 3,
                     "spoorbaan": 126,
                     "voetgangersgebied": 3,
                     "voetpad": 3,
-                    "voetpad op trap": 6,
+                    "voetpad op trap": 3,
                     "woonerf": 3,
                     # Column bgt_fysiekvoorkomen
                     "gesloten verharding": 33,
@@ -137,8 +136,8 @@ preset_collection = {
                     "duin": 67,
                     "fruitteelt": 76,  # implies private property
                     "gemengd bos": 67,
-                    "grasland agrarisch": 76,  # implies private property
-                    "grasland overig": 76,  # implies private property
+                    "grasland agrarisch": 31,  # implies private property, but easy to cross and repair afterward.
+                    "grasland overig": 31,  # implies private property, but easy to cross and repair afterward.
                     "groenvoorziening": 3,  # implies public property
                     "heide": 67,
                     "houtwal": 67,
@@ -152,7 +151,7 @@ preset_collection = {
                     "akkerbouw": 76,  # implies private property
                     "bodembedekkers": 3,
                     "bollenteelt": 76,  # implies private property
-                    "bosplantsoen": 10,  # implies public property with (sparsely placed) trees
+                    "bosplantsoen": 10,  # implies public property within build-up area with (sparsely placed) trees
                     "braakliggend": 76,  # implies private property
                     "gesloten duinvegetatie": 10,
                     "gras- en kruidachtigen": 3,
@@ -165,7 +164,7 @@ preset_collection = {
                     "planten": 3,
                     "struikrozen": 3,
                     "vollegrondsteelt": 76,  # implies private property
-                    "wijngaarden": 76,  # implies private property
+                    "wijngaarden": 76,  # implies private property, hard to "repair" if damaged.
                 },
             },
             "ondersteunend_waterdeel": {
@@ -271,7 +270,7 @@ preset_collection = {
                     "niet-bgt": 1,  # Delete these records if they exist.
                     "walbescherming": 126,
                     # bak: plus_type
-                    "afval apart plaats": 76,  # Storage containers are underground.
+                    "afval apart plaats": 76,  # These containers are underground.
                     "afvalbak": 4,
                     "bloembak": 4,
                     "container": 4,
@@ -411,7 +410,7 @@ preset_collection = {
                     "hoogspanning_bovengronds": 4,  # TenneT & Alliander combined.
                     "hoogspanning_ondergronds": 51,  # TenneT & Alliander combined.
                     "gasunie_leidingen": 51,
-                    "alliander_stationsterrein": 3,  # Only the larger (>30m2) areas are included.
+                    "alliander_stationsterrein": -126,  # Only the larger (>30m2) areas are included.
                 },
                 "geometry_values": {
                     "hoogspanning_bovengronds_buffer": 5,
