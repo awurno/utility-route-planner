@@ -83,6 +83,7 @@ class McdaCostSurfaceEngine:
         self.assign_vector_groups_to_grid()
         block_ids = list(self.project_area_grid.index)
 
+        # TODO option for no multiprocessing
         logger.info(f"Rasterizing takes place in {len(block_ids)} blocks")
         with ProcessPoolExecutor() as executor:
             futures = [
@@ -95,6 +96,7 @@ class McdaCostSurfaceEngine:
         vrt_path = Config.PATH_RESULTS / f"{self.raster_name_prefix}{self.raster_preset.general.final_raster_name}.vrt"
         raster_settings = get_raster_settings(self.project_area_geometry)
 
+        # TODO fix type error (might just be my dev environment)
         vrt_builder = VRTBuilder(
             block_files=block_paths,
             block_bboxes=block_bboxes,
