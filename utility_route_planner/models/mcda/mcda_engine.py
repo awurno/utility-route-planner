@@ -19,6 +19,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     get_raster_settings,
     merge_criteria_rasters,
     write_raster_block,
+    clip_raster_mask_to_project_area,
 )
 from utility_route_planner.util.timer import time_function
 
@@ -148,6 +149,10 @@ class McdaCostSurfaceEngine:
         ]
 
         complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
+        complete_raster = clip_raster_mask_to_project_area(
+            complete_raster, self.project_area_geometry, raster_settings.transform
+        )
+
         return write_raster_block(
             complete_raster,
             raster_settings,

@@ -5,11 +5,11 @@ import affine
 import shapely
 import structlog
 import rasterio
-import rasterio.features
 import rasterio.merge
 import rasterio.mask
 import numpy as np
 import geopandas as gpd
+from rasterio.features import rasterize, geometry_mask
 
 from utility_route_planner.models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
 from settings import Config
@@ -68,9 +68,7 @@ def rasterize_vector_data(
         (raster_settings.height, raster_settings.width), Config.INTERMEDIATE_RASTER_NO_DATA, dtype="int16"
     )
     shapes = ((geom, value) for geom, value in zip(gdf_to_rasterize.geometry, gdf_to_rasterize.suitability_value))
-    rasterized_vector = rasterio.features.rasterize(
-        shapes=shapes, out=out_array, transform=raster_settings.transform, all_touched=False
-    )
+    rasterized_vector = rasterize(shapes=shapes, out=out_array, transform=raster_settings.transform, all_touched=False)
 
     return rasterized_vector
 
@@ -134,6 +132,17 @@ def merge_criteria_rasters(
         summed_raster.mask = np.ma.mask_or(summed_raster.mask, ~merged_group_c.mask)
 
     return summed_raster
+
+
+def clip_raster_mask_to_project_area(
+    raster: np.ma.MaskedArray, project_area: shapely.Polygon, transform: affine.Affine
+):
+    """
+    Update the raster mask such that all values outside the project area are masked and set to no data later on
+    """
+    project_area_mask = geometry_mask([project_area], transform=transform, invert=True, out_shape=raster.shape)
+    raster.mask = np.ma.mask_or(raster.mask, ~project_area_mask)
+    return raster
 
 
 def process_raster_groups(

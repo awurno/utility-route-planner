@@ -6,6 +6,7 @@ import rasterio
 import rasterio.sample
 import shapely
 import numpy as np
+from rasterio.features import geometry_mask
 from rasterio.transform import rowcol
 
 from utility_route_planner.models.mcda.mcda_datastructures import RasterizedCriterion
@@ -22,6 +23,7 @@ from utility_route_planner.models.mcda.mcda_rasterizing import (
     merge_criteria_rasters,
     get_raster_settings,
     write_raster_block,
+    clip_raster_mask_to_project_area,
 )
 from utility_route_planner.util.write import reset_geopackage
 
@@ -206,7 +208,7 @@ def test_rasterize_single_criterion(debug=False):
             assert rasterized_vector[int(row_index)][int(col_index)] == row.expected_suitability_value
 
 
-def test_sum_rasters(monkeypatch, debug=False):
+def test_sum_rasters(monkeypatch, debug=True):
     max_value = Config.FINAL_RASTER_VALUE_LIMIT_UPPER
     min_value = Config.FINAL_RASTER_VALUE_LIMIT_LOWER
     no_data = Config.FINAL_RASTER_NO_DATA
@@ -267,7 +269,14 @@ def test_sum_rasters(monkeypatch, debug=False):
         crs=Config.CRS,
         columns=["suitability_value", "geometry"],
     )
-    # 5. group c - overlapping a1
+    # 5. group b - tree on the edge of the project area. The buffer exceeds the project area boundary.
+    criterion_b_3 = gpd.GeoDataFrame(
+        data=[[10, shapely.Point(174741.950, 451113.084).buffer(10)]],
+        geometry="geometry",
+        crs=Config.CRS,
+        columns=["suitability_value", "geometry"],
+    )
+    # 6. group c - overlapping a1
     criterion_c_1 = gpd.GeoDataFrame(
         data=[
             [1, shapely.Polygon([[174729, 451158], [174940, 451115], [174841, 451195], [174729, 451158]])],
@@ -277,7 +286,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         crs=Config.CRS,
         columns=["suitability_value", "geometry"],
     )
-    # 6. group c - overlapping b1 and c1
+    # 7. group c - overlapping b1 and c1
     criterion_c_2 = gpd.GeoDataFrame(
         data=[
             [1, shapely.Polygon([[175090, 450906], [175103, 450905], [175096, 450918], [175090, 450906]])],
@@ -320,6 +329,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         criterion_a_2.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_a2.geojson")
         criterion_b_1.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_b1.geojson")
         criterion_b_2.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_b2.geojson")
+        criterion_b_3.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_b3.geojson")
         criterion_c_1.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_c1.geojson")
         criterion_c_2.to_file(Config.PATH_RESULTS / "pytest_sum_criterion_c2.geojson")
         points_to_sample.to_file(Config.PATH_RESULTS / "pytest_sum_points_to_sample.geojson")
@@ -338,6 +348,7 @@ def test_sum_rasters(monkeypatch, debug=False):
         ["a", criterion_a_2, "criterion_a2"],
         ["b", criterion_b_1, "criterion_b1"],
         ["b", criterion_b_2, "criterion_b2"],
+        ["b", criterion_b_3, "criterion_b3"],
         ["c", criterion_c_1, "criterion_c1"],
         ["c", criterion_c_2, "criterion_c2"],
     ]:
@@ -345,6 +356,8 @@ def test_sum_rasters(monkeypatch, debug=False):
         rasters_to_merge.append(RasterizedCriterion(criterion_name, rasterized_vector, group))
 
     merged_raster = merge_criteria_rasters(rasters_to_merge, raster_settings.height, raster_settings.width)
+    merged_raster = clip_raster_mask_to_project_area(merged_raster, project_area, raster_settings.transform)
+
     path_suitability_raster, _ = write_raster_block(merged_raster, raster_settings, "pytest_suitability_raster")
     with rasterio.open(path_suitability_raster, "r") as out:
         result = out.read(1)
@@ -354,6 +367,10 @@ def test_sum_rasters(monkeypatch, debug=False):
         for _, row in points_to_sample.iterrows():
             values = list(rasterio.sample.sample_gen(out, [[row.geometry.x, row.geometry.y]]))
             assert values[0][0] == row.expected_suitability_value
+
+        # Verify that all datapoints outside the project area are set to no data
+        mask = geometry_mask([project_area], transform=out.transform, out_shape=out.shape)
+        assert np.array_equal(np.unique(result[np.where(mask)]), [no_data])
 
 
 @pytest.mark.parametrize(
