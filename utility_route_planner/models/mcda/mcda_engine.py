@@ -76,8 +76,8 @@ class McdaCostSurfaceEngine:
     def preprocess_rasters(
         self,
         vector_to_convert: dict[str, gpd.GeoDataFrame],
-        cell_size: float = Config.RASTER_CELL_SIZE,
-        run_in_parallel: bool = True,
+        cell_size: float,
+        run_in_parallel: bool,
     ) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
@@ -94,7 +94,6 @@ class McdaCostSurfaceEngine:
         vrt_path = Config.PATH_RESULTS / f"{self.raster_name_prefix}{self.raster_preset.general.final_raster_name}.vrt"
         raster_settings = get_raster_settings(self.project_area_geometry)
 
-        # TODO fix type error (might just be my dev environment)
         vrt_builder = VRTBuilder(
             block_files=block_paths,
             block_bboxes=block_bboxes,

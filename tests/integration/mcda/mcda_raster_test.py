@@ -50,7 +50,11 @@ class TestRasterPreprocessing:
             .geometry,
         )
         mcda_engine.preprocess_vectors()
-        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        mcda_engine.preprocess_rasters(
+            mcda_engine.processed_vectors,
+            cell_size=0.5,
+            run_in_parallel=False,
+        )
         assert mcda_engine.processed_criteria_names == {"small_above_ground_obstacles"}
         assert mcda_engine.unprocessed_criteria_names == set()
 
@@ -63,7 +67,11 @@ class TestRasterPreprocessing:
             .geometry,
         )
         mcda_engine.preprocess_vectors()
-        mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        mcda_engine.preprocess_rasters(
+            mcda_engine.processed_vectors,
+            cell_size=0.5,
+            run_in_parallel=False,
+        )
         assert mcda_engine.processed_criteria_names == {
             "begroeid_terreindeel",
             "waterdeel",
@@ -93,7 +101,11 @@ class TestRasterPreprocessing:
             .geometry,
         )
         mcda_engine.preprocess_vectors()
-        path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        path_suitability_raster = mcda_engine.preprocess_rasters(
+            mcda_engine.processed_vectors,
+            cell_size=0.5,
+            run_in_parallel=False,
+        )
 
         # Verify that the raster can be opened by rasterio
         band_nr = 1
