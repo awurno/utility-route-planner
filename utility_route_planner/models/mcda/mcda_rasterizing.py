@@ -77,7 +77,7 @@ def merge_criteria_rasters(
     rasters_to_process: list[RasterizedCriterion],
     raster_height: int,
     raster_width: int,
-) -> np.ma.array:
+) -> np.ma.MaskedArray:
     """
     List of rasters to combine and their respective group.
 
@@ -150,7 +150,7 @@ def process_raster_groups(
     method: str,
     height: int,
     width: int,
-) -> np.ma.array:
+) -> np.ma.MaskedArray:
     """
     Iterate over all raster groups and perform the desired method to combine the different groups.
     :param group: list of criterion groups to process.
@@ -178,7 +178,7 @@ def process_raster_groups(
 
 
 def write_raster_block(
-    complete_raster: np.ma.array, raster_settings: McdaRasterSettings, final_raster_name
+    complete_raster: np.ma.MaskedArray, raster_settings: McdaRasterSettings, final_raster_name
 ) -> tuple[str, list[float]]:
     raster_settings.nodata = Config.FINAL_RASTER_NO_DATA
     final_raster_path = Config.PATH_RESULTS / (final_raster_name + ".tif")
