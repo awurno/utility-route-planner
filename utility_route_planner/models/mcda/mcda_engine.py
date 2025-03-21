@@ -77,20 +77,18 @@ class McdaCostSurfaceEngine:
         self,
         vector_to_convert: dict[str, gpd.GeoDataFrame],
         cell_size: float = Config.RASTER_CELL_SIZE,
+        run_in_parallel: bool = True,
     ) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
         self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
         self.assign_vector_groups_to_grid()
         block_ids = list(self.project_area_grid.index)
 
-        # TODO option for no multiprocessing
-        logger.info(f"Rasterizing takes place in {len(block_ids)} blocks")
-        with ProcessPoolExecutor() as executor:
-            futures = [
-                executor.submit(self.submit_raster_job, block_id, cell_size, vector_to_convert)
-                for block_id in block_ids
-            ]
-            rasters = [future.result() for future in as_completed(futures)]
+        logger.info(f"Rasterizing vector using {len(block_ids)} blocks")
+        if run_in_parallel:
+            rasters = self.compute_raster_blocks_in_parallel(block_ids, vector_to_convert, cell_size)
+        else:
+            rasters = self.compute_raster_blocks_sequentially(block_ids, vector_to_convert, cell_size)
 
         block_paths, block_bboxes = zip(*rasters)
         vrt_path = Config.PATH_RESULTS / f"{self.raster_name_prefix}{self.raster_preset.general.final_raster_name}.vrt"
@@ -107,6 +105,29 @@ class McdaCostSurfaceEngine:
         vrt_builder.build_and_write_to_disk()
         return str(vrt_path)
 
+    def compute_raster_blocks_sequentially(
+        self,
+        block_ids: list[int],
+        vector_to_convert: dict[str, gpd.GeoDataFrame],
+        cell_size: float = Config.RASTER_CELL_SIZE,
+    ) -> list[tuple[str, list[float]]]:
+        rasters = [self.compute_and_write_raster(block_id, cell_size, vector_to_convert) for block_id in block_ids]
+        return rasters
+
+    def compute_raster_blocks_in_parallel(
+        self,
+        block_ids: list[int],
+        vector_to_convert: dict[str, gpd.GeoDataFrame],
+        cell_size: float = Config.RASTER_CELL_SIZE,
+    ) -> list[tuple[str, list[float]]]:
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(self.compute_and_write_raster, block_id, cell_size, vector_to_convert)
+                for block_id in block_ids
+            ]
+            rasters = [future.result() for future in as_completed(futures)]
+        return rasters
+
     def assign_vector_groups_to_grid(self):
         """
         For each processed vector, assign the vector to the intersecting project area grid block based on intersection.
@@ -117,7 +138,9 @@ class McdaCostSurfaceEngine:
             vector_with_grid = vector_with_grid.set_index("block_id", drop=True)
             self.processed_vectors[processed_group_name] = vector_with_grid
 
-    def submit_raster_job(self, block_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]):
+    def compute_and_write_raster(
+        self, block_id: int, cell_size: float, vector_to_convert: dict[str, gpd.GeoDataFrame]
+    ) -> tuple[str, list[float]]:
         block_geometry = self.project_area_grid.iloc[block_id].values[0]
         raster_settings = get_raster_settings(block_geometry, cell_size)
         rasters_to_sum = [
