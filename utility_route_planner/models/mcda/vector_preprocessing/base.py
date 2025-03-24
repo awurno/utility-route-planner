@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import datetime
 import typing
 
 import fiona
@@ -14,6 +13,7 @@ from pandas.errors import IntCastingNaNError
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import InvalidSuitabilityValue
 from utility_route_planner.util.geo_utilities import get_empty_geodataframe
+from utility_route_planner.util.timer import time_function
 from utility_route_planner.util.write import write_results_to_geopackage
 
 if typing.TYPE_CHECKING:
@@ -29,9 +29,9 @@ class VectorPreprocessorBase(abc.ABC):
     def criterion(self) -> str:
         """Name of the criterion"""
 
+    @time_function
     def execute(self, general: RasterPresetGeneral, criterion: RasterPresetCriteria) -> tuple[bool, gpd.GeoDataFrame]:
         """Run all methods in order for a criteria returning the processed geodataframe with suitability values."""
-        start = datetime.datetime.now()
         logger.info(f"Start preprocessing: {self.criterion}.")
 
         prepared_gdfs = self.prepare_input_data(general.project_area_geometry, criterion, general.path_input_geopackage)
@@ -42,8 +42,6 @@ class VectorPreprocessorBase(abc.ABC):
             return False, get_empty_geodataframe()
         self.write_to_file(general.prefix, processed_gdf)
 
-        end = datetime.datetime.now()
-        logger.info(f"Finished {self.criterion} in: {end - start} time.")
         return True, processed_gdf
 
     @staticmethod

@@ -6,6 +6,8 @@ from settings import Config
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
 from utility_route_planner.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
+from utility_route_planner.models.mcda.vector_preprocessing.existing_substations import ExistingSubstations
+from utility_route_planner.models.mcda.vector_preprocessing.existing_utilities import ExistingUtilities
 from utility_route_planner.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
 from utility_route_planner.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
 from utility_route_planner.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
@@ -1093,4 +1095,94 @@ class TestVectorPreprocessing:
         )
         assert reclassified_gdf.is_empty.value_counts().get(False) == 2
         assert reclassified_gdf.is_empty.value_counts().get(True) is None
+        assert reclassified_gdf.geom_type.unique().tolist() == ["Polygon"]
+
+    def test_existing_utilities(self):
+        weight_values = {
+            "hoogspanning_bovengronds": 1,
+            "hoogspanning_ondergronds": 2,
+            "gasunie_leidingen": 3,
+            "alliander_stationsterrein": 4,
+        }
+        buffer_values = {
+            "hoogspanning_bovengronds_buffer": 5,
+            "hoogspanning_ondergronds_buffer": 6,
+            "gasunie_leidingen_buffer": 7,
+        }
+        gdf_high_voltage_above_ground = gpd.GeoDataFrame(
+            [
+                [1, 150, "high_voltage_cable_overhead", shapely.LineString([[3, 3], [1, 0]])],
+                [1, 0, "high_voltage_cable_overhead", shapely.LineString([[2, 2], [1, 0]])],
+            ],
+            columns=["OBJECTID", "SPANNINGSNIVEAU", "type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        gdf_high_voltage_under_ground = gpd.GeoDataFrame(
+            [
+                [1, 50, "high_voltage_cable_underground", shapely.LineString([[0, 0], [1, 0]])],
+                [1, 0, "high_voltage_cable_underground", shapely.LineString([[0, 0], [1, 0]])],
+            ],
+            columns=["OBJECTID", "SPANNINGSNIVEAU", "type", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        gasunie_leiding_gdf = gpd.GeoDataFrame(
+            [
+                [1, "123", "In Bedrijf", shapely.LineString([[0, 0], [1, 0]])],
+                [2, "1234", "Niet in Bedrijf", shapely.LineString([[0, 0], [1, 0]])],
+            ],
+            columns=["OBJECTID", "Leiding", "StatusOperationeel", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        gdf_substation_terrain = gpd.GeoDataFrame(
+            [
+                [1, "1 000 001", shapely.Point(0, 0).buffer(200)],  # high voltage substation, should be kept.
+                [2, "1 000 002", shapely.Point(0, 0).buffer(1)],  # regular substation, should be deleted.
+            ],
+            columns=["OBJECTID", "STATIONCOMPLEX", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = ExistingUtilities._set_suitability_and_geometry_values(
+            [gdf_high_voltage_above_ground, gdf_high_voltage_under_ground, gasunie_leiding_gdf, gdf_substation_terrain],
+            weight_values,
+            buffer_values,
+        )
+
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"].sort_values(),
+            pd.Series([1, 2, 3, 4]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
+        assert reclassified_gdf.geom_type.unique().tolist() == ["Polygon"]
+        assert "Niet in Bedrijf" not in reclassified_gdf["StatusOperationeel"]
+        assert "1 000 002" not in reclassified_gdf["STATIONCOMPLEX"]
+
+    def test_existing_substations(self):
+        weight_values = {
+            "alliander_middenspanningsstation": 1,
+        }
+        gdf_substations = gpd.GeoDataFrame(
+            [
+                [1, "1 000 001", shapely.Point(0, 0).buffer(5)],
+                [2, "1 000 002", shapely.Point(0, 0).buffer(5)],
+            ],
+            columns=["OBJECTID", "STATIONCOMPLEX", "geometry"],
+            crs=Config.CRS,
+            geometry="geometry",
+        )
+        reclassified_gdf = ExistingSubstations._set_suitability_values(gdf_substations, weight_values)
+        pd.testing.assert_series_equal(
+            reclassified_gdf["suitability_value"].sort_values(),
+            pd.Series([1, 1]),
+            check_names=False,
+            check_exact=True,
+            check_dtype=False,
+            check_index=False,
+        )
         assert reclassified_gdf.geom_type.unique().tolist() == ["Polygon"]

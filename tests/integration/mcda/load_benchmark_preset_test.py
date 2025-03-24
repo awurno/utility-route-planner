@@ -51,7 +51,9 @@ def setup_raster_preset_dummy():
             "final_raster_name": "benchmark_suitability_raster",
             "project_area_geometry": gpd.read_file(
                 Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA
-            ),
+            )
+            .iloc[0]
+            .geometry,
         },
         "criteria": {
             "test_criteria": {

@@ -5,11 +5,11 @@ from functools import cached_property
 
 import shapely
 
-from models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
-from models.mcda.mcda_utils import create_project_area_grid
-from models.mcda.vrt_builder import VRTBuilder
+from utility_route_planner.models.mcda.mcda_datastructures import McdaRasterSettings, RasterizedCriterion
+from utility_route_planner.models.mcda.mcda_utils import create_project_area_grid
+from utility_route_planner.models.mcda.vrt_builder import VRTBuilder
 from settings import Config
-from util.geo_utilities import get_empty_geodataframe
+from utility_route_planner.util.geo_utilities import get_empty_geodataframe
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 import structlog
 import geopandas as gpd
@@ -29,13 +29,20 @@ class McdaCostSurfaceEngine:
     raster_preset: RasterPreset
     path_geopackage_input: pathlib.Path
 
-    def __init__(self, preset_to_load, path_geopackage_mcda_input, project_area_geometry: shapely.Polygon):
+    def __init__(
+        self,
+        preset_to_load: str,
+        path_geopackage_mcda_input: pathlib.Path,
+        project_area_geometry: shapely.Polygon,
+        raster_name_prefix: str = "",
+    ):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
-        self.project_area_geometry = project_area_geometry
         self.processed_vectors: dict = {}
-        self.project_area_grid = get_empty_geodataframe()
         self.unprocessed_criteria_names: set = set()
         self.processed_criteria_names: set = set()
+        self.raster_name_prefix: str = raster_name_prefix
+        self.project_area_geometry = project_area_geometry
+        self.project_area_grid = get_empty_geodataframe()
 
     @cached_property
     def number_of_criteria(self):
@@ -76,6 +83,7 @@ class McdaCostSurfaceEngine:
         self.assign_vector_groups_to_grid()
         block_ids = list(self.project_area_grid.index)
 
+        # TODO option for no multiprocessing
         logger.info(f"Rasterizing takes place in {len(block_ids)} blocks")
         with ProcessPoolExecutor() as executor:
             futures = [
@@ -85,9 +93,10 @@ class McdaCostSurfaceEngine:
             rasters = [future.result() for future in as_completed(futures)]
 
         block_paths, block_bboxes = zip(*rasters)
-        vrt_path = Config.PATH_RESULTS / f"{self.raster_preset.general.final_raster_name}.vrt"
+        vrt_path = Config.PATH_RESULTS / f"{self.raster_name_prefix}{self.raster_preset.general.final_raster_name}.vrt"
         raster_settings = get_raster_settings(self.project_area_geometry)
 
+        # TODO fix type error (might just be my dev environment)
         vrt_builder = VRTBuilder(
             block_files=block_paths,
             block_bboxes=block_bboxes,
@@ -118,13 +127,15 @@ class McdaCostSurfaceEngine:
 
         complete_raster = merge_criteria_rasters(rasters_to_sum, raster_settings.height, raster_settings.width)
         return write_raster_block(
-            complete_raster, raster_settings, f"{self.raster_preset.general.final_raster_name}-{block_id}"
+            complete_raster,
+            raster_settings,
+            f"{self.raster_name_prefix}{self.raster_preset.general.final_raster_name}-{block_id}",
         )
 
     def rasterize_vector(
         self, idx: int, criterion: str, gdf: gpd.GeoDataFrame, raster_settings: McdaRasterSettings
     ) -> RasterizedCriterion:
-        logger.debug(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
+        logger.info(f"Processing criteria number {idx + 1} of {self.number_of_criteria_to_rasterize}.")
         rasterized_vector = rasterize_vector_data(criterion, gdf, raster_settings)
         raster_criteria = self.raster_preset.criteria[criterion]
         return RasterizedCriterion(criterion, rasterized_vector, raster_criteria.group)

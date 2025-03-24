@@ -8,7 +8,7 @@ import shapely
 import numpy as np
 from rasterio.transform import rowcol
 
-from models.mcda.mcda_datastructures import RasterizedCriterion
+from utility_route_planner.models.mcda.mcda_datastructures import RasterizedCriterion
 from settings import Config
 from utility_route_planner.models.mcda.exceptions import (
     RasterCellSizeTooSmall,
@@ -80,6 +80,8 @@ class TestRasterPreprocessing:
             "overig_bouwwerk",
             "kunstwerkdeel",
             "protected_area",
+            "existing_utilities",
+            "existing_substations",
         }
 
     def test_preprocess_all_rasters_correct_in_vrt_file(self):

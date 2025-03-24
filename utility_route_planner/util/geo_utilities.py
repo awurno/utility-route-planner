@@ -1,6 +1,12 @@
+from pathlib import Path
+
+import rasterio
+import rasterio.mask
 import shapely
 import structlog
 import geopandas as gpd
+
+from utility_route_planner.models.mcda.exceptions import InvalidRasterValues
 
 logger = structlog.get_logger(__name__)
 
@@ -75,8 +81,9 @@ def get_first_last_point_from_linestring(linestring: shapely.LineString) -> tupl
     if isinstance(linestring, shapely.LineString):
         start_end = shapely.get_point(linestring, 0), shapely.get_point(linestring, -1)
     elif isinstance(linestring, shapely.MultiLineString):
-        start_end = shapely.get_point(shapely.get_geometry(linestring, 0), 0), shapely.get_point(
-            shapely.get_geometry(linestring, -1), -1
+        start_end = (
+            shapely.get_point(shapely.get_geometry(linestring, 0), 0),
+            shapely.get_point(shapely.get_geometry(linestring, -1), -1),
         )
     else:
         raise ValueError("Input is not a valid linestring or multilinestring.")
@@ -90,3 +97,28 @@ def get_empty_geodataframe() -> gpd.GeoDataFrame:
         geometry="geometry",
         crs=None,
     )
+
+
+def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.Polygon):
+    """
+    Read only the intersection of the project area with the large suitability raster from S3 (or local).
+    """
+    logger.info(f"Loading {path_raster} based on input project area.")
+
+    with rasterio.Env():
+        with rasterio.open(path_raster) as src:
+            image, transform = rasterio.mask.mask(
+                src,
+                [project_area],
+                all_touched=True,  # Include a pixel in the mask if it touches any of the shapes.
+                crop=True,  # Crop result to input project area.
+                filled=True,  # Values outside input project area will be set to nodata.
+                indexes=1,
+            )
+            no_data = src.nodata
+
+    if len(image) < 1:
+        raise InvalidRasterValues("Unexpected values retrieved from suitability raster. Check project area.")
+    # Replace with a negative value which is ignored in LCPA.
+    image[image == no_data] = -1
+    return image, transform.to_gdal()
