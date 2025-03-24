@@ -7,7 +7,7 @@ from shapely.geometry.geo import box
 from settings import Config
 
 
-def create_project_area_grid(min_x: float, min_y: float, max_x: float, max_y: float):
+def create_project_area_grid(min_x: float, min_y: float, max_x: float, max_y: float, max_block_size: int):
     """
     Creates a grid given the bounding box of the project area. The block size is computed based on the max block
     size and the project area bounding box. In case width or height % max_block_size != 0, the block size is decreased
@@ -16,10 +16,10 @@ def create_project_area_grid(min_x: float, min_y: float, max_x: float, max_y: fl
     project_area_width = max_x - min_x
     project_area_heigth = max_y - min_y
 
-    number_blocks_width = math.ceil(project_area_width / Config.MAX_BLOCK_SIZE)
+    number_blocks_width = math.ceil(project_area_width / max_block_size)
     block_width = math.ceil(project_area_width / number_blocks_width)
 
-    number_blocks_height = math.ceil(project_area_heigth / Config.MAX_BLOCK_SIZE)
+    number_blocks_height = math.ceil(project_area_heigth / max_block_size)
     block_height = math.ceil(project_area_heigth / number_blocks_height)
 
     x_coords = np.arange(min_x, max_x, block_width)

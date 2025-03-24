@@ -31,7 +31,10 @@ def run_mcda_lcpa(
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry, raster_name_prefix)
     mcda_engine.preprocess_vectors()
     path_suitability_raster = mcda_engine.preprocess_rasters(
-        mcda_engine.processed_vectors, cell_size=Config.RASTER_CELL_SIZE, run_in_parallel=compute_rasters_in_parallel
+        mcda_engine.processed_vectors,
+        cell_size=Config.RASTER_CELL_SIZE,
+        max_block_size=Config.MAX_BLOCK_SIZE,
+        run_in_parallel=compute_rasters_in_parallel,
     )
 
     lcpa_engine = LcpaUtilityRouteEngine()

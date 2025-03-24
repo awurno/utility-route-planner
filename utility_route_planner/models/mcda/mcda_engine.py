@@ -78,10 +78,12 @@ class McdaCostSurfaceEngine:
         self,
         vector_to_convert: dict[str, gpd.GeoDataFrame],
         cell_size: float,
+        max_block_size: int,
         run_in_parallel: bool,
     ) -> str:
         logger.info(f"Starting rasterizing for {self.number_of_criteria_to_rasterize} criteria.")
-        self.project_area_grid = create_project_area_grid(*self.project_area_geometry.bounds)
+        min_x, min_y, max_x, max_y = self.project_area_geometry.bounds
+        self.project_area_grid = create_project_area_grid(min_x, min_y, max_x, max_y, max_block_size)
         self.assign_vector_groups_to_grid()
         block_ids = list(self.project_area_grid.index)
 
