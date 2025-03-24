@@ -211,7 +211,7 @@ def test_rasterize_single_criterion(debug=False):
             assert rasterized_vector[int(row_index)][int(col_index)] == row.expected_suitability_value
 
 
-def test_sum_rasters(debug=True):
+def test_sum_rasters(debug=False):
     max_value = Config.FINAL_RASTER_VALUE_LIMIT_UPPER
     min_value = Config.FINAL_RASTER_VALUE_LIMIT_LOWER
     no_data = Config.FINAL_RASTER_NO_DATA
