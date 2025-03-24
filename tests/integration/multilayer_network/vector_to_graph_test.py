@@ -1,3 +1,7 @@
+import math
+
+import networkx as nx
+import osmnx as ox
 import numpy as np
 import pytest
 import shapely
@@ -42,22 +46,43 @@ class TestVectorToGraph:
 
         # Create a grid of all points within the geometry boundaries
         x_min, y_min, x_max, y_max = first_vector.geometry.bounds
-        x_coordinates = np.arange(x_min, x_max, Config.RASTER_CELL_SIZE)
-        y_coordinates = np.arange(y_min, y_max, Config.RASTER_CELL_SIZE)
 
-        # For each coordinate, check if within the geometry. If this is the case, create a node later on
-        points = []
+        # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
+        # TODO: should we divide the hexagon width / 2 as each hexagon size is now 2 * cell size?
+        hexagon_width = 2 * Config.RASTER_CELL_SIZE
+        hexagon_height = math.sqrt(3) * Config.RASTER_CELL_SIZE
+
+        # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
+        # by the surrounding tiles
+        x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
+        y_coordinates = np.arange(y_min, y_max, hexagon_height)
+
+        # For each coordinate, check if within the geometry. If this is the case, add node to the graph
+        node_id = 0
+        graph = nx.MultiGraph(crs=Config.CRS)
         for x in x_coordinates:
             for y in y_coordinates:
-                point = shapely.Point(x, y)
-                if first_vector.geometry.contains(point):
-                    points.append((first_vector["suitability_value"], point))
-        points_gdf = gpd.GeoDataFrame(points, columns=["suitability_value", "geometry"])
-        points_gdf = points_gdf.set_geometry("geometry", crs=Config.CRS)
+                # Every odd column must be offset by half of the hexagon height to properly determine the vertical
+                # position of the hexagon. A column is odd when the distance between the x coordinate and the min_x
+                # can be divided by hexagon_width * 0.75
+                if ((x - x_min) / (hexagon_width * 0.75)) % 2:
+                    y += hexagon_height / 2
+
+                if first_vector.geometry.contains(shapely.Point(x, y)):
+                    graph.add_node(node_id, suitability_value=first_vector["suitability_value"], x=x, y=y)
+                    node_id += 1
+
+        # Add temp edge for testing
+        graph.add_edge(1, 2)
+
+        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
 
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, first_vector.geometry, "processed_vector", overwrite=True
         )
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_gdf, "vector_points", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
         )
