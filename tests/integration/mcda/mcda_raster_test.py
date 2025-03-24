@@ -29,7 +29,7 @@ from utility_route_planner.util.write import reset_geopackage
 
 
 @pytest.fixture
-def setup_clean_start(monkeypatch):
+def setup_clean_start():
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
 
 
@@ -55,6 +55,7 @@ class TestRasterPreprocessing:
         mcda_engine.preprocess_rasters(
             mcda_engine.processed_vectors,
             cell_size=0.5,
+            max_block_size=2048,
             run_in_parallel=False,
         )
         assert mcda_engine.processed_criteria_names == {"small_above_ground_obstacles"}
@@ -72,6 +73,7 @@ class TestRasterPreprocessing:
         mcda_engine.preprocess_rasters(
             mcda_engine.processed_vectors,
             cell_size=0.5,
+            max_block_size=2048,
             run_in_parallel=False,
         )
         assert mcda_engine.processed_criteria_names == {
@@ -106,6 +108,7 @@ class TestRasterPreprocessing:
         path_suitability_raster = mcda_engine.preprocess_rasters(
             mcda_engine.processed_vectors,
             cell_size=0.5,
+            max_block_size=2048,
             run_in_parallel=False,
         )
 
@@ -208,7 +211,7 @@ def test_rasterize_single_criterion(debug=False):
             assert rasterized_vector[int(row_index)][int(col_index)] == row.expected_suitability_value
 
 
-def test_sum_rasters(monkeypatch, debug=True):
+def test_sum_rasters(debug=True):
     max_value = Config.FINAL_RASTER_VALUE_LIMIT_UPPER
     min_value = Config.FINAL_RASTER_VALUE_LIMIT_LOWER
     no_data = Config.FINAL_RASTER_NO_DATA

@@ -31,6 +31,7 @@ class TestMcdaLcpaChain:
         path_suitability_raster = mcda_engine.preprocess_rasters(
             mcda_engine.processed_vectors,
             cell_size=0.5,
+            max_block_size=2048,
             run_in_parallel=False,
         )
 
@@ -88,5 +89,5 @@ def test_mcda_lcpa_chain_all_benchmark_cases(
         start_end_point,
         human_designed_route,
         raster_name_prefix="",
-        compute_rasters_in_parallel=True,
+        compute_rasters_in_parallel=False,
     )
