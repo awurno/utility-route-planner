@@ -42,12 +42,10 @@ class TestVectorToGraph:
         return mcda_engine.processed_vectors[criterium_name]
 
     def test_vector_to_graph(self, vector_for_project_area: gpd.GeoDataFrame):
-        first_vector = vector_for_project_area.iloc[0]
-
         # Create a grid of all points within the geometry boundaries
-        x_min, y_min, x_max, y_max = first_vector.geometry.bounds
+        x_min, y_min, x_max, y_max = vector_for_project_area.total_bounds
 
-        # Compute hexagon height and width for determining centerpoints. Here, we use the pointy-top orientation hexagons
+        # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
         # TODO: should we divide the hexagon width / 2 as each hexagon size is now 2 * cell size?
         hexagon_width = 2 * Config.RASTER_CELL_SIZE
         hexagon_height = math.sqrt(3) * Config.RASTER_CELL_SIZE
@@ -68,9 +66,13 @@ class TestVectorToGraph:
                 if ((x - x_min) / (hexagon_width * 0.75)) % 2:
                     y += hexagon_height / 2
 
-                # For now, only add points that are within the boundaries of a single polygon
-                if first_vector.geometry.contains(shapely.Point(x, y)):
-                    graph.add_node(node_id, suitability_value=first_vector["suitability_value"], x=x, y=y)
+                # Check whether the coordinate intersects with at least one geometry vector. If this is the case, add
+                # a node to the graph for these coordinates
+                intersected_geometries = vector_for_project_area.geometry.contains(shapely.Point(x, y))
+                if any(intersected_geometries):
+                    # For now, simply sum suitability values of all intersection points and add it to the graph node
+                    suitability_value = vector_for_project_area.loc[intersected_geometries, "suitability_value"].sum()
+                    graph.add_node(node_id, suitability_value=suitability_value, x=x, y=y)
                     node_id += 1
 
         for node, data in graph.nodes(data=True):
@@ -85,7 +87,7 @@ class TestVectorToGraph:
             ]
 
             # Given the neighbour coordinates, iterate over all nodes in the graph to find the nodes that are close to
-            # the calculated coordinates. These nodes are counted as neighbours.
+            # the calculated coordinates. These nodes are considered as neighbours.
             for neighbor_x, neighbor_y in neighbors:
                 for neighbor, neighbor_data in graph.nodes(data=True):
                     if math.isclose(neighbor_data["x"], neighbor_x, abs_tol=1e-2) and math.isclose(
@@ -95,9 +97,6 @@ class TestVectorToGraph:
                         break
         nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
 
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, first_vector.geometry, "processed_vector", overwrite=True
-        )
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
         )
