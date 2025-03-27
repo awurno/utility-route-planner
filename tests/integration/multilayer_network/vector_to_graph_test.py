@@ -56,8 +56,10 @@ class TestVectorToGraph:
 
         # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
         # TODO: should we divide the hexagon width / 2 as each hexagon size is now 2 * cell size?
-        hexagon_width = 2 * Config.RASTER_CELL_SIZE
-        hexagon_height = math.sqrt(3) * Config.RASTER_CELL_SIZE
+        hexagon_size = 1
+
+        hexagon_width = 2 * hexagon_size
+        hexagon_height = math.sqrt(3) * hexagon_size
 
         # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
         # by the surrounding tiles
@@ -102,6 +104,7 @@ class TestVectorToGraph:
 
             # Given the neighbour coordinates, iterate over all nodes in the graph to find the nodes that are close to
             # the calculated coordinates. These nodes are considered as neighbours.
+            # TODO: this part is very slow and must be optimized
             for neighbour_x, neighbour_y in neighbour_coordinates:
                 for neighbour_node, neighbor_data in graph.nodes(data=True):
                     if math.isclose(neighbor_data["x"], neighbour_x, abs_tol=1e-2) and math.isclose(
@@ -110,6 +113,15 @@ class TestVectorToGraph:
                         edge_weight = (center_data["suitability_value"] + neighbor_data["suitability_value"]) / 2
                         graph.add_edge(center_node, neighbour_node, weight=edge_weight)
                         break
+
+        # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
+        # final node id as target. Edges with a lower weight are more favourable.
+        shortest_path = nx.shortest_path(graph, source=0, target=node_id - 1, weight="weight")
+        shortest_path_points = [
+            shapely.Point(graph.nodes[node_id]["x"], graph.nodes[node_id]["y"]) for node_id in shortest_path
+        ]
+        shortest_path_line_string = shapely.LineString(shortest_path_points)
+
         nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
 
         write_results_to_geopackage(
@@ -120,4 +132,7 @@ class TestVectorToGraph:
         )
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, shortest_path_line_string, "ms_route", overwrite=True
         )
