@@ -3,19 +3,19 @@ import math
 import networkx as nx
 import osmnx as ox
 import numpy as np
+import pandas as pd
 import pytest
 import shapely
 import geopandas as gpd
 
 from models.mcda.mcda_engine import McdaCostSurfaceEngine
-from models.mcda.mcda_presets import preset_collection
 from settings import Config
 from util.write import write_results_to_geopackage
 
 
 class TestVectorToGraph:
     @pytest.fixture()
-    def project_area(self) -> shapely.Polygon:
+    def simple_project_area(self) -> shapely.Polygon:
         return shapely.Polygon(
             [
                 shapely.Point(174992.960, 451097.964),
@@ -27,19 +27,28 @@ class TestVectorToGraph:
         )
 
     @pytest.fixture()
-    def vector_for_project_area(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
-        criterium_name = "wegdeel"
-        preset_to_load = {
-            "general": preset_collection["preset_benchmark_raw"]["general"],
-            "criteria": {criterium_name: preset_collection["preset_benchmark_raw"]["criteria"][criterium_name]},
-        }
+    def larger_project_area(self) -> shapely.Polygon:
+        return shapely.Polygon(
+            [
+                shapely.Point(174932.067, 451134.757),
+                shapely.Point(174921.054, 451035.046),
+                shapely.Point(175021.659, 451031.772),
+                shapely.Point(175026.123, 451131.483),
+                shapely.Point(174932.067, 451134.757),
+            ]
+        )
+
+    @pytest.fixture()
+    def vector_for_project_area(self, larger_project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         mcda_engine = McdaCostSurfaceEngine(
-            preset_to_load,
+            Config.RASTER_PRESET_NAME_BENCHMARK,
             Config.PYTEST_PATH_GEOPACKAGE_MCDA,
-            project_area,
+            larger_project_area,
         )
         mcda_engine.preprocess_vectors()
-        return mcda_engine.processed_vectors[criterium_name]
+        concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
+        concatenated_vectors = concatenated_vectors.reset_index(drop=True)
+        return gpd.GeoDataFrame(concatenated_vectors)
 
     def test_vector_to_graph(self, vector_for_project_area: gpd.GeoDataFrame):
         # Create a grid of all points within the geometry boundaries
@@ -70,9 +79,14 @@ class TestVectorToGraph:
                 # a node to the graph for these coordinates
                 intersected_geometries = vector_for_project_area.geometry.contains(shapely.Point(x, y))
                 if any(intersected_geometries):
+                    instersected_values = vector_for_project_area.loc[
+                        intersected_geometries, ["suitability_value", "function"]
+                    ]
+
                     # For now, simply sum suitability values of all intersection points and add it to the graph node
-                    suitability_value = vector_for_project_area.loc[intersected_geometries, "suitability_value"].sum()
-                    graph.add_node(node_id, suitability_value=suitability_value, x=x, y=y)
+                    suitability_value = instersected_values["suitability_value"].sum()
+                    function_label = instersected_values["function"].str.cat(sep=",")
+                    graph.add_node(node_id, suitability_value=suitability_value, function=function_label, x=x, y=y)
                     node_id += 1
 
         for center_node, center_data in graph.nodes(data=True):
@@ -98,6 +112,9 @@ class TestVectorToGraph:
                         break
         nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
 
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, vector_for_project_area, "project_area", overwrite=True
+        )
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
         )
