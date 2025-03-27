@@ -75,9 +75,9 @@ class TestVectorToGraph:
                     graph.add_node(node_id, suitability_value=suitability_value, x=x, y=y)
                     node_id += 1
 
-        for node, data in graph.nodes(data=True):
-            x, y = data["x"], data["y"]
-            neighbors = [
+        for center_node, center_data in graph.nodes(data=True):
+            x, y = center_data["x"], center_data["y"]
+            neighbour_coordinates = [
                 (x, y + hexagon_height),  # Connect center to vertical neighbours
                 (
                     x + hexagon_width * 0.75,
@@ -88,12 +88,13 @@ class TestVectorToGraph:
 
             # Given the neighbour coordinates, iterate over all nodes in the graph to find the nodes that are close to
             # the calculated coordinates. These nodes are considered as neighbours.
-            for neighbor_x, neighbor_y in neighbors:
-                for neighbor, neighbor_data in graph.nodes(data=True):
-                    if math.isclose(neighbor_data["x"], neighbor_x, abs_tol=1e-2) and math.isclose(
-                        neighbor_data["y"], neighbor_y, abs_tol=1e-2
+            for neighbour_x, neighbour_y in neighbour_coordinates:
+                for neighbour_node, neighbor_data in graph.nodes(data=True):
+                    if math.isclose(neighbor_data["x"], neighbour_x, abs_tol=1e-2) and math.isclose(
+                        neighbor_data["y"], neighbour_y, abs_tol=1e-2
                     ):
-                        graph.add_edge(node, neighbor)
+                        edge_weight = (center_data["suitability_value"] + neighbor_data["suitability_value"]) / 2
+                        graph.add_edge(center_node, neighbour_node, weight=edge_weight)
                         break
         nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
 
