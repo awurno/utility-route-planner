@@ -7,6 +7,7 @@ import osmnx as ox
 import shapely
 
 from settings import Config
+from util.timer import time_function
 from util.write import write_results_to_geopackage
 
 
@@ -33,6 +34,34 @@ class HexagonGraphBuilder:
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, potential_ms_route, "ms_route", overwrite=True
         )
 
+    def convert_coordinates_to_axial(self, x: float, y: float, size: float):
+        # Convert the x and y coordinate to axial coordinates
+        q = (2 / 3 * x) / size
+        r = (-1 / 3 * x + math.sqrt(3) / 3 * y) / size
+
+        # Convert to cube coordinates
+        x = q
+        y = r
+        z = -x - y
+
+        # Round to nearest integer
+        rx, ry, rz = round(x), round(y), round(z)
+
+        # Find the largest rounding error
+        x_diff = abs(rx - x)
+        y_diff = abs(ry - y)
+        z_diff = abs(rz - z)
+
+        # Adjust the coordinate with the largest error to maintain x + y + z = 0
+        if x_diff > y_diff and x_diff > z_diff:
+            rx = -ry - rz
+        elif y_diff > z_diff:
+            ry = -rx - rz
+
+        # Axial coordinates are (q = x, r = y)
+        return (rx, ry)
+
+    @time_function
     def build_graph(self) -> nx.MultiGraph:
         # Create a grid of all points within the geometry boundaries
         x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
@@ -54,6 +83,7 @@ class HexagonGraphBuilder:
         # do not intersect instead of checking for every point
         node_id = 0
         graph = nx.MultiGraph(crs=Config.CRS)
+        axial_nodes = {}
         for x in x_coordinates:
             for y in y_coordinates:
                 # Every odd column must be offset by half of the hexagon height to properly determine the vertical
@@ -70,36 +100,64 @@ class HexagonGraphBuilder:
                         intersected_geometries, ["suitability_value", "function"]
                     ]
 
+                    # Convert positions to axial coordinates for determining neighbours later on
+                    axial_q, axial_r = self.convert_coordinates_to_axial(x, y, hexagon_size)
+                    axial_nodes[(axial_q, axial_r)] = node_id
+
                     # For now, simply sum suitability values of all intersection points and add it to the graph node
                     suitability_value = instersected_values["suitability_value"].sum()
                     function_label = instersected_values["function"].str.cat(sep=",")
-                    graph.add_node(node_id, suitability_value=suitability_value, function=function_label, x=x, y=y)
+                    graph.add_node(
+                        node_id,
+                        suitability_value=suitability_value,
+                        function=function_label,
+                        x=x,
+                        y=y,
+                        axial_q=axial_q,
+                        axial_r=axial_r,
+                    )
                     node_id += 1
 
-        for center_node, center_data in graph.nodes(data=True):
-            x, y = center_data["x"], center_data["y"]
-            neighbour_coordinates = [
-                (x, y + hexagon_height),  # Connect center to vertical neighbours
-                (
-                    # Connect center to top- and bottom-right neighbours
-                    x + hexagon_width * 0.75,
-                    y + hexagon_height / 2,
-                ),
-                (x - hexagon_width * 0.75, y + hexagon_height / 2),  # Connect center to top- and bottom-left neighbours
-            ]
+        for q, r in axial_nodes:
+            top = (q, r - 1)
+            top_left = (q - 1, r)
+            top_right = (q + 1, r - 1)
+            bottom_left = (q - 1, r + 1)
+            bottom_right = (q + 1, r)
+            bottom = (q, r + 1)
 
-            # Given the neighbour coordinates, iterate over all nodes in the graph to find the nodes that are close to
-            # the calculated coordinates. These nodes are considered as neighbours.
-            # TODO: this part is very slow and must be optimized. Maybe we can use axial coordinates instead of
-            #  determining neighbours spatially?
-            for neighbour_x, neighbour_y in neighbour_coordinates:
-                for neighbour_node, neighbor_data in graph.nodes(data=True):
-                    if math.isclose(neighbor_data["x"], neighbour_x, abs_tol=1e-2) and math.isclose(
-                        neighbor_data["y"], neighbour_y, abs_tol=1e-2
-                    ):
-                        edge_weight = (center_data["suitability_value"] + neighbor_data["suitability_value"]) / 2
-                        graph.add_edge(center_node, neighbour_node, weight=edge_weight)
-                        break
+            for dq, dr in [top, top_left, top_right, bottom_left, bottom_right, bottom]:
+                if (dq, dr) in axial_nodes:
+                    source_node = axial_nodes[(q, r)]
+                    neighbour_node = axial_nodes[(dq, dr)]
+                    graph.add_edge(source_node, neighbour_node)
+
+        #     pass
+        #
+        # for center_node, center_data in graph.nodes(data=True):
+        #     x, y = center_data["x"], center_data["y"]
+        #     neighbour_coordinates = [
+        #         (x, y + hexagon_height),  # Connect center to vertical neighbours
+        #         (
+        #             # Connect center to top- and bottom-right neighbours
+        #             x + hexagon_width * 0.75,
+        #             y + hexagon_height / 2,
+        #         ),
+        #         (x - hexagon_width * 0.75, y + hexagon_height / 2),  # Connect center to top- and bottom-left neighbours
+        #     ]
+        #
+        #     # Given the neighbour coordinates, iterate over all nodes in the graph to find the nodes that are close to
+        #     # the calculated coordinates. These nodes are considered as neighbours.
+        #     # TODO: this part is very slow and must be optimized. Maybe we can use axial coordinates instead of
+        #     #  determining neighbours spatially?
+        #     for neighbour_x, neighbour_y in neighbour_coordinates:
+        #         for neighbour_node, neighbor_data in graph.nodes(data=True):
+        #             if math.isclose(neighbor_data["x"], neighbour_x, abs_tol=1e-2) and math.isclose(
+        #                 neighbor_data["y"], neighbour_y, abs_tol=1e-2
+        #             ):
+        #                 edge_weight = (center_data["suitability_value"] + neighbor_data["suitability_value"]) / 2
+        #                 graph.add_edge(center_node, neighbour_node, weight=edge_weight)
+        #                 break
 
         return graph, node_id
 
