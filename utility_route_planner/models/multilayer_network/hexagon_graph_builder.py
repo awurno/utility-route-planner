@@ -77,27 +77,46 @@ class HexagonGraphBuilder:
         x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
         y_coordinates = np.arange(y_min, y_max, hexagon_height)
 
+        # Create a grid given the computed x and y coordinates boundaries
         x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
+
+        # Every odd column must be offset by half of the hexagon height to properly determine the vertical
+        # position of the hexagon.
         y_matrix[:, ::2] += hexagon_height / 2
 
+        # Combine both matrices to construct shapely Points. Check for every point whether it is within at least one
+        # project area vector
         matrix_points = [shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())]
-
-        mask_outside_polygon = np.array(
+        mask_outside_project_area = np.array(
             [self.vectors_for_project_area.geometry.contains(point).any() for point in matrix_points]
         )
-        mask_outside_polygon = mask_outside_polygon.reshape(x_matrix.shape)
 
-        x_matrix_masked = np.ma.masked_array(x_matrix, mask=~mask_outside_polygon)
-        y_matrix_masked = np.ma.masked_array(y_matrix, mask=~mask_outside_polygon)
-
+        # Use masked array to filter out all points outside the project area
+        mask_outside_project_area = mask_outside_project_area.reshape(x_matrix.shape)
+        x_matrix_masked = np.ma.masked_array(x_matrix, mask=~mask_outside_project_area)
+        y_matrix_masked = np.ma.masked_array(y_matrix, mask=~mask_outside_project_area)
         points_within_polygon = [
             shapely.Point(x, y) for x, y in zip(x_matrix_masked.compressed(), y_matrix_masked.compressed())
         ]
+
         points_gdf = gpd.GeoDataFrame(geometry=points_within_polygon, crs=Config.CRS)
         points_gdf = points_gdf.reset_index(names="node_id")
-        joined_gdf = points_gdf.sjoin_nearest(self.vectors_for_project_area[["suitability_value", "geometry"]])
+
+        # Get suitability value for reach point. Aggregate, as a point can intersect with multiple vectors. For now
+        # suitability values are simply summed. First geometry is always used, as it is always the same for an equal
+        # node id
+        suitability_value_gdf = points_gdf.sjoin_nearest(
+            self.vectors_for_project_area[["suitability_value", "geometry"]]
+        )
+        aggregated_suitability_values = gpd.GeoDataFrame(
+            suitability_value_gdf.groupby("node_id")
+            .agg({"suitability_value": "sum", "geometry": "first"})
+            .reset_index(),
+            crs=Config.CRS,
+        )
+
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, joined_gdf, "points_series", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, aggregated_suitability_values, "points_series", overwrite=True
         )
 
         # For each coordinate, check if within the geometry. If this is the case, add node to the graph
