@@ -15,6 +15,25 @@ class HexagonGraphBuilder:
         self.vectors_for_project_area = vectors_for_project_area
 
     def build(self):
+        graph, max_node = self.build_graph()
+        potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
+
+        # Write debug for QGIS
+        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, self.vectors_for_project_area, "project_area", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, potential_ms_route, "ms_route", overwrite=True
+        )
+
+    def build_graph(self) -> nx.MultiGraph:
         # Create a grid of all points within the geometry boundaries
         x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
 
@@ -82,25 +101,15 @@ class HexagonGraphBuilder:
                         graph.add_edge(center_node, neighbour_node, weight=edge_weight)
                         break
 
+        return graph, node_id
+
+    def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
         # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
         # final node id as target. Edges with a lower weight are more favourable.
-        shortest_path = nx.shortest_path(graph, source=0, target=node_id - 1, weight="weight")
+        shortest_path = nx.shortest_path(graph, source=source_node, target=target_node, weight="weight")
         shortest_path_points = [
             shapely.Point(graph.nodes[node_id]["x"], graph.nodes[node_id]["y"]) for node_id in shortest_path
         ]
         shortest_path_line_string = shapely.LineString(shortest_path_points)
 
-        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
-
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, self.vectors_for_project_area, "project_area", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, shortest_path_line_string, "ms_route", overwrite=True
-        )
+        return shortest_path_line_string
