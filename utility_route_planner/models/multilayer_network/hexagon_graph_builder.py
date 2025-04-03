@@ -3,7 +3,6 @@ import math
 import geopandas as gpd
 import networkx as nx
 import numpy as np
-import osmnx as ox
 import shapely
 
 from settings import Config
@@ -16,23 +15,23 @@ class HexagonGraphBuilder:
         self.vectors_for_project_area = vectors_for_project_area
 
     def build(self):
-        graph, max_node = self.build_graph()
-        potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
+        self.build_graph()
+        # potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
 
         # Write debug for QGIS
-        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, self.vectors_for_project_area, "project_area", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, potential_ms_route, "ms_route", overwrite=True
-        )
+        # nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, self.vectors_for_project_area, "project_area", overwrite=True
+        # )
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
+        # )
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
+        # )
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, potential_ms_route, "ms_route", overwrite=True
+        # )
 
     def convert_coordinates_to_axial(self, x: float, y: float, size: float):
         # Convert the x and y coordinate to axial coordinates
@@ -68,7 +67,7 @@ class HexagonGraphBuilder:
 
         # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
         # TODO: should we divide the hexagon width / 2 as each hexagon size is now 2 * cell size?
-        hexagon_size = 1
+        hexagon_size = 0.5
 
         hexagon_width = 2 * hexagon_size
         hexagon_height = math.sqrt(3) * hexagon_size
@@ -78,59 +77,89 @@ class HexagonGraphBuilder:
         x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
         y_coordinates = np.arange(y_min, y_max, hexagon_height)
 
+        x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
+        y_matrix[:, ::2] += hexagon_height / 2
+
+        matrix_points = [shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())]
+
+        mask_outside_polygon = np.array(
+            [self.vectors_for_project_area.geometry.contains(point).any() for point in matrix_points]
+        )
+        mask_outside_polygon = mask_outside_polygon.reshape(x_matrix.shape)
+
+        x_matrix_masked = np.ma.masked_array(x_matrix, mask=~mask_outside_polygon)
+        y_matrix_masked = np.ma.masked_array(y_matrix, mask=~mask_outside_polygon)
+
+        points_within_polygon = [
+            shapely.Point(x, y) for x, y in zip(x_matrix_masked.compressed(), y_matrix_masked.compressed())
+        ]
+        points_gdf = gpd.GeoDataFrame(geometry=points_within_polygon, crs=Config.CRS)
+        points_gdf = points_gdf.reset_index(names="node_id")
+        joined_gdf = points_gdf.sjoin_nearest(self.vectors_for_project_area[["suitability_value", "geometry"]])
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, joined_gdf, "points_series", overwrite=True
+        )
+
         # For each coordinate, check if within the geometry. If this is the case, add node to the graph
         # TODO: maybe it's faster to create the grid at once based on the bounding box and then remove all points that
         # do not intersect instead of checking for every point
-        node_id = 0
-        graph = nx.MultiGraph(crs=Config.CRS)
-        axial_nodes = {}
-        for x in x_coordinates:
-            for y in y_coordinates:
-                # Every odd column must be offset by half of the hexagon height to properly determine the vertical
-                # position of the hexagon. A column is odd when the distance between the x coordinate and the min_x
-                # can be divided by hexagon_width * 0.75
-                if ((x - x_min) / (hexagon_width * 0.75)) % 2:
-                    y += hexagon_height / 2
+        # node_id = 0
+        # graph = nx.MultiGraph(crs=Config.CRS)
+        # axial_nodes = {}
+        # for x in x_coordinates:
+        #     for y in y_coordinates:
+        #         # Every odd column must be offset by half of the hexagon height to properly determine the vertical
+        #         # position of the hexagon. A column is odd when the distance between the x coordinate and the min_x
+        #         # can be divided by hexagon_width * 0.75
+        #         if ((x - x_min) / (hexagon_width * 0.75)) % 2:
+        #             y += hexagon_height / 2
+        # #
+        #         # Check whether the coordinate intersects with at least one geometry vector. If this is the case, add
+        #         # a node to the graph for these coordinates
+        #         intersected_geometries = self.vectors_for_project_area.geometry.contains(shapely.Point(x, y))
+        #         if any(intersected_geometries):
+        #             instersected_values = self.vectors_for_project_area.loc[
+        #                 intersected_geometries, ["suitability_value", "function"]
+        #             ]
+        #
+        #             # Convert positions to axial coordinates for determining neighbours later on
+        #             # axial_q, axial_r = self.convert_coordinates_to_axial(x, y, hexagon_size)
+        #             # axial_nodes[(axial_q, axial_r)] = node_id
+        #
+        #             # For now, simply sum suitability values of all intersection points and add it to the graph node
+        #             # suitability_value = instersected_values["suitability_value"].sum()
+        #             # function_label = instersected_values["function"].str.cat(sep=",")
+        #             graph.add_node(
+        #                 node_id,
+        #                 # suitability_value=suitability_value,
+        #                 # function=function_label,
+        #                 x=x,
+        #                 y=y,
+        #                 # axial_q=axial_q,
+        #                 # axial_r=axial_r,
+        #             )
+        #             node_id += 1
 
-                # Check whether the coordinate intersects with at least one geometry vector. If this is the case, add
-                # a node to the graph for these coordinates
-                intersected_geometries = self.vectors_for_project_area.geometry.contains(shapely.Point(x, y))
-                if any(intersected_geometries):
-                    instersected_values = self.vectors_for_project_area.loc[
-                        intersected_geometries, ["suitability_value", "function"]
-                    ]
+        # edges = set()
+        # for (q, r), source_node in axial_nodes.items():
+        #     top = (q, r - 1)
+        #     top_left = (q - 1, r)
+        #     top_right = (q + 1, r - 1)
+        #     bottom_left = (q - 1, r + 1)
+        #     bottom_right = (q + 1, r)
+        #     bottom = (q, r + 1)
 
-                    # Convert positions to axial coordinates for determining neighbours later on
-                    axial_q, axial_r = self.convert_coordinates_to_axial(x, y, hexagon_size)
-                    axial_nodes[(axial_q, axial_r)] = node_id
+        # neighbour_positions = [top, top_left, top_right, bottom_left, bottom_right, bottom]
+        # neighbour_edges = {(source_node, axial_nodes[n_q, n_r]) for (n_q, n_r) in neighbour_positions if (n_q, n_r) in axial_nodes}
+        #     edges = edges.union(neighbour_edges)
+        #
+        # graph.add_edges_from(edges)
 
-                    # For now, simply sum suitability values of all intersection points and add it to the graph node
-                    suitability_value = instersected_values["suitability_value"].sum()
-                    function_label = instersected_values["function"].str.cat(sep=",")
-                    graph.add_node(
-                        node_id,
-                        suitability_value=suitability_value,
-                        function=function_label,
-                        x=x,
-                        y=y,
-                        axial_q=axial_q,
-                        axial_r=axial_r,
-                    )
-                    node_id += 1
-
-        for q, r in axial_nodes:
-            top = (q, r - 1)
-            top_left = (q - 1, r)
-            top_right = (q + 1, r - 1)
-            bottom_left = (q - 1, r + 1)
-            bottom_right = (q + 1, r)
-            bottom = (q, r + 1)
-
-            for dq, dr in [top, top_left, top_right, bottom_left, bottom_right, bottom]:
-                if (dq, dr) in axial_nodes:
-                    source_node = axial_nodes[(q, r)]
-                    neighbour_node = axial_nodes[(dq, dr)]
-                    graph.add_edge(source_node, neighbour_node)
+        # for dq, dr in [top, top_left, top_right, bottom_left, bottom_right, bottom]:
+        #     if (dq, dr) in axial_nodes:
+        #         source_node = axial_nodes[(q, r)]
+        #         neighbour_node = axial_nodes[(dq, dr)]
+        #         graph.add_edge(source_node, neighbour_node)
 
         #     pass
         #
@@ -159,7 +188,7 @@ class HexagonGraphBuilder:
         #                 graph.add_edge(center_node, neighbour_node, weight=edge_weight)
         #                 break
 
-        return graph, node_id
+        # return graph, node_id
 
     def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
         # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
