@@ -105,21 +105,25 @@ class HexagonGraphBuilder:
             self.vectors_for_project_area[["suitability_value", "geometry"]],
             predicate="within",
             how="inner",
-        )
-
-        # Sum suitability values in case multiple vectors overlap
-        aggregated_suitability_values = gpd.GeoDataFrame(
-            points_within_project_area.groupby("node_id")
-            .agg({"suitability_value": "sum", "geometry": "first"})
-            .reset_index(),
-            crs=Config.CRS,
-        )
+        ).set_index("node_id")
 
         checkpoint_3 = time.time()
         logger.info(f"Check contain within project area took: {checkpoint_3 - checkpoint_2}")
 
+        # Sum suitability values in case multiple vectors overlap
+        aggregated_suitability_values = points_within_project_area.groupby("node_id").agg({"suitability_value": "sum"})
+
+        # Join location afterwards, as this is faster than picking the first one within the aggregation step
+        points_gdf = gpd.GeoDataFrame(
+            aggregated_suitability_values.join(points_within_project_area, how="left", lsuffix="l", rsuffix="r"),
+            geometry="geometry",
+        )
+
+        checkpoint_4 = time.time()
+        logger.info(f"Aggregation took: {checkpoint_4 - checkpoint_3}")
+
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, aggregated_suitability_values, "points_series", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_gdf, "points_series", overwrite=True
         )
 
         # For each coordinate, check if within the geometry. If this is the case, add node to the graph
