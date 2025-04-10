@@ -20,8 +20,9 @@ def run_mcda_lcpa(
     path_geopackage_mcda_input: pathlib.Path,
     project_area_geometry: shapely.Polygon,
     start_mid_end_points: tuple,
-    human_designed_route: shapely.LineString = shapely.LineString(),
-    raster_name_prefix: str = "",
+    human_designed_route: shapely.LineString,
+    raster_name_prefix: str,
+    compute_rasters_in_parallel: bool,
 ):
     reset_geopackage(Config.PATH_GEOPACKAGE_MCDA_OUTPUT, truncate=False)
 
@@ -29,7 +30,12 @@ def run_mcda_lcpa(
 
     mcda_engine = McdaCostSurfaceEngine(preset, path_geopackage_mcda_input, project_area_geometry, raster_name_prefix)
     mcda_engine.preprocess_vectors()
-    path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+    path_suitability_raster = mcda_engine.preprocess_rasters(
+        mcda_engine.processed_vectors,
+        cell_size=Config.RASTER_CELL_SIZE,
+        max_block_size=Config.MAX_BLOCK_SIZE,
+        run_in_parallel=compute_rasters_in_parallel,
+    )
 
     lcpa_engine = LcpaUtilityRouteEngine()
     lcpa_engine.get_lcpa_route(
@@ -101,4 +107,5 @@ if __name__ == "__main__":
             route_stops,
             human_designed_route,
             raster_name_prefix,
+            compute_rasters_in_parallel=True,
         )

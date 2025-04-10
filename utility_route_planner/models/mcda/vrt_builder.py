@@ -13,8 +13,8 @@ from rasterio.enums import ColorInterp
 class VRTBuilder:
     def __init__(
         self,
-        block_files: list[str],
-        block_bboxes: list[float],
+        block_files: tuple[str],
+        block_bboxes: tuple[float],
         crs: CRS,
         resolution,
         vrt_path: Path,
@@ -27,7 +27,7 @@ class VRTBuilder:
         self.min_x, self.min_y, self.max_x, self.max_y = self.get_raster_extends(block_bboxes)
 
     @staticmethod
-    def get_raster_extends(block_bboxes: list[float]) -> tuple[float, float, float, float]:
+    def get_raster_extends(block_bboxes: tuple[float]) -> tuple[float, float, float, float]:
         block_bboxes_matrix = np.array(block_bboxes)
         min_x = block_bboxes_matrix[:, 0].min()
         min_y = block_bboxes_matrix[:, 1].min()
