@@ -1,13 +1,17 @@
 import math
+import time
 
 import geopandas as gpd
 import networkx as nx
 import numpy as np
 import shapely
+import structlog
 
 from settings import Config
 from util.timer import time_function
 from util.write import write_results_to_geopackage
+
+logger = structlog.get_logger(__name__)
 
 
 class HexagonGraphBuilder:
@@ -77,6 +81,7 @@ class HexagonGraphBuilder:
         x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
         y_coordinates = np.arange(y_min, y_max, hexagon_height)
 
+        checkpoint_1 = time.time()
         # Create a grid given the computed x and y coordinates boundaries
         x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
 
@@ -86,34 +91,32 @@ class HexagonGraphBuilder:
 
         # Combine both matrices to construct shapely Points. Check for every point whether it is within at least one
         # project area vector
-        matrix_points = [shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())]
-        mask_outside_project_area = np.array(
-            [self.vectors_for_project_area.geometry.contains(point).any() for point in matrix_points]
+        matrix_points = gpd.GeoDataFrame(
+            geometry=[shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())], crs=Config.CRS
+        )
+        matrix_points = matrix_points.reset_index(names="node_id")
+
+        checkpoint_2 = time.time()
+        logger.info(f"Points creation took: {checkpoint_2 - checkpoint_1}")
+
+        # For each point in the generated matrix, check whether it is within the project area using spatial join.
+        points_within_project_area = gpd.sjoin(
+            matrix_points,
+            self.vectors_for_project_area[["suitability_value", "geometry"]],
+            predicate="within",
+            how="inner",
         )
 
-        # Use masked array to filter out all points outside the project area
-        mask_outside_project_area = mask_outside_project_area.reshape(x_matrix.shape)
-        x_matrix_masked = np.ma.masked_array(x_matrix, mask=~mask_outside_project_area)
-        y_matrix_masked = np.ma.masked_array(y_matrix, mask=~mask_outside_project_area)
-        points_within_polygon = [
-            shapely.Point(x, y) for x, y in zip(x_matrix_masked.compressed(), y_matrix_masked.compressed())
-        ]
-
-        points_gdf = gpd.GeoDataFrame(geometry=points_within_polygon, crs=Config.CRS)
-        points_gdf = points_gdf.reset_index(names="node_id")
-
-        # Get suitability value for reach point. Aggregate, as a point can intersect with multiple vectors. For now
-        # suitability values are simply summed. First geometry is always used, as it is always the same for an equal
-        # node id
-        suitability_value_gdf = points_gdf.sjoin_nearest(
-            self.vectors_for_project_area[["suitability_value", "geometry"]]
-        )
+        # Sum suitability values in case multiple vectors overlap
         aggregated_suitability_values = gpd.GeoDataFrame(
-            suitability_value_gdf.groupby("node_id")
+            points_within_project_area.groupby("node_id")
             .agg({"suitability_value": "sum", "geometry": "first"})
             .reset_index(),
             crs=Config.CRS,
         )
+
+        checkpoint_3 = time.time()
+        logger.info(f"Check contain within project area took: {checkpoint_3 - checkpoint_2}")
 
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, aggregated_suitability_values, "points_series", overwrite=True
