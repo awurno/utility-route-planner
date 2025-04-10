@@ -1,9 +1,13 @@
 # utility-route-planner
-The utility network needs to be expanded due to the energy transition. Finding a location for new infrastructure is no easy feat considering the amount of involved design criteria. This research includes the creation of a software package for automatic placement of utility network using a combination of geo-information and graph theory.
+The utility network needs to be expanded due to the energy transition. Finding a location for new infrastructure is no
+easy feat considering the amount of involved design criteria. This research includes the creation of a software package
+for automatic placement of utility network using a combination of geo-information and graph theory.
 
 # Installation
 To install the utility-route-designer package, run:
-```poetry install```
+```bash
+poetry install
+```
 
 # Usage
 Development is done in Pycharm.
