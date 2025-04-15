@@ -34,6 +34,14 @@ class TestVectorToGraph:
         )
 
     @pytest.fixture()
+    def ede_project_area(self):
+        return (
+            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+            .iloc[0]
+            .geometry
+        )
+
+    @pytest.fixture()
     def vectors_for_project_areas(self, larger_project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,

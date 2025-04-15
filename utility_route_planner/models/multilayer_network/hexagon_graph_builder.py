@@ -115,7 +115,9 @@ class HexagonGraphBuilder:
 
         # Join location afterwards, as this is faster than picking the first one within the aggregation step
         points_gdf = gpd.GeoDataFrame(
-            aggregated_suitability_values.join(points_within_project_area, how="left", lsuffix="l", rsuffix="r"),
+            aggregated_suitability_values.join(
+                points_within_project_area["geometry"], how="left", lsuffix="l", rsuffix="r"
+            ),
             geometry="geometry",
         )
 
