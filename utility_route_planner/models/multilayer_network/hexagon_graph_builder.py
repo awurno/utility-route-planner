@@ -37,32 +37,30 @@ class HexagonGraphBuilder:
         #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, potential_ms_route, "ms_route", overwrite=True
         # )
 
-    def convert_coordinates_to_axial(self, x: float, y: float, size: float):
+    def convert_coordinates_to_axial(self, x, y, size: float):
         # Convert the x and y coordinate to axial coordinates
         q = (2 / 3 * x) / size
-        r = (-1 / 3 * x + math.sqrt(3) / 3 * y) / size
+        r = (-1 / 3 * x + np.sqrt(3) / 3 * y) / size
 
         # Convert to cube coordinates
-        x = q
-        y = r
         z = -x - y
 
         # Round to nearest integer
-        rx, ry, rz = round(x), round(y), round(z)
+        rq, rr, rz = np.round(q), np.round(r), np.round(z)
 
         # Find the largest rounding error
-        x_diff = abs(rx - x)
-        y_diff = abs(ry - y)
-        z_diff = abs(rz - z)
+        q_diff = np.abs(rq - q)
+        r_diff = np.abs(rr - r)
+        z_diff = np.abs(rz - z)
 
         # Adjust the coordinate with the largest error to maintain x + y + z = 0
-        if x_diff > y_diff and x_diff > z_diff:
-            rx = -ry - rz
-        elif y_diff > z_diff:
-            ry = -rx - rz
+        mask_q = (q_diff > r_diff) & (q_diff > z_diff)
+        mask_r = (r_diff > z_diff) & ~mask_q
 
-        # Axial coordinates are (q = x, r = y)
-        return (rx, ry)
+        rq[mask_q] = -rr[mask_q] - rz[mask_q]
+        rr[mask_r] = -rq[mask_r] - rz[mask_r]
+
+        return rq, rr
 
     @time_function
     def build_graph(self) -> nx.MultiGraph:
@@ -114,7 +112,7 @@ class HexagonGraphBuilder:
         aggregated_suitability_values = points_within_project_area.groupby("node_id").agg({"suitability_value": "sum"})
 
         # Join location afterwards, as this is faster than picking the first one within the aggregation step
-        points_gdf = gpd.GeoDataFrame(
+        hexagon_points = gpd.GeoDataFrame(
             aggregated_suitability_values.join(
                 points_within_project_area["geometry"], how="left", lsuffix="l", rsuffix="r"
             ),
@@ -124,49 +122,14 @@ class HexagonGraphBuilder:
         checkpoint_4 = time.time()
         logger.info(f"Aggregation took: {checkpoint_4 - checkpoint_3}")
 
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_gdf, "points_series", overwrite=True
+        x, y = np.split(hexagon_points.get_coordinates().values, 2, axis=1)
+        hexagon_points["axial_q"], hexagon_points["axial_r"] = self.convert_coordinates_to_axial(
+            x.flatten(), y.flatten(), size=hexagon_size
         )
 
-        # For each coordinate, check if within the geometry. If this is the case, add node to the graph
-        # TODO: maybe it's faster to create the grid at once based on the bounding box and then remove all points that
-        # do not intersect instead of checking for every point
-        # node_id = 0
-        # graph = nx.MultiGraph(crs=Config.CRS)
-        # axial_nodes = {}
-        # for x in x_coordinates:
-        #     for y in y_coordinates:
-        #         # Every odd column must be offset by half of the hexagon height to properly determine the vertical
-        #         # position of the hexagon. A column is odd when the distance between the x coordinate and the min_x
-        #         # can be divided by hexagon_width * 0.75
-        #         if ((x - x_min) / (hexagon_width * 0.75)) % 2:
-        #             y += hexagon_height / 2
-        # #
-        #         # Check whether the coordinate intersects with at least one geometry vector. If this is the case, add
-        #         # a node to the graph for these coordinates
-        #         intersected_geometries = self.vectors_for_project_area.geometry.contains(shapely.Point(x, y))
-        #         if any(intersected_geometries):
-        #             instersected_values = self.vectors_for_project_area.loc[
-        #                 intersected_geometries, ["suitability_value", "function"]
-        #             ]
-        #
-        #             # Convert positions to axial coordinates for determining neighbours later on
-        #             # axial_q, axial_r = self.convert_coordinates_to_axial(x, y, hexagon_size)
-        #             # axial_nodes[(axial_q, axial_r)] = node_id
-        #
-        #             # For now, simply sum suitability values of all intersection points and add it to the graph node
-        #             # suitability_value = instersected_values["suitability_value"].sum()
-        #             # function_label = instersected_values["function"].str.cat(sep=",")
-        #             graph.add_node(
-        #                 node_id,
-        #                 # suitability_value=suitability_value,
-        #                 # function=function_label,
-        #                 x=x,
-        #                 y=y,
-        #                 # axial_q=axial_q,
-        #                 # axial_r=axial_r,
-        #             )
-        #             node_id += 1
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, hexagon_points, "points_series", overwrite=True
+        )
 
         # edges = set()
         # for (q, r), source_node in axial_nodes.items():
