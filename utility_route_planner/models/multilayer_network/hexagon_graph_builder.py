@@ -17,6 +17,7 @@ logger = structlog.get_logger(__name__)
 class HexagonGraphBuilder:
     def __init__(self, vectors_for_project_area: gpd.GeoDataFrame):
         self.vectors_for_project_area = vectors_for_project_area
+        self.hexagon_size = 0.5  # TODO pass as param
 
     def build(self):
         self.build_graph()
@@ -64,68 +65,10 @@ class HexagonGraphBuilder:
 
     @time_function
     def build_graph(self) -> nx.MultiGraph:
-        # Create a grid of all points within the geometry boundaries
-        x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
-
         # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
-        # TODO: should we divide the hexagon width / 2 as each hexagon size is now 2 * cell size?
-        hexagon_size = 0.5
-
-        hexagon_width = 2 * hexagon_size
-        hexagon_height = math.sqrt(3) * hexagon_size
-
-        # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
-        # by the surrounding tiles
-        x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
-        y_coordinates = np.arange(y_min, y_max, hexagon_height)
-
-        checkpoint_1 = time.time()
-        # Create a grid given the computed x and y coordinates boundaries
-        x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
-
-        # Every odd column must be offset by half of the hexagon height to properly determine the vertical
-        # position of the hexagon.
-        y_matrix[:, ::2] += hexagon_height / 2
-
-        # Combine both matrices to construct shapely Points. Check for every point whether it is within at least one
-        # project area vector
-        matrix_points = gpd.GeoDataFrame(
-            geometry=[shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())], crs=Config.CRS
-        )
-        matrix_points = matrix_points.reset_index(names="node_id")
-
-        checkpoint_2 = time.time()
-        logger.info(f"Points creation took: {checkpoint_2 - checkpoint_1}")
-
-        # For each point in the generated matrix, check whether it is within the project area using spatial join.
-        points_within_project_area = gpd.sjoin(
-            matrix_points,
-            self.vectors_for_project_area[["suitability_value", "geometry"]],
-            predicate="within",
-            how="inner",
-        ).set_index("node_id")
-
-        checkpoint_3 = time.time()
-        logger.info(f"Check contain within project area took: {checkpoint_3 - checkpoint_2}")
-
-        # Sum suitability values in case multiple vectors overlap
-        aggregated_suitability_values = points_within_project_area.groupby("node_id").agg({"suitability_value": "sum"})
-
-        # Join location afterwards, as this is faster than picking the first one within the aggregation step
-        hexagon_points = gpd.GeoDataFrame(
-            aggregated_suitability_values.join(
-                points_within_project_area["geometry"], how="left", lsuffix="l", rsuffix="r"
-            ),
-            geometry="geometry",
-        )
-
-        checkpoint_4 = time.time()
-        logger.info(f"Aggregation took: {checkpoint_4 - checkpoint_3}")
-
-        x, y = np.split(hexagon_points.get_coordinates().values, 2, axis=1)
-        hexagon_points["axial_q"], hexagon_points["axial_r"] = self.convert_coordinates_to_axial(
-            x.flatten(), y.flatten(), size=hexagon_size
-        )
+        hexagon_width = 2 * self.hexagon_size
+        hexagon_height = math.sqrt(3) * self.hexagon_size
+        hexagon_points = self.determine_hexagon_center_points(hexagon_width, hexagon_height)
 
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, hexagon_points, "points_series", overwrite=True
@@ -180,6 +123,60 @@ class HexagonGraphBuilder:
         #                 break
 
         # return graph, node_id
+
+    def determine_hexagon_center_points(self, hexagon_width: float, hexagon_height: float) -> gpd.GeoDataFrame:
+        bounding_box_grid = self.get_grid_for_bounding_box(hexagon_width, hexagon_height)
+
+        # For each point in the generated matrix, check whether it is within the project area using spatial join.
+        points_within_project_area = gpd.sjoin(
+            bounding_box_grid,
+            self.vectors_for_project_area[["suitability_value", "geometry"]],
+            predicate="within",
+            how="inner",
+        ).set_index("node_id")
+
+        # Sum suitability values in case multiple vectors overlap
+        aggregated_suitability_values = points_within_project_area.groupby("node_id").agg({"suitability_value": "sum"})
+
+        # Join location afterwards, as this is faster than picking the first one within the aggregation step
+        hexagon_points = gpd.GeoDataFrame(
+            aggregated_suitability_values.join(
+                points_within_project_area["geometry"], how="left", lsuffix="l", rsuffix="r"
+            ),
+            geometry="geometry",
+        )
+
+        x, y = np.split(hexagon_points.get_coordinates().values, 2, axis=1)
+        hexagon_points["axial_q"], hexagon_points["axial_r"] = self.convert_coordinates_to_axial(
+            x.flatten(), y.flatten(), size=self.hexagon_size
+        )
+        return hexagon_points
+
+    def get_grid_for_bounding_box(self, hexagon_width: float, hexagon_height: float) -> gpd.GeoDataFrame:
+        # Create a grid of all points within the geometry boundaries
+        x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
+
+        # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
+        # by the surrounding tiles
+        x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
+        y_coordinates = np.arange(y_min, y_max, hexagon_height)
+        x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
+
+        # Every odd column must be offset by half of the hexagon height to properly determine the vertical
+        # position of the hexagon.
+        y_matrix[:, ::2] += hexagon_height / 2
+
+        # Combine both matrices to construct shapely Points. Check for every point whether it is within at least one
+        # project area vector
+
+        start = time.time()
+
+        bounding_box_grid = gpd.GeoDataFrame(
+            geometry=[shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())], crs=Config.CRS
+        )
+        end = time.time()
+        logger.info(f"Generating shapely points took: {end - start:.2f} seconds")
+        return bounding_box_grid.reset_index(names="node_id")
 
     def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
         # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
