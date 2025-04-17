@@ -1,5 +1,4 @@
 import math
-import time
 
 import geopandas as gpd
 import networkx as nx
@@ -168,14 +167,9 @@ class HexagonGraphBuilder:
 
         # Combine both matrices to construct shapely Points. Check for every point whether it is within at least one
         # project area vector
-
-        start = time.time()
-
         bounding_box_grid = gpd.GeoDataFrame(
-            geometry=[shapely.Point(x, y) for x, y in zip(x_matrix.ravel(), y_matrix.ravel())], crs=Config.CRS
+            geometry=gpd.points_from_xy(x_matrix.ravel(), y_matrix.ravel()), crs=Config.CRS
         )
-        end = time.time()
-        logger.info(f"Generating shapely points took: {end - start:.2f} seconds")
         return bounding_box_grid.reset_index(names="node_id")
 
     def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
