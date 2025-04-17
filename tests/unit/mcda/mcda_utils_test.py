@@ -3,7 +3,7 @@ import math
 import numpy as np
 import shapely
 
-from models.mcda.mcda_utils import create_project_area_grid
+from utility_route_planner.models.mcda.mcda_utils import create_project_area_grid
 from settings import Config
 
 

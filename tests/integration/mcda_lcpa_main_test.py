@@ -28,7 +28,12 @@ class TestMcdaLcpaChain:
             .geometry,
         )
         mcda_engine.preprocess_vectors()
-        path_suitability_raster = mcda_engine.preprocess_rasters(mcda_engine.processed_vectors)
+        path_suitability_raster = mcda_engine.preprocess_rasters(
+            mcda_engine.processed_vectors,
+            cell_size=0.5,
+            max_block_size=2048,
+            run_in_parallel=False,
+        )
 
         lcpa_engine = LcpaUtilityRouteEngine()
         lcpa_engine.get_lcpa_route(
@@ -72,11 +77,17 @@ class TestMcdaLcpaChain:
 def test_mcda_lcpa_chain_all_benchmark_cases(
     path_geopackage, layer_name_project_area, layer_name_utility_route_human_designed
 ):
+    human_designed_route = (
+        gpd.read_file(path_geopackage, layer=layer_name_utility_route_human_designed).iloc[0].geometry
+    )
+    start_end_point = get_first_last_point_from_linestring(human_designed_route)
+
     run_mcda_lcpa(
         Config.RASTER_PRESET_NAME_BENCHMARK,
         path_geopackage,
         gpd.read_file(path_geopackage, layer=layer_name_project_area).geometry.iloc[0],
-        get_first_last_point_from_linestring(
-            gpd.read_file(path_geopackage, layer=layer_name_utility_route_human_designed).geometry.iloc[0]
-        ),
+        start_end_point,
+        human_designed_route,
+        raster_name_prefix="",
+        compute_rasters_in_parallel=False,
     )

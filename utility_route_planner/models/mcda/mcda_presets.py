@@ -2,7 +2,10 @@ from settings import Config
 import geopandas as gpd
 
 from utility_route_planner.models.mcda.vector_preprocessing.begroeidterreindeel import BegroeidTerreindeel
+from utility_route_planner.models.mcda.vector_preprocessing.existing_substations import ExistingSubstations
+from utility_route_planner.models.mcda.vector_preprocessing.wegdeel import Wegdeel
 from utility_route_planner.models.mcda.vector_preprocessing.excluded_area import ExcludedArea
+from utility_route_planner.models.mcda.vector_preprocessing.existing_utilities import ExistingUtilities
 from utility_route_planner.models.mcda.vector_preprocessing.kunstwerkdeel import Kunstwerkdeel
 from utility_route_planner.models.mcda.vector_preprocessing.onbegroeid_terreindeel import OnbegroeidTerreindeel
 from utility_route_planner.models.mcda.vector_preprocessing.ondersteunend_waterdeel import OndersteunendWaterdeel
@@ -15,7 +18,6 @@ from utility_route_planner.models.mcda.vector_preprocessing.small_above_ground_o
 )
 from utility_route_planner.models.mcda.vector_preprocessing.vegetation_object import VegetationObject
 from utility_route_planner.models.mcda.vector_preprocessing.waterdeel import Waterdeel
-from utility_route_planner.models.mcda.vector_preprocessing.wegdeel import Wegdeel
 
 preset_collection = {
     "preset_benchmark_raw": {
@@ -39,19 +41,19 @@ preset_collection = {
                 "group": "a",
                 "weight_values": {
                     # Column "class"
-                    "greppel, droge sloot": -13,
+                    "greppel, droge sloot": 13,
                     "waterloop": 126,
-                    "watervlakte": 124,
+                    "watervlakte": 126,
                     "zee": 126,
                     # Column "plus-type"
                     "rivier": 126,
-                    "sloot": 126,
+                    "sloot": 21,
                     "kanaal": 126,
                     "beek": 126,
                     "gracht": 126,
                     "bron": 126,
                     "haven": 126,
-                    "meer, plas, ven, vijver": 125,
+                    "meer, plas, ven, vijver": 21,
                 },
                 "geometry_values": {"zee": 20},
             },
@@ -64,27 +66,27 @@ preset_collection = {
                 "weight_values": {
                     # Column "bgt_functie"
                     "baan voor vliegverkeer": 126,
-                    "fietspad": 63,
-                    "inrit": 63,
-                    "OV-baan": 126,
-                    "overweg": 126,
-                    "parkeervlak": -13,
-                    "rijbaan autosnelweg": 126,
-                    "rijbaan autoweg": 126,
-                    "rijbaan lokale weg": 63,
-                    "rijbaan regionale weg": 126,
-                    "ruiterpad": 25,
+                    "fietspad": 4,
+                    "inrit": 5,
+                    "OV-baan": 5,
+                    "overweg": 120,
+                    "parkeervlak": 3,
+                    "rijbaan autosnelweg": 126,  # Motorway
+                    "rijbaan autoweg": 126,  # Motorway
+                    "rijbaan lokale weg": 6,
+                    "rijbaan regionale weg": 9,  # Provincial road
+                    "ruiterpad": 3,
                     "spoorbaan": 126,
-                    "voetgangersgebied": 1,
-                    "voetpad": 25,
-                    "voetpad op trap": 38,
-                    "woonerf": 25,
+                    "voetgangersgebied": 3,
+                    "voetpad": 3,
+                    "voetpad op trap": 3,
+                    "woonerf": 3,
                     # Column bgt_fysiekvoorkomen
-                    "gesloten verharding": 10,
-                    "half verhard": 5,
-                    "onverhard": 1,
-                    "open verharding": 2,
-                    "transitie": 1,
+                    "gesloten verharding": 33,
+                    "half verhard": 4,
+                    "onverhard": 3,
+                    "open verharding": 6,
+                    "transitie": 3,
                 },
             },
             "ondersteunend_wegdeel": {
@@ -95,14 +97,14 @@ preset_collection = {
                 "group": "a",
                 "weight_values": {
                     # bgt_functie
-                    "berm": -25,
+                    "berm": 2,
                     "verkeerseiland": 126,
                     # bgt_fysiekvoorkomen
-                    "gesloten verharding": 10,
-                    "groenvoorziening": 1,
-                    "half verhard": 5,
+                    "gesloten verharding": 33,
+                    "groenvoorziening": 3,
+                    "half verhard": 4,
                     "onverhard": 2,
-                    "open verharding": 1,
+                    "open verharding": 6,
                 },
             },
             "onbegroeid_terreindeel": {
@@ -114,11 +116,11 @@ preset_collection = {
                 "weight_values": {
                     # bgt_fysiekvoorkomen
                     "erf": 76,  # is now used as an approximation if ground is public or privately owned.
-                    "gesloten verharding": 10,
-                    "half verhard": 5,
+                    "gesloten verharding": 33,
+                    "half verhard": 4,
                     "onverhard": 2,
-                    "open verharding": 1,
-                    "zand": 1,
+                    "open verharding": 6,
+                    "zand": 2,
                 },
             },
             "begroeid_terreindeel": {
@@ -129,40 +131,40 @@ preset_collection = {
                 "group": "a",
                 "weight_values": {
                     # bgt_fysiekvoorkomen
-                    "boomteelt": 76,
-                    "bouwland": 76,
-                    "duin": 63,
-                    "fruitteelt": 73,
-                    "gemengd bos": 25,
-                    "grasland agrarisch": 76,
-                    "grasland overig": 76,
-                    "groenvoorziening": -13,
-                    "heide": 63,
-                    "houtwal": 13,
-                    "kwelder": 76,
-                    "loofbos": 25,
-                    "moeras": 38,
-                    "naaldbos": 25,
-                    "rietland": 76,
-                    "struiken": -13,
+                    "boomteelt": 76,  # implies private property
+                    "bouwland": 76,  # implies private property
+                    "duin": 67,
+                    "fruitteelt": 76,  # implies private property
+                    "gemengd bos": 67,
+                    "grasland agrarisch": 31,  # implies private property, but easy to cross and repair afterward.
+                    "grasland overig": 31,  # implies private property, but easy to cross and repair afterward.
+                    "groenvoorziening": 3,  # implies public property
+                    "heide": 67,
+                    "houtwal": 67,
+                    "kwelder": 67,
+                    "loofbos": 67,
+                    "moeras": 67,
+                    "naaldbos": 67,
+                    "rietland": 67,
+                    "struiken": 3,  # implies public property
                     # plus_fysiekvoorkomen
-                    "akkerbouw": 76,
-                    "bodembedekkers": -13,
-                    "bollenteelt": 76,
-                    "bosplantsoen": 25,
-                    "braakliggend": 76,
-                    "gesloten duinvegetatie": 63,
-                    "gras- en kruidachtigen": -13,
-                    "griend en hakhout": 25,
-                    "heesters": -13,
-                    "hoogstam boomgaarden": 76,
-                    "klein fruit": 76,
-                    "laagstam boomgaarden": 76,
-                    "open duinvegetatie": 63,
-                    "planten": -13,
-                    "struikrozen": -13,
-                    "vollegrondsteelt": 76,
-                    "wijngaarden": 76,
+                    "akkerbouw": 76,  # implies private property
+                    "bodembedekkers": 3,
+                    "bollenteelt": 76,  # implies private property
+                    "bosplantsoen": 10,  # implies public property within build-up area with (sparsely placed) trees
+                    "braakliggend": 76,  # implies private property
+                    "gesloten duinvegetatie": 10,
+                    "gras- en kruidachtigen": 3,
+                    "griend en hakhout": 67,
+                    "heesters": 3,
+                    "hoogstam boomgaarden": 76,  # implies private property
+                    "klein fruit": 76,  # implies private property
+                    "laagstam boomgaarden": 76,  # implies private property
+                    "open duinvegetatie": 10,
+                    "planten": 3,
+                    "struikrozen": 3,
+                    "vollegrondsteelt": 76,  # implies private property
+                    "wijngaarden": 76,  # implies private property, hard to "repair" if damaged.
                 },
             },
             "ondersteunend_waterdeel": {
@@ -173,8 +175,8 @@ preset_collection = {
                 "group": "a",
                 "weight_values": {
                     # bgt_type
-                    "oever, slootkant": 76,
-                    "slik": 76,
+                    "oever, slootkant": 13,
+                    "slik": 13,
                 },
             },
             "pand": {
@@ -183,7 +185,7 @@ preset_collection = {
                 "layer_names": ["bgt_pand_V"],
                 "preprocessing_function": Pand(),
                 "group": "a",
-                "weight_values": {"pand": 125},
+                "weight_values": {"pand": 126},
             },
             "overig_bouwwerk": {
                 # https://geonovum.github.io/IMGeo-objectenhandboek/overigbouwwerk
@@ -193,10 +195,10 @@ preset_collection = {
                 "group": "b",
                 "weight_values": {
                     # bgt_type
-                    "functie": 26,
+                    "functie": 1,
                     "bassin": 1,
                     "bezinkbak": 1,
-                    "lage trafo": 1,
+                    "lage trafo": 1,  # Includes Alliander substations, but not always. Is overwritten by existing_substation.
                     "niet-bgt": 1,  # Delete these records if they exist.
                     "open loods": 1,
                     "opslagtank": 1,
@@ -260,102 +262,102 @@ preset_collection = {
                 "group": "b",
                 "weight_values": {
                     # scheiding: bgt_type
-                    "damwand": 76,
+                    "damwand": 126,
                     "muur": 76,
-                    "kademuur": 76,
+                    "kademuur": 126,
                     "geluidsscherm": 76,
                     "hek": 13,
                     "niet-bgt": 1,  # Delete these records if they exist.
-                    "walbescherming": 76,
+                    "walbescherming": 126,
                     # bak: plus_type
-                    "afval apart plaats": 76,
-                    "afvalbak": 1,
-                    "bloembak": 1,
-                    "container": 26,
-                    "drinkbak": 1,
-                    "zand- / zoutbak": 1,
+                    "afval apart plaats": 76,  # These containers are underground.
+                    "afvalbak": 4,
+                    "bloembak": 4,
+                    "container": 4,
+                    "drinkbak": 4,
+                    "zand- / zoutbak": 4,
                     # bord: plus_type
-                    "dynamische snelheidsindicator": 1,
-                    "informatiebord": 1,
-                    "plaatsnaambord": 1,
-                    "reclamebord": 1,
-                    "scheepvaartbord": 1,
-                    "straatnaambord": 1,
-                    "verkeersbord": 1,
-                    "verklikker transportleiding": 1,
-                    "waarschuwingshek": 1,
-                    "wegwijzer": 1,
+                    "dynamische snelheidsindicator": 4,
+                    "informatiebord": 4,
+                    "plaatsnaambord": 4,
+                    "reclamebord": 4,
+                    "scheepvaartbord": 4,
+                    "straatnaambord": 4,
+                    "verkeersbord": 4,
+                    "verklikker transportleiding": 4,
+                    "waarschuwingshek": 4,
+                    "wegwijzer": 4,
                     # kast: plus_type
-                    "CAI-kast": 1,
-                    "elektrakast": 1,
-                    "gaskast": 1,
-                    "GMS kast": 1,
-                    "openbare verlichtingkast": 1,
-                    "rioolkast": 1,
-                    "telecom kast": 1,
-                    "telkast": 1,
-                    "verkeersregelinstallatiekast": 1,
+                    "CAI-kast": 4,
+                    "elektrakast": 4,
+                    "gaskast": 4,
+                    "GMS kast": 4,
+                    "openbare verlichtingkast": 4,
+                    "rioolkast": 4,
+                    "telecom kast": 4,
+                    "telkast": 4,
+                    "verkeersregelinstallatiekast": 4,
                     # mast: plus_type
-                    "bovenleidingmast": 1,
-                    "laagspanningsmast": 1,
-                    "radarmast": 1,
-                    "straalzender": 1,
-                    "zendmast": 1,
+                    "bovenleidingmast": 4,
+                    "laagspanningsmast": 4,
+                    "radarmast": 4,
+                    "straalzender": 4,
+                    "zendmast": 4,
                     # paal: plus_type
-                    "afsluitpaal": 1,
-                    "dijkpaal": 1,
-                    "drukknoppaal": 1,
-                    "grensmarkering": 1,
-                    "haltepaal": 1,
-                    "hectometerpaal": 1,
-                    "lichtmast": 1,
-                    "poller": 1,
-                    "portaal": 1,
-                    "praatpaal": 1,
-                    "sirene": 1,
-                    "telpaal": 1,
-                    "verkeersbordpaal": 1,
-                    "verkeersregelinstallatiepaal": 1,
-                    "vlaggenmast": 1,
+                    "afsluitpaal": 4,
+                    "dijkpaal": 4,
+                    "drukknoppaal": 4,
+                    "grensmarkering": 4,
+                    "haltepaal": 4,
+                    "hectometerpaal": 4,
+                    "lichtmast": 4,
+                    "poller": 4,
+                    "portaal": 4,
+                    "praatpaal": 4,
+                    "sirene": 4,
+                    "telpaal": 4,
+                    "verkeersbordpaal": 4,
+                    "verkeersregelinstallatiepaal": 4,
+                    "vlaggenmast": 4,
                     # put: plus_type
-                    "benzine- / olieput": 1,
-                    "brandkraan / -put": 1,
-                    "drainageput": 1,
-                    "gasput": 1,
-                    "inspectie- / rioolput": 1,
-                    "kolk": 1,
-                    "waterleidingput": 1,
+                    "benzine- / olieput": 4,
+                    "brandkraan / -put": 4,
+                    "drainageput": 4,
+                    "gasput": 4,
+                    "inspectie- / rioolput": 4,
+                    "kolk": 4,
+                    "waterleidingput": 4,
                     # sensor:
-                    "detectielus": 1,
-                    "camera": 1,
-                    "debietmeter": 1,
-                    "flitser": 1,
-                    "GMS sensor": 1,
-                    "hoogtedetectieapparaat": 1,
-                    "lichtcel": 1,
-                    "radar detector": 1,
-                    "waterstandmeter": 1,
-                    "weerstation": 1,
-                    "windmeter": 1,
+                    "detectielus": 4,
+                    "camera": 4,
+                    "debietmeter": 4,
+                    "flitser": 4,
+                    "GMS sensor": 4,
+                    "hoogtedetectieapparaat": 4,
+                    "lichtcel": 4,
+                    "radar detector": 4,
+                    "waterstandmeter": 4,
+                    "weerstation": 4,
+                    "windmeter": 4,
                     # straatmeubilair:
-                    "abri": 1,
-                    "bank": 1,
-                    "betaalautomaat": 1,
-                    "bolder": 1,
-                    "brievenbus": 1,
-                    "fietsenkluis": 1,
-                    "fietsenrek": 1,
-                    "fontein": 1,
-                    "herdenkingsmonument": 1,
-                    "kunstobject": 1,
-                    "lichtpunt": 1,
-                    "openbaar toilet": 1,
-                    "parkeerbeugel": 1,
-                    "picknicktafel": 1,
-                    "reclamezuil": 1,
-                    "slagboom": 1,
-                    "speelvoorziening": 1,
-                    "telefooncel": 1,
+                    "abri": 4,
+                    "bank": 4,
+                    "betaalautomaat": 4,
+                    "bolder": 4,
+                    "brievenbus": 4,
+                    "fietsenkluis": 4,
+                    "fietsenrek": 4,
+                    "fontein": 51,
+                    "herdenkingsmonument": 126,
+                    "kunstobject": 51,
+                    "lichtpunt": 4,
+                    "openbaar toilet": 51,
+                    "parkeerbeugel": 4,
+                    "picknicktafel": 4,
+                    "reclamezuil": 4,
+                    "slagboom": 4,
+                    "speelvoorziening": 4,
+                    "telefooncel": 4,
                     # Value occurs on all these tables, remove if present.
                     "waardeOnbekend": 1,
                 },
@@ -368,8 +370,8 @@ preset_collection = {
                 "group": "b",
                 "weight_values": {
                     # plus_type
-                    "haag": 25,
-                    "boom": 76,
+                    "haag": 3,
+                    "boom": 10,
                     "waardeOnbekend": 1,  # Delete these records if they exist.
                 },
                 "geometry_values": {"boom": 5},
@@ -382,16 +384,47 @@ preset_collection = {
                 "group": "b",
                 "weight_values": {
                     # bgt_type
-                    "kering": 25,  # Dykes, all other features of bgt_functioneelgebied are removed.
-                    "natura2000": 25,
+                    "kering": 10,  # Dykes, all other features of bgt_functioneelgebied are removed.
+                    "natura2000": 10,
                     # TODO add these datasources and expand test in mcda_vector_raster_test.py
                     # "Aardkundig_monument": 1,
                     # "Archeologisch_monument": 1,
                     # "niet_gesprongen_explosieven_wo2": 1,
-                    # "transport_gevaarlijke_stoffen_leiding": 1,  # Like Gasunie
                     # "brosse_leidingen": 1,
                     # "verontreinigde_grond": 1,
                     # "groene_en_rijksmonumenten": 1,
+                },
+            },
+            "existing_utilities": {
+                # TenneT, Alliander, Gasunie.
+                "description": "Existing utility assets for gas, electricity.",
+                "layer_names": [
+                    "hoogspanningskabel_bovengronds",
+                    "hoogspanningskabel_ondergronds",
+                    "gasunie_leidingen",
+                    "alliander_stationsterrein",
+                ],
+                "preprocessing_function": ExistingUtilities(),
+                "group": "b",
+                "weight_values": {
+                    "hoogspanning_bovengronds": 4,  # TenneT & Alliander combined.
+                    "hoogspanning_ondergronds": 51,  # TenneT & Alliander combined.
+                    "gasunie_leidingen": 51,
+                    "alliander_stationsterrein": -126,  # Only the larger (>30m2) areas are included.
+                },
+                "geometry_values": {
+                    "hoogspanning_bovengronds_buffer": 5,
+                    "hoogspanning_ondergronds_buffer": 5,
+                    "gasunie_leidingen_buffer": 5,
+                },
+            },
+            "existing_substations": {
+                "description": "Existing substations.",
+                "layer_names": ["alliander_middenspanningsstation"],
+                "preprocessing_function": ExistingSubstations(),
+                "group": "a",
+                "weight_values": {
+                    "alliander_middenspanningsstation": 126,  # Building footprint of a (sub)station.
                 },
             },
             "excluded_area": {
