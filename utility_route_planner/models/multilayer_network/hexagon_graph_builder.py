@@ -2,7 +2,6 @@ import math
 
 import geopandas as gpd
 import networkx as nx
-import osmnx as ox
 import numpy as np
 import pandas as pd
 import shapely
@@ -10,7 +9,6 @@ import structlog
 
 from settings import Config
 from util.timer import time_function
-from util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 
@@ -23,6 +21,14 @@ class HexagonGraphBuilder:
 
     def build(self):
         self.build_graph()
+
+        # nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(self.graph)
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
+        # )
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
+        # )
         # potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
 
         # Write debug for QGIS
@@ -64,7 +70,7 @@ class HexagonGraphBuilder:
         return xgrid, ygrid
 
     @time_function
-    def build_graph(self) -> nx.MultiGraph:
+    def build_graph(self):
         # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
         hexagon_width = 2 * self.hexagon_size
         hexagon_height = math.sqrt(3) * self.hexagon_size
@@ -76,16 +82,6 @@ class HexagonGraphBuilder:
         nodes = hexagon_points[["axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()
         self.graph.add_nodes_from(nodes)
         self.determine_neighbours(hexagon_points)
-
-        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(self.graph)
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
-        )
-
-        return self.graph
 
         # edges = set()
         # for (q, r), source_node in axial_nodes.items():
@@ -210,13 +206,20 @@ class HexagonGraphBuilder:
             neighbour_candidates = pd.concat([neighbour_q, neighbour_r], axis=1)
 
             # Filter out not-existing neighbours and add the edges to the graph
-            top_neighbours = pd.merge(
+            neighbours = pd.merge(
                 neighbour_candidates.reset_index(names="node_id_source"),
                 hexagon_points[["axial_q", "axial_r"]].reset_index(names="node_id_target"),
                 how="inner",
                 on=["axial_q", "axial_r"],
             )
-            edges = top_neighbours[["node_id_source", "node_id_target"]].itertuples(index=False)
+
+            edge_weights = (
+                hexagon_points.loc[neighbours["node_id_source"], "suitability_value"].values
+                + hexagon_points.loc[neighbours["node_id_target"], "suitability_value"].values
+            ) / 2
+
+            neighbours["weight"] = edge_weights
+            edges = neighbours[["node_id_source", "node_id_target", "weight"]].itertuples(index=False)
             self.graph.add_edges_from(edges)
 
         # top_left_q, top_left_r = q - 1, r
