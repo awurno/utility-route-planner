@@ -1,7 +1,9 @@
 import math
+import time
 
 import geopandas as gpd
 import networkx as nx
+import osmnx as ox
 import numpy as np
 import pandas as pd
 import shapely
@@ -9,6 +11,7 @@ import structlog
 
 from settings import Config
 from util.timer import time_function
+from util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 
@@ -22,13 +25,13 @@ class HexagonGraphBuilder:
     def build(self):
         self.build_graph()
 
-        # nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(self.graph)
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
-        # )
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
-        # )
+        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(self.graph)
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
+        )
         # potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
 
     def convert_coordinates_to_axial(self, x, y, size: float):
@@ -120,23 +123,18 @@ class HexagonGraphBuilder:
         )
         return bounding_box_grid.reset_index(names="node_id")
 
+    @time_function
     def determine_neighbours(self, hexagon_points: gpd.GeoDataFrame):
         q, r = hexagon_points["axial_q"], hexagon_points["axial_r"]
 
-        top_q, top_r = q, r + 1
-        top_left_q, top_left_r = q - 1, r
-        top_right_q, top_right_r = q + 1, r
-        bottom_left_q, bottom_left_r = q - 1, r
-        bottom_right_q, bottom_right_r = q + 1, r - 1
-        bottom_q, bottom_r = q, r - 1
+        vertical_q, vertical_r = q, r + 1
+        left_q, left_r = q - 1, r
+        right_q, right_r = q + 1, r - 1
 
         for neighbour_q, neighbour_r in [
-            (top_q, top_r),
-            (top_left_q, top_left_r),
-            (top_right_q, top_right_r),
-            (bottom_left_q, bottom_left_r),
-            (bottom_right_q, bottom_right_r),
-            (bottom_q, bottom_r),
+            (vertical_q, vertical_r),
+            (left_q, left_r),
+            (right_q, right_r),
         ]:
             neighbour_candidates = pd.concat([neighbour_q, neighbour_r], axis=1)
 
@@ -153,9 +151,14 @@ class HexagonGraphBuilder:
                 + hexagon_points.loc[neighbours["node_id_target"], "suitability_value"].values
             ) / 2
 
+            start = time.time()
             neighbours["weight"] = edge_weights
             edges = neighbours[["node_id_source", "node_id_target", "weight"]].itertuples(index=False)
-            self.graph.add_edges_from(edges)
+            self.graph.add_weighted_edges_from(edges)
+            end = time.time()
+
+            # TODO add_weighted_edges_from(edges) is slow and currently the largest performance bottleneck
+            logger.info(f"Adding edges took: {end - start:.2f} seconds")
 
     def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
         # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
