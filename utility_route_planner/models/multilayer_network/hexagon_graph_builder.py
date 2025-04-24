@@ -147,6 +147,9 @@ class HexagonGraphBuilder:
             ),
             geometry="geometry",
         )
+        # Remove duplicate points, as a point could have joined multiple vector which results in duplicate rows within
+        # the right dataframe.
+        hexagon_points = hexagon_points[~hexagon_points.index.duplicated()]
 
         x, y = np.split(hexagon_points.get_coordinates().values, 2, axis=1)
         hexagon_points["axial_q"], hexagon_points["axial_r"] = self.convert_coordinates_to_axial(
