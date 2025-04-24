@@ -31,21 +31,6 @@ class HexagonGraphBuilder:
         # )
         # potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
 
-        # Write debug for QGIS
-        # nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, self.vectors_for_project_area, "project_area", overwrite=True
-        # )
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "vector_points", overwrite=True
-        # )
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "vector_edges", overwrite=True
-        # )
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, potential_ms_route, "ms_route", overwrite=True
-        # )
-
     def convert_coordinates_to_axial(self, x, y, size: float):
         """
         Used algorithms as provided by:
@@ -82,56 +67,6 @@ class HexagonGraphBuilder:
         nodes = hexagon_points[["axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()
         self.graph.add_nodes_from(nodes)
         self.determine_neighbours(hexagon_points)
-
-        # edges = set()
-        # for (q, r), source_node in axial_nodes.items():
-        #     top = (q, r - 1)
-        #     top_left = (q - 1, r)
-        #     top_right = (q + 1, r - 1)
-        #     bottom_left = (q - 1, r + 1)
-        #     bottom_right = (q + 1, r)
-        #     bottom = (q, r + 1)
-
-        # neighbour_positions = [top, top_left, top_right, bottom_left, bottom_right, bottom]
-        # neighbour_edges = {(source_node, axial_nodes[n_q, n_r]) for (n_q, n_r) in neighbour_positions if (n_q, n_r) in axial_nodes}
-        #     edges = edges.union(neighbour_edges)
-        #
-        # graph.add_edges_from(edges)
-
-        # for dq, dr in [top, top_left, top_right, bottom_left, bottom_right, bottom]:
-        #     if (dq, dr) in axial_nodes:
-        #         source_node = axial_nodes[(q, r)]
-        #         neighbour_node = axial_nodes[(dq, dr)]
-        #         graph.add_edge(source_node, neighbour_node)
-
-        #     pass
-        #
-        # for center_node, center_data in graph.nodes(data=True):
-        #     x, y = center_data["x"], center_data["y"]
-        #     neighbour_coordinates = [
-        #         (x, y + hexagon_height),  # Connect center to vertical neighbours
-        #         (
-        #             # Connect center to top- and bottom-right neighbours
-        #             x + hexagon_width * 0.75,
-        #             y + hexagon_height / 2,
-        #         ),
-        #         (x - hexagon_width * 0.75, y + hexagon_height / 2),  # Connect center to top- and bottom-left neighbours
-        #     ]
-        #
-        #     # Given the neighbour coordinates, iterate over all nodes in the graph to find the nodes that are close to
-        #     # the calculated coordinates. These nodes are considered as neighbours.
-        #     # TODO: this part is very slow and must be optimized. Maybe we can use axial coordinates instead of
-        #     #  determining neighbours spatially?
-        #     for neighbour_x, neighbour_y in neighbour_coordinates:
-        #         for neighbour_node, neighbor_data in graph.nodes(data=True):
-        #             if math.isclose(neighbor_data["x"], neighbour_x, abs_tol=1e-2) and math.isclose(
-        #                 neighbor_data["y"], neighbour_y, abs_tol=1e-2
-        #             ):
-        #                 edge_weight = (center_data["suitability_value"] + neighbor_data["suitability_value"]) / 2
-        #                 graph.add_edge(center_node, neighbour_node, weight=edge_weight)
-        #                 break
-
-        # return graph, node_id
 
     def determine_hexagon_center_points(self, hexagon_width: float, hexagon_height: float) -> gpd.GeoDataFrame:
         bounding_box_grid = self.get_grid_for_bounding_box(hexagon_width, hexagon_height)
@@ -221,12 +156,6 @@ class HexagonGraphBuilder:
             neighbours["weight"] = edge_weights
             edges = neighbours[["node_id_source", "node_id_target", "weight"]].itertuples(index=False)
             self.graph.add_edges_from(edges)
-
-        # top_left_q, top_left_r = q - 1, r
-        # top_right_q, top_right_q = q + 1, r - 1
-        # bottom_left_q, bottom_left_r = q - 1, r + 1
-        # bottom_right_q, bottom_right_r = q + 1, r
-        # bottom_q, bottom_r = q, r + 1
 
     def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
         # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
