@@ -3,12 +3,12 @@ import math
 import geopandas as gpd
 import networkx as nx
 import numpy as np
+import pandas as pd
 import shapely
 import structlog
 
 from settings import Config
 from util.timer import time_function
-from util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 
@@ -46,7 +46,7 @@ class HexagonGraphBuilder:
         z = -x - y
 
         # Round to nearest integer
-        rq, rr, rz = np.round(q), np.round(r), np.round(z)
+        rq, rr, rz = np.round(q).astype(np.int32), np.round(r).astype(np.int32), np.round(z).astype(np.int32)
 
         # Find the largest rounding error
         q_diff = np.abs(rq - q)
@@ -68,10 +68,13 @@ class HexagonGraphBuilder:
         hexagon_width = 2 * self.hexagon_size
         hexagon_height = math.sqrt(3) * self.hexagon_size
         hexagon_points = self.determine_hexagon_center_points(hexagon_width, hexagon_height)
+        self.determine_neighbours(hexagon_points)
 
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, hexagon_points, "points_series", overwrite=True
-        )
+        pass
+
+        # write_results_to_geopackage(
+        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, hexagon_points, "points_series", overwrite=True
+        # )
 
         # edges = set()
         # for (q, r), source_node in axial_nodes.items():
@@ -171,6 +174,25 @@ class HexagonGraphBuilder:
             geometry=gpd.points_from_xy(x_matrix.ravel(), y_matrix.ravel()), crs=Config.CRS
         )
         return bounding_box_grid.reset_index(names="node_id")
+
+    def determine_neighbours(self, hexagon_points: gpd.GeoDataFrame):
+        q, r = hexagon_points["axial_q"], hexagon_points["axial_r"]
+
+        top_q, top_r = q, r - 1
+        top_neighbour_candidates = pd.concat([top_q, top_r], axis=1)
+        top_neighbours = pd.merge(
+            top_neighbour_candidates.reset_index(names="node_id_source"),
+            hexagon_points[["axial_q", "axial_r"]].reset_index(names="node_id_target"),
+            how="inner",
+            on=["axial_q", "axial_r"],
+        )
+        print(top_neighbours)
+
+        # top_left_q, top_left_r = q - 1, r
+        # top_right_q, top_right_q = q + 1, r - 1
+        # bottom_left_q, bottom_left_r = q - 1, r + 1
+        # bottom_right_q, bottom_right_r = q + 1, r
+        # bottom_q, bottom_r = q, r + 1
 
     def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
         # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
