@@ -2,6 +2,7 @@ import math
 
 import geopandas as gpd
 import networkx as nx
+import osmnx as ox
 import numpy as np
 import pandas as pd
 import shapely
@@ -9,6 +10,7 @@ import structlog
 
 from settings import Config
 from util.timer import time_function
+from util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 
@@ -17,6 +19,7 @@ class HexagonGraphBuilder:
     def __init__(self, vectors_for_project_area: gpd.GeoDataFrame):
         self.vectors_for_project_area = vectors_for_project_area
         self.hexagon_size = 0.5  # TODO pass as param
+        self.graph = nx.MultiGraph(crs=Config.CRS)
 
     def build(self):
         self.build_graph()
@@ -66,17 +69,23 @@ class HexagonGraphBuilder:
         hexagon_width = 2 * self.hexagon_size
         hexagon_height = math.sqrt(3) * self.hexagon_size
         hexagon_points = self.determine_hexagon_center_points(hexagon_width, hexagon_height)
+        hexagon_points = gpd.GeoDataFrame(
+            pd.concat([hexagon_points, hexagon_points.get_coordinates()], axis=1), geometry="geometry"
+        )
 
-        graph = nx.MultiGraph()
-        nodes = hexagon_points.get_coordinates().to_dict(orient="index").items()
-        graph.add_nodes_from(nodes)
+        nodes = hexagon_points[["axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()
+        self.graph.add_nodes_from(nodes)
         self.determine_neighbours(hexagon_points)
 
-        pass
+        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(self.graph)
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
+        )
 
-        # write_results_to_geopackage(
-        #     Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, hexagon_points, "points_series", overwrite=True
-        # )
+        return self.graph
 
         # edges = set()
         # for (q, r), source_node in axial_nodes.items():
@@ -183,15 +192,32 @@ class HexagonGraphBuilder:
     def determine_neighbours(self, hexagon_points: gpd.GeoDataFrame):
         q, r = hexagon_points["axial_q"], hexagon_points["axial_r"]
 
-        top_q, top_r = q, r - 1
-        top_neighbour_candidates = pd.concat([top_q, top_r], axis=1)
-        top_neighbours = pd.merge(
-            top_neighbour_candidates.reset_index(names="node_id_source"),
-            hexagon_points[["axial_q", "axial_r"]].reset_index(names="node_id_target"),
-            how="inner",
-            on=["axial_q", "axial_r"],
-        )
-        print(top_neighbours)
+        top_q, top_r = q, r + 1
+        top_left_q, top_left_r = q - 1, r
+        top_right_q, top_right_r = q + 1, r
+        bottom_left_q, bottom_left_r = q - 1, r
+        bottom_right_q, bottom_right_r = q + 1, r - 1
+        bottom_q, bottom_r = q, r - 1
+
+        for neighbour_q, neighbour_r in [
+            (top_q, top_r),
+            (top_left_q, top_left_r),
+            (top_right_q, top_right_r),
+            (bottom_left_q, bottom_left_r),
+            (bottom_right_q, bottom_right_r),
+            (bottom_q, bottom_r),
+        ]:
+            neighbour_candidates = pd.concat([neighbour_q, neighbour_r], axis=1)
+
+            # Filter out not-existing neighbours and add the edges to the graph
+            top_neighbours = pd.merge(
+                neighbour_candidates.reset_index(names="node_id_source"),
+                hexagon_points[["axial_q", "axial_r"]].reset_index(names="node_id_target"),
+                how="inner",
+                on=["axial_q", "axial_r"],
+            )
+            edges = top_neighbours[["node_id_source", "node_id_target"]].itertuples(index=False)
+            self.graph.add_edges_from(edges)
 
         # top_left_q, top_left_r = q - 1, r
         # top_right_q, top_right_q = q + 1, r - 1
