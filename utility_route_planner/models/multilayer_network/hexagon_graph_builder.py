@@ -38,29 +38,27 @@ class HexagonGraphBuilder:
         # )
 
     def convert_coordinates_to_axial(self, x, y, size: float):
-        # Convert the x and y coordinate to axial coordinates
+        """
+        Used algorithms as provided by:
+        - coordinate to hex: https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
+        - rounding hex correctly: https://observablehq.com/@jrus/hexround (via redblobgames)
+        """
+        # Convert x- and y-coordinates to axial
         q = (2 / 3 * x) / size
         r = (-1 / 3 * x + np.sqrt(3) / 3 * y) / size
 
-        # Convert to cube coordinates
-        z = -x - y
+        # Convert coordinates to integers and correct rounding errors
+        xgrid = np.round(q).astype(np.int32)
+        ygrid = np.round(r).astype(np.int32)
 
-        # Round to nearest integer
-        rq, rr, rz = np.round(q).astype(np.int32), np.round(r).astype(np.int32), np.round(z).astype(np.int32)
+        q_diff = q - xgrid
+        r_diff = r - ygrid
 
-        # Find the largest rounding error
-        q_diff = np.abs(rq - q)
-        r_diff = np.abs(rr - r)
-        z_diff = np.abs(rz - z)
+        mask = np.abs(q_diff) > np.abs(r_diff)
+        xgrid[mask] = xgrid[mask] + np.round(q_diff[mask] + 0.5 * r_diff[mask])
+        ygrid[~mask] = ygrid[~mask] + np.round(r_diff[~mask] + 0.5 * q_diff[~mask])
 
-        # Adjust the coordinate with the largest error to maintain x + y + z = 0
-        mask_q = (q_diff > r_diff) & (q_diff > z_diff)
-        mask_r = (r_diff > z_diff) & ~mask_q
-
-        rq[mask_q] = -rr[mask_q] - rz[mask_q]
-        rr[mask_r] = -rq[mask_r] - rz[mask_r]
-
-        return rq, rr
+        return xgrid, ygrid
 
     @time_function
     def build_graph(self) -> nx.MultiGraph:
