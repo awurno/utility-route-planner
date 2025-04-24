@@ -68,6 +68,10 @@ class HexagonGraphBuilder:
         hexagon_width = 2 * self.hexagon_size
         hexagon_height = math.sqrt(3) * self.hexagon_size
         hexagon_points = self.determine_hexagon_center_points(hexagon_width, hexagon_height)
+
+        graph = nx.MultiGraph()
+        nodes = hexagon_points.get_coordinates().to_dict(orient="index").items()
+        graph.add_nodes_from(nodes)
         self.determine_neighbours(hexagon_points)
 
         pass
