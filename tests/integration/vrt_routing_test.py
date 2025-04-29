@@ -1,12 +1,16 @@
+# SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 import geopandas as gpd
 import pytest
 import shapely
 from shapely.geometry.linestring import LineString
 
-from models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
-from models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.models.lcpa.lcpa_engine import LcpaUtilityRouteEngine
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from settings import Config
-from util.write import write_to_file
+from utility_route_planner.util.write import write_to_file
 
 
 class TestVRTRouting:

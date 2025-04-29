@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import pandas as pd
@@ -21,7 +25,11 @@ class ExistingUtilities(VectorPreprocessorBase):
     def specific_preprocess(
         self, input_gdf: list[gpd.GeoDataFrame], criterion: RasterPresetCriteria
     ) -> gpd.GeoDataFrame:
-        input_gdf = self._set_suitability_and_geometry_values(input_gdf, criterion.weight_values, criterion.geometry_values)  # type: ignore
+        input_gdf = self._set_suitability_and_geometry_values(
+            input_gdf,
+            criterion.weight_values,
+            criterion.geometry_values,  # type: ignore
+        )
         return input_gdf
 
     @staticmethod

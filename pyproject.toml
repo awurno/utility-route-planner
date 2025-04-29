@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 [project]
 name = "utility_route_planner"
 version = "0.2.0"
@@ -6,7 +10,7 @@ authors = [
     { name = "Jelmar Versleijen", email = "<jelmar.versleijen@alliander.com>" },
     { name = "Djesse Dirckx", email = "<djesse.dirckx@alliander.com>" },
 ]
-requires-python = "~=3.10"
+requires-python = "~=3.12"
 readme = "README.md"
 
 dependencies = [
@@ -14,7 +18,6 @@ dependencies = [
     "structlog (>=25.1.0,<26.0.0)",
     "scikit-image (>=0.25.1,<0.26.0)",
     "pytest (>=8.3.4,<9.0.0)",
-    "igraph (>=0.11.8,<0.12.0)",
     "networkx (>=3.4.2,<4.0.0)",
     "cairocffi (>=1.7.1,<2.0.0)",
     "matplotlib (>=3.10.0,<4.0.0)",
