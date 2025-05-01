@@ -8,7 +8,7 @@ import pandas as pd
 import structlog
 
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_center_point_constructor import (
-    HexagonCenterPointConstructor,
+    HexagonalGridConstructor,
 )
 from settings import Config
 from util.timer import time_function
@@ -18,12 +18,12 @@ logger = structlog.get_logger(__name__)
 
 class HexagonGraphBuilder:
     def __init__(self, vectors_for_project_area: gpd.GeoDataFrame, hexagon_size: float):
-        self.center_point_constructor = HexagonCenterPointConstructor(vectors_for_project_area, hexagon_size)
+        self.center_point_constructor = HexagonalGridConstructor(vectors_for_project_area, hexagon_size)
         self.graph = nx.MultiGraph(crs=Config.CRS)
 
     @time_function
     def build_graph(self) -> nx.MultiGraph:
-        hexagon_center_points = self.center_point_constructor.get_hexagon_center_points()
+        hexagon_center_points = self.center_point_constructor.construct_grid()
 
         nodes = (
             hexagon_center_points[["suitability_value", "axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()

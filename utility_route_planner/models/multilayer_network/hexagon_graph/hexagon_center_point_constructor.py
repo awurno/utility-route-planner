@@ -2,32 +2,65 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import math
-
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import get_hexagon_width_and_height
 from settings import Config
 
 
-class HexagonCenterPointConstructor:
+class HexagonalGridConstructor:
     def __init__(self, vectors_for_project_area: gpd.GeoDataFrame, hexagon_size: float):
         self.vectors_for_project_area = vectors_for_project_area
         self.hexagon_size = hexagon_size
+        self.hexagon_width, self.hexagon_height = get_hexagon_width_and_height(hexagon_size)
 
-    def get_hexagon_center_points(self) -> gpd.GeoDataFrame:
-        # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
-        hexagon_width = 2 * self.hexagon_size
-        hexagon_height = math.sqrt(3) * self.hexagon_size
-        hexagon_points = self.determine_hexagon_center_points(hexagon_width, hexagon_height)
+    def construct_grid(self) -> gpd.GeoDataFrame:
+        hexagonal_grid_bounding_box = self.construct_hexagonal_grid_for_bounding_box()
+        hexagonal_grid = self.get_hexagonal_grid_for_project_area(hexagonal_grid_bounding_box)
 
-        return hexagon_points
+        hexagonal_grid["axial_q"], hexagonal_grid["axial_r"] = self.convert_cartesian_coordinates_to_axial(
+            hexagonal_grid, size=self.hexagon_size
+        )
+        hexagonal_grid = gpd.GeoDataFrame(
+            pd.concat([hexagonal_grid, hexagonal_grid.get_coordinates()], axis=1), geometry="geometry"
+        )
+        return hexagonal_grid
 
-    def determine_hexagon_center_points(self, hexagon_width: float, hexagon_height: float) -> gpd.GeoDataFrame:
-        bounding_box_grid = self.get_grid_for_bounding_box(hexagon_width, hexagon_height)
+    def construct_hexagonal_grid_for_bounding_box(self) -> gpd.GeoDataFrame:
+        """
+        Given the bounding box of the project area, create a hexagonal grid in flat-top orientation.
 
-        # For each point in the generated matrix, check whether it is within the project area using spatial join.
+        :return: GeoDataFrame where each point represents a location on the grid
+        """
+        x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
+
+        # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
+        # by the surrounding tiles
+        x_coordinates = np.arange(x_min, x_max, self.hexagon_width * 0.75)
+        y_coordinates = np.arange(y_min, y_max, self.hexagon_height)
+        x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
+
+        # Every odd column must be offset by half of the hexagon height to properly determine the vertical
+        # position of the hexagon.
+        y_matrix[:, ::2] += self.hexagon_height / 2
+
+        bounding_box_grid = gpd.GeoDataFrame(
+            geometry=gpd.points_from_xy(x_matrix.ravel(), y_matrix.ravel()), crs=Config.CRS
+        )
+        return bounding_box_grid.reset_index(names="node_id")
+
+    def get_hexagonal_grid_for_project_area(self, bounding_box_grid: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Given the hexagonal grid for the bounding box of the project area, remove all points that are not within any
+        vector polygon that is provided as input. In addition, the suitability value for each point on the grid is
+        computed given the vector the point intersects with. In case a point intersects multiple polygons the
+        suitability values are summed for now.
+
+        :return: GeoDataFrame containing all points within the project area in combination with aggregated suitability
+        values for every point.
+        """
         points_within_project_area = gpd.sjoin(
             bounding_box_grid,
             self.vectors_for_project_area[["suitability_value", "geometry"]],
@@ -35,7 +68,6 @@ class HexagonCenterPointConstructor:
             how="inner",
         ).set_index("node_id")
 
-        # Sum suitability values in case multiple vectors overlap
         aggregated_suitability_values = points_within_project_area.groupby("node_id").agg({"suitability_value": "sum"})
 
         # Join location afterwards, as this is faster than picking the first one within the aggregation step
@@ -49,44 +81,24 @@ class HexagonCenterPointConstructor:
         # the right dataframe.
         hexagon_points = hexagon_points[~hexagon_points.index.duplicated()]
 
-        x, y = np.split(hexagon_points.get_coordinates().values, 2, axis=1)
-        hexagon_points["axial_q"], hexagon_points["axial_r"] = self.convert_coordinates_to_axial(
-            x.flatten(), y.flatten(), size=self.hexagon_size
-        )
-
-        hexagon_points = gpd.GeoDataFrame(
-            pd.concat([hexagon_points, hexagon_points.get_coordinates()], axis=1), geometry="geometry"
-        )
         return hexagon_points
 
-    def get_grid_for_bounding_box(self, hexagon_width: float, hexagon_height: float) -> gpd.GeoDataFrame:
-        # Create a grid of all points within the geometry boundaries
-        x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
-
-        # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
-        # by the surrounding tiles
-        x_coordinates = np.arange(x_min, x_max, hexagon_width * 0.75)
-        y_coordinates = np.arange(y_min, y_max, hexagon_height)
-        x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
-
-        # Every odd column must be offset by half of the hexagon height to properly determine the vertical
-        # position of the hexagon.
-        y_matrix[:, ::2] += hexagon_height / 2
-
-        # Combine both matrices to construct shapely Points. Check for every point whether it is within at least one
-        # project area vector
-        bounding_box_grid = gpd.GeoDataFrame(
-            geometry=gpd.points_from_xy(x_matrix.ravel(), y_matrix.ravel()), crs=Config.CRS
-        )
-        return bounding_box_grid.reset_index(names="node_id")
-
     @staticmethod
-    def convert_coordinates_to_axial(x: np.ndarray[int], y: np.ndarray[int], size: float):
+    def convert_cartesian_coordinates_to_axial(
+        hexagon_center_points: gpd.GeoDataFrame, size: float
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
+        To efficiently determine neighbours to construct a hexagonal graph later on, convert all cartesian coordinates
+        to axial coordinates.
+
         Used algorithms as provided by:
         - coordinate to hex: https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
         - rounding hex correctly: https://observablehq.com/@jrus/hexround (via redblobgames)
+
+        :return: tuple containing q- and r-values as integers in numpy ndarray format
         """
+        x, y = np.split(hexagon_center_points.get_coordinates().values, 2, axis=1)
+
         # Convert x- and y-coordinates to axial
         q = (2 / 3 * x) / size
         r = (-1 / 3 * x + np.sqrt(3) / 3 * y) / size
