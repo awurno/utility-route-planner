@@ -29,6 +29,9 @@ class Config:
     FINAL_RASTER_VALUE_LIMIT_LOWER = 1
     FINAL_RASTER_VALUE_LIMIT_UPPER = 126
 
+    # Multilayer network
+    OSM_API_TIMEOUT_IN_SECONDS = 20
+
     # input/output paths.
     PATH_RESULTS = BASEDIR / "data/processed"
     PATH_GEOPACKAGE_MCDA_OUTPUT = BASEDIR / "data/processed/mcda_output.gpkg"
