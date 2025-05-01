@@ -1,3 +1,4 @@
+import osmnx as ox
 import pandas as pd
 import pytest
 import shapely
@@ -6,6 +7,7 @@ import geopandas as gpd
 from models.mcda.mcda_engine import McdaCostSurfaceEngine
 from models.multilayer_network.hexagon_graph_builder import HexagonGraphBuilder
 from settings import Config
+from util.write import write_results_to_geopackage
 
 
 class TestVectorToGraph:
@@ -55,4 +57,12 @@ class TestVectorToGraph:
 
     def test_vector_to_graph(self, vectors_for_project_areas: gpd.GeoDataFrame):
         hexagon_graph_builder = HexagonGraphBuilder(vectors_for_project_areas)
-        hexagon_graph_builder.build()
+        graph = hexagon_graph_builder.build_graph()
+
+        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
+        )

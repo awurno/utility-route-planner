@@ -3,15 +3,12 @@ import time
 
 import geopandas as gpd
 import networkx as nx
-import osmnx as ox
 import numpy as np
 import pandas as pd
-import shapely
 import structlog
 
 from settings import Config
 from util.timer import time_function
-from util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 
@@ -21,18 +18,6 @@ class HexagonGraphBuilder:
         self.vectors_for_project_area = vectors_for_project_area
         self.hexagon_size = 0.5  # TODO pass as param
         self.graph = nx.MultiGraph(crs=Config.CRS)
-
-    def build(self):
-        self.build_graph()
-
-        nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(self.graph)
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
-        )
-        write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
-        )
-        # potential_ms_route = self.compute_route(graph, source_node=0, target_node=max_node - 1)
 
     def convert_coordinates_to_axial(self, x, y, size: float):
         """
@@ -58,7 +43,7 @@ class HexagonGraphBuilder:
         return xgrid, ygrid
 
     @time_function
-    def build_graph(self):
+    def build_graph(self) -> nx.MultiGraph:
         # Compute hexagon height and width for determining centerpoints. Here, we use the flat-top orientation hexagons
         hexagon_width = 2 * self.hexagon_size
         hexagon_height = math.sqrt(3) * self.hexagon_size
@@ -67,9 +52,11 @@ class HexagonGraphBuilder:
             pd.concat([hexagon_points, hexagon_points.get_coordinates()], axis=1), geometry="geometry"
         )
 
-        nodes = hexagon_points[["axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()
+        nodes = hexagon_points[["suitability_value", "axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()
         self.graph.add_nodes_from(nodes)
         self.determine_neighbours(hexagon_points)
+
+        return self.graph
 
     def determine_hexagon_center_points(self, hexagon_width: float, hexagon_height: float) -> gpd.GeoDataFrame:
         bounding_box_grid = self.get_grid_for_bounding_box(hexagon_width, hexagon_height)
@@ -159,14 +146,3 @@ class HexagonGraphBuilder:
 
             # TODO add_weighted_edges_from(edges) is slow and currently the largest performance bottleneck
             logger.info(f"Adding edges took: {end - start:.2f} seconds")
-
-    def compute_route(self, graph: nx.MultiGraph, source_node: int, target_node: int) -> shapely.LineString:
-        # Compute the shortest path to simulate the potential MS-route calculation. Use the first node-id as start, and
-        # final node id as target. Edges with a lower weight are more favourable.
-        shortest_path = nx.shortest_path(graph, source=source_node, target=target_node, weight="weight")
-        shortest_path_points = [
-            shapely.Point(graph.nodes[node_id]["x"], graph.nodes[node_id]["y"]) for node_id in shortest_path
-        ]
-        shortest_path_line_string = shapely.LineString(shortest_path_points)
-
-        return shortest_path_line_string
