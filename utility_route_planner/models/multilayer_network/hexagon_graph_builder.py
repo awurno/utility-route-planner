@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
+#
+# SPDX-License-Identifier: Apache-2.0
 import math
 import time
 
@@ -10,8 +13,8 @@ import shapely
 import structlog
 
 from settings import Config
-from util.timer import time_function
-from util.write import write_results_to_geopackage
+from utility_route_planner.util.timer import time_function
+from utility_route_planner.util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
 
