@@ -5,11 +5,13 @@
 from pathlib import Path
 
 import rasterio
+import rustworkx as rx
 import rasterio.mask
 import shapely
 import structlog
 import geopandas as gpd
 
+from settings import Config
 from utility_route_planner.models.mcda.exceptions import InvalidRasterValues
 
 logger = structlog.get_logger(__name__)
@@ -126,3 +128,18 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
     # Replace with a negative value which is ignored in LCPA.
     image[image == no_data] = -1
     return image, transform.to_gdal()
+
+
+def osm_graph_to_gdfs(graph: rx.PyGraph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    if graph.num_nodes() > 0 and graph.num_edges() > 0:
+        nodes = graph.nodes()
+        nodes_geometries = [
+            [node["street_count"], node["osm_id"], shapely.Point(node["x"], node["y"])] for node in nodes
+        ]
+        gdf_nodes = gpd.GeoDataFrame(nodes_geometries, crs=Config.CRS, columns=["street_count", "osm_id", "geometry"])
+
+        gdf_edges = gpd.GeoDataFrame(graph.edges(), crs=Config.CRS)
+        return gdf_nodes, gdf_edges
+    else:
+        logger.warning("There are no edges or nodes. Cannot convert to GeoDataFrames.")
+        return get_empty_geodataframe(), get_empty_geodataframe()
