@@ -9,7 +9,7 @@ import shapely
 import geopandas as gpd
 
 from models.mcda.mcda_engine import McdaCostSurfaceEngine
-from models.multilayer_network.hexagon_graph_builder import HexagonGraphBuilder
+from models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
 from settings import Config
 from util.write import write_results_to_geopackage
 
@@ -60,7 +60,7 @@ class TestVectorToGraph:
         return gpd.GeoDataFrame(concatenated_vectors)
 
     def test_vector_to_graph(self, vectors_for_project_areas: gpd.GeoDataFrame):
-        hexagon_graph_builder = HexagonGraphBuilder(vectors_for_project_areas)
+        hexagon_graph_builder = HexagonGraphBuilder(vectors_for_project_areas, hexagon_size=0.5)
         graph = hexagon_graph_builder.build_graph()
 
         nodes_gdf, edges_gdf = ox.convert.graph_to_gdfs(graph)
