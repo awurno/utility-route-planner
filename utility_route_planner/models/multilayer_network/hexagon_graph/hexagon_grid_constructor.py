@@ -26,6 +26,9 @@ class HexagonalGridConstructor:
         hexagonal_grid = gpd.GeoDataFrame(
             pd.concat([hexagonal_grid, hexagonal_grid.get_coordinates()], axis=1), geometry="geometry"
         )
+
+        # Reset index of grid to align with node ids generated using rustworkx
+        hexagonal_grid = hexagonal_grid.reset_index(drop=True)
         return hexagonal_grid
 
     def construct_hexagonal_grid_for_bounding_box(self) -> gpd.GeoDataFrame:
