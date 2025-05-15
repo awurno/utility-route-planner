@@ -7,29 +7,42 @@ import networkx as nx
 import rustworkx as rx
 import osmnx as ox
 import structlog
+import shapely
 
 logger = structlog.get_logger(__name__)
 
 
 @dataclass
-class GraphAttributes:
-    max_edge_id: int
-    max_node_id: int
+class NodeInfo:
+    osm_id: int
+    geometry: shapely.Point
+    node_id: int | None = None  # index of the node in the rustworkx graph.
+
+
+@dataclass
+class EdgeInfo:
+    osm_id: int
+    length: float
+    geometry: shapely.LineString
+    edge_id: int | None = None  # index of the edge in the rustworkx graph.
 
 
 class OSMGraphPreprocessor:
-    def __init__(self, graph: nx.MultiGraph):
-        self.graph = graph
+    def __init__(self, nx_graph: nx.MultiGraph):
+        self.nx_graph = nx_graph
 
     def preprocess_graph(self) -> rx.PyGraph:
-        self.graph = ox.convert.to_undirected(self.graph)
-        max_edge_id = self._remove_duplicate_edges_and_add_edge_id_and_length_properties()
-        rx_graph = self._convert_to_rustworkx(self.graph)
-        rx_graph = self._set_unused_id_nodes_and_unused_id_edges(max_edge_id, rx_graph)
+        self.validate_input()
+        logger.info(
+            f"Preprocessing NetworkX OSM graph n_nodes: {self.nx_graph.number_of_nodes()} n_edges: {self.nx_graph.number_of_edges()} to Rustworkx."
+        )
+        self.nx_graph = ox.convert.to_undirected(self.nx_graph)
+        self._remove_duplicate_edges_and_add_edge_id_and_length_properties()
+        rx_graph = self._convert_to_rustworkx(self.nx_graph)
 
         return rx_graph
 
-    def _remove_duplicate_edges_and_add_edge_id_and_length_properties(self) -> int:
+    def _remove_duplicate_edges_and_add_edge_id_and_length_properties(self):
         """
         OSM graphs occasionally contain duplicate edges. These duplicates are removed.
         In addition, a unique edge is assigned to each edge for further processing. Given the geometry of an edge,
@@ -38,32 +51,45 @@ class OSMGraphPreprocessor:
         :return: the number of edges, which is used as the maximum edge id to assign new edges later on
         """
         edges_to_remove = []
-        initial_edge_count = len(self.graph.edges)
-        edge_count = 1
-        for edge_count, (u, v, key) in enumerate(self.graph.edges(keys=True), start=1):
+        initial_edge_count = len(self.nx_graph.edges)
+        for u, v, key in self.nx_graph.edges(keys=True):
             if key > 0:
                 edges_to_remove.append((u, v, key))
-            self.graph[u][v][0]["edge_id"] = edge_count
-            self.graph[u][v][0]["length"] = self.graph[u][v][0]["geometry"].length
-        self.graph.remove_edges_from(edges_to_remove)
-        logger.info(f"Removed {initial_edge_count - len(self.graph.edges)} duplicate edges from the graph")
-
-        return edge_count
-
-    def _set_unused_id_nodes_and_unused_id_edges(self, max_edge_id: int, rx_graph: rx.PyGraph):
-        rx_graph.attrs = GraphAttributes(max_edge_id=max_edge_id, max_node_id=max(set(self.graph.nodes)) + 1)
-        return rx_graph
+            self.nx_graph[u][v][0]["length"] = self.nx_graph[u][v][0]["geometry"].length
+        self.nx_graph.remove_edges_from(edges_to_remove)
+        logger.info(f"Removed {initial_edge_count - len(self.nx_graph.edges)} duplicate edges from the graph")
 
     @staticmethod
-    def _convert_to_rustworkx(graph) -> rx.PyGraph:
-        new_graph = rx.PyGraph(multigraph=graph.is_multigraph())
-        nodes = list(graph.nodes)
-        node_indices = dict(zip(nodes, new_graph.add_nodes_from(nodes)))
-        new_graph.add_edges_from([(node_indices[x[0]], node_indices[x[1]], x[2]) for x in graph.edges(data=True)])
+    def _convert_to_rustworkx(nx_graph) -> rx.PyGraph:
+        rx_graph = rx.PyGraph(multigraph=False)
 
-        for node, node_index in node_indices.items():
-            attributes = graph.nodes[node]
-            attributes["osm_id"] = node
-            new_graph[node_index] = attributes
+        nodes = list(nx_graph.nodes)
+        nx_rx_node_mapping = dict(zip(nodes, rx_graph.add_nodes_from(nodes)))
+        # rx_graph.add_edges_from([(nx_rx_node_mapping[x[0]], nx_rx_node_mapping[x[1]], EdgeInfo(x[2].get("osmid", 0), x[2].get("length", 0), x[2].get("geometry", shapely.LineString())) for x in nx_graph.edges(data=True)])
+        rx_graph.add_edges_from(
+            [
+                (
+                    nx_rx_node_mapping[x[0]],
+                    nx_rx_node_mapping[x[1]],
+                    EdgeInfo(
+                        x[2].get("osmid", 0), x[2].get("length", 0), x[2].get("geometry", shapely.LineString()), idx
+                    ),
+                )
+                for idx, x in enumerate(nx_graph.edges(data=True), start=0)
+            ]
+        )
 
-        return new_graph
+        for node, node_index in nx_rx_node_mapping.items():
+            data = nx_graph.nodes[node]
+            info = NodeInfo(node, shapely.Point(data.get("x", 0), data.get("y", 0)), node_index)
+            rx_graph[node_index] = info
+
+        return rx_graph
+
+    def validate_input(self):
+        if not isinstance(self.nx_graph, nx.MultiGraph):
+            raise TypeError("Input graph must be a NetworkX MultiGraph.")
+        if self.nx_graph.number_of_edges() == 0:
+            raise ValueError("Graph should have edges.")
+        if self.nx_graph.number_of_nodes() == 0:
+            raise ValueError("Graph should have nodes.")

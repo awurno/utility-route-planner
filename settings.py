@@ -42,6 +42,7 @@ class Config:
     PATH_EXAMPLE_RASTER = BASEDIR / "data/examples/pytest_example_suitability_raster.tif"
     PYTEST_PATH_GEOPACKAGE_MCDA = BASEDIR / "data/examples/pytest_data.gpkg"
     PYTEST_LAYER_NAME_PROJECT_AREA = "project_area_ede"
+    PYTEST_OSM_GRAPH_PICKLE = BASEDIR / "data/examples/pytest_osm_graph.pkl"
 
     # Research question 1 data paths.
     PATH_GEOPACKAGE_CASE_01 = BASEDIR / "data/examples/case_01.gpkg"
