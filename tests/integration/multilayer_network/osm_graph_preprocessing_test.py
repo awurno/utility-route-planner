@@ -10,7 +10,8 @@ from networkx import MultiDiGraph, MultiGraph
 from pyproj import CRS
 import shapely
 
-from utility_route_planner.util.osm_graph_preprocessing import OSMGraphPreprocessor, NodeInfo
+from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs
+from utility_route_planner.util.osm_graph_preprocessing import OSMGraphPreprocessor, NodeInfo, EdgeInfo
 
 
 class TestOSMGraphPreprocessor:
@@ -33,7 +34,7 @@ class TestOSMGraphPreprocessor:
         return graph
 
     @pytest.fixture
-    def pytest_osm_graph_pickle(self, refresh_example_graph=False) -> MultiGraph:
+    def load_osm_graph_pickle(self, refresh_example_graph=False) -> MultiGraph:
         # Option to refresh to example osm graph.
         if refresh_example_graph:
             import geopandas as gpd
@@ -74,8 +75,8 @@ class TestOSMGraphPreprocessor:
 
         self.check_graph_properties(preprocessed_graph, graph_preprocessor.nx_graph)
 
-    def test_osm_pickle(self, pytest_osm_graph_pickle: MultiGraph):
-        graph_preprocessor = OSMGraphPreprocessor(pytest_osm_graph_pickle)
+    def test_osm_pickle(self, load_osm_graph_pickle: MultiGraph):
+        graph_preprocessor = OSMGraphPreprocessor(load_osm_graph_pickle)
         preprocessed_graph = graph_preprocessor.preprocess_graph()
 
         self.check_graph_properties(preprocessed_graph, graph_preprocessor.nx_graph)
@@ -89,6 +90,76 @@ class TestOSMGraphPreprocessor:
         graph.add_node(0, osmid=0, geometry=shapely.LineString([(0, 0), (0, 1)]))
         with pytest.raises(ValueError):
             OSMGraphPreprocessor(graph).preprocess_graph()
+
+    def test_osm_graph_to_gdfs_conversion(self, load_osm_graph_pickle: MultiGraph):
+        graph_preprocessor = OSMGraphPreprocessor(load_osm_graph_pickle)
+        preprocessed_graph = graph_preprocessor.preprocess_graph()
+
+        self.check_gdf_properties(preprocessed_graph)
+
+    def test_osm_graph_to_gdfs_conversion_with_changes(self, load_osm_graph_pickle: MultiGraph):
+        graph_preprocessor = OSMGraphPreprocessor(load_osm_graph_pickle)
+        preprocessed_graph = graph_preprocessor.preprocess_graph()
+
+        preprocessed_graph.remove_node(2)
+
+        new_node_1 = NodeInfo(osm_id=123, geometry=shapely.Point(1, 1))
+        idx_1 = preprocessed_graph.add_node(new_node_1)
+        assert idx_1 == 2  # must be equal to the removed node id
+        preprocessed_graph[idx_1].node_id = idx_1
+
+        new_node_2 = NodeInfo(osm_id=124, geometry=shapely.Point(1, 2))
+        idx_2 = preprocessed_graph.add_node(new_node_2)
+        preprocessed_graph[idx_2].node_id = idx_2
+        new_node_3 = NodeInfo(osm_id=125, geometry=shapely.Point(1, 3))
+        idx_3 = preprocessed_graph.add_node(new_node_3)
+        preprocessed_graph[idx_3].node_id = idx_3
+
+        preprocessed_graph.remove_edge(1, 800)
+        preprocessed_graph.remove_edge(3, 1027)
+
+        idx_5 = preprocessed_graph.add_edge(
+            0,
+            1,
+            EdgeInfo(
+                osm_id=126,
+                geometry=shapely.LineString([preprocessed_graph[0].geometry, preprocessed_graph[1].geometry]),
+                length=1,
+            ),
+        )
+        preprocessed_graph.get_edge_data(0, 1).edge_id = idx_5
+        idx_6 = preprocessed_graph.add_edge(
+            idx_2,
+            idx_3,
+            EdgeInfo(
+                osm_id=127,
+                geometry=shapely.LineString([preprocessed_graph[idx_2].geometry, preprocessed_graph[idx_3].geometry]),
+                length=2,
+            ),
+        )
+        preprocessed_graph.get_edge_data(idx_2, idx_3).edge_id = idx_6
+
+        self.check_gdf_properties(preprocessed_graph)
+
+    def test_osm_graph_to_gdfs_empty_return(self, load_osm_graph_pickle: MultiGraph):
+        gdf_nodes, gdf_edges = osm_graph_to_gdfs(rx.PyGraph())
+        assert len(gdf_nodes) == 0
+        assert len(gdf_edges) == 0
+
+    @staticmethod
+    def check_gdf_properties(rx_graph: rx.PyGraph):
+        gdf_nodes, gdf_edges = osm_graph_to_gdfs(rx_graph)
+        assert len(gdf_nodes) == rx_graph.num_nodes()
+        assert len(gdf_edges) == rx_graph.num_edges()
+
+        for node in rx_graph.nodes():
+            assert gdf_nodes.loc[node.node_id].osm_id == node.osm_id
+            assert gdf_nodes.loc[node.node_id].geometry == node.geometry
+
+        for edge in rx_graph.edges():
+            assert gdf_edges.loc[edge.edge_id].osm_id == edge.osm_id
+            assert gdf_edges.loc[edge.edge_id].geometry == edge.geometry
+            assert gdf_edges.loc[edge.edge_id].length == edge.length
 
     @staticmethod
     def check_graph_properties(rx_graph: rx.PyGraph, nx_graph: MultiGraph):

@@ -65,7 +65,6 @@ class OSMGraphPreprocessor:
 
         nodes = list(nx_graph.nodes)
         nx_rx_node_mapping = dict(zip(nodes, rx_graph.add_nodes_from(nodes)))
-        # rx_graph.add_edges_from([(nx_rx_node_mapping[x[0]], nx_rx_node_mapping[x[1]], EdgeInfo(x[2].get("osmid", 0), x[2].get("length", 0), x[2].get("geometry", shapely.LineString())) for x in nx_graph.edges(data=True)])
         rx_graph.add_edges_from(
             [
                 (
