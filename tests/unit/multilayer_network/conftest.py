@@ -19,7 +19,7 @@ def load_osm_graph_pickle(refresh_example_graph=False) -> MultiGraph:
         project_area = (
             gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
             .iloc[0]
-            .geometry
+            .geometry.buffer(250)
         )
         osm_graph_downloader = OSMGraphDownloader(project_area, 50)
         project_area_graph = osm_graph_downloader.download_graph()
