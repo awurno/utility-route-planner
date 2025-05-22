@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import pytest
 import rustworkx as rx
-import pickle
 
 from settings import Config
 from networkx import MultiDiGraph, MultiGraph
@@ -32,28 +31,6 @@ class TestOSMGraphPreprocessor:
         graph.add_edge(0, 2, 0, osmid=2, geometry=shapely.LineString([(0, 0), (0, -2)]), length=2)
 
         return graph
-
-    @pytest.fixture
-    def load_osm_graph_pickle(self, refresh_example_graph=False) -> MultiGraph:
-        # Option to refresh to example osm graph.
-        if refresh_example_graph:
-            import geopandas as gpd
-            from utility_route_planner.util.osm_graph_downloader import OSMGraphDownloader
-
-            project_area = (
-                gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
-                .iloc[0]
-                .geometry
-            )
-            osm_graph_downloader = OSMGraphDownloader(project_area, 50)
-            project_area_graph = osm_graph_downloader.download_graph()
-
-            with open(Config.PYTEST_OSM_GRAPH_PICKLE, "wb") as file:
-                pickle.dump(project_area_graph, file)
-
-        with open(Config.PYTEST_OSM_GRAPH_PICKLE, "rb") as file:
-            osm_graph = pickle.load(file)
-        return osm_graph
 
     def test_graph_is_made_undirected(self, unprocessed_directed_graph: MultiDiGraph):
         graph_preprocessor = OSMGraphPreprocessor(unprocessed_directed_graph)
