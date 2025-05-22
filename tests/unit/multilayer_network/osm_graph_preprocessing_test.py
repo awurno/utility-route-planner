@@ -92,8 +92,8 @@ class TestOSMGraphPreprocessor:
         idx_3 = preprocessed_graph.add_node(new_node_3)
         preprocessed_graph[idx_3].node_id = idx_3
 
-        preprocessed_graph.remove_edge(1, 800)
-        preprocessed_graph.remove_edge(3, 1027)
+        preprocessed_graph.remove_edge(*preprocessed_graph.get_edge_endpoints_by_index(40))
+        preprocessed_graph.remove_edge(*preprocessed_graph.get_edge_endpoints_by_index(41))
 
         idx_5 = preprocessed_graph.add_edge(
             0,
