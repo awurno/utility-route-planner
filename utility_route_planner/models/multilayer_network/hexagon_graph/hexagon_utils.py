@@ -10,10 +10,19 @@ import rustworkx as rx
 import shapely
 
 from settings import Config
-from util.timer import time_function
+from utility_route_planner.util.timer import time_function
 
 
 def get_hexagon_width_and_height(hexagon_size: float) -> tuple[float, float]:
+    """
+    Compute hexagon width and height, given the provided size of the hexagon. In this calculation, width and height are
+    computed for a flat-top oriented hexagon.
+
+    source: https://www.redblobgames.com/grids/hexagons/#basics
+
+    :param hexagon_size: size of hexagon described by the inner circle of the hexagon that touches the edges
+    """
+
     hexagon_width = 2 * hexagon_size
     hexagon_height = math.sqrt(3) * hexagon_size
 
