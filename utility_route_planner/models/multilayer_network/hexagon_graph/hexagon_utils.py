@@ -21,6 +21,7 @@ def get_hexagon_width_and_height(hexagon_size: float) -> tuple[float, float]:
     source: https://www.redblobgames.com/grids/hexagons/#basics
 
     :param hexagon_size: size of hexagon described by the inner circle of the hexagon that touches the edges
+    :return: tuple consisting of two floats that represent the width and height of the hexagon
     """
 
     hexagon_width = 2 * hexagon_size
