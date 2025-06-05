@@ -34,7 +34,10 @@ class TestPipeRamming:
 
         return osm_graph_preprocessed, mcda_engine
 
-    def test_simplify_graph(self):
+    def test_simplify_graph(self, debug=False):
+        if debug:
+            reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
+
         osm_graph = rx.PyGraph()
         node1 = NodeInfo(osm_id=1, geometry=shapely.Point(0, 0))
         node2 = NodeInfo(osm_id=2, geometry=shapely.Point(1, 0))
@@ -102,9 +105,9 @@ class TestPipeRamming:
 
         # Enable debug for visual debugging in QGIS.
         crossings = GetPotentialPipeRammingCrossings(
-            osm_graph, get_empty_geodataframe(), get_empty_geodataframe(), debug=True
+            osm_graph, get_empty_geodataframe(), get_empty_geodataframe(), debug=debug
         )
-        nodes, edges = crossings.group_graph_segments()
+        nodes, edges = crossings.create_street_segment_groups()
 
         # Do a sanity check on the grouped edges and nodes.
         assert len(edges) == osm_graph.num_edges()
@@ -144,11 +147,13 @@ class TestPipeRamming:
         assert group_110 == group_111 == group_112
         assert (edges["group"] == group_110).sum() == 3
 
-    def test_find_road_crossings(self, setup_pipe_ramming_example_polygon):
-        reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
+    def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
+        if debug:
+            reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
+
         osm_graph, mcda_engine = setup_pipe_ramming_example_polygon
 
         obstacles = mcda_engine.processed_vectors["pand"]  # can be expanded with water, trees.
         roads = mcda_engine.processed_vectors["wegdeel"]
-        crossings = GetPotentialPipeRammingCrossings(osm_graph, roads, obstacles)
-        nodes, edges = crossings.get_crossings()
+        crossings = GetPotentialPipeRammingCrossings(osm_graph, roads, obstacles, debug=debug)
+        crossings.get_crossings()

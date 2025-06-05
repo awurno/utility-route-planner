@@ -31,6 +31,7 @@ class Config:
 
     # Multilayer network
     OSM_API_TIMEOUT_IN_SECONDS = 20
+    THRESHOLD_SEGMENT_CROSSING_LENGTH_M = 30
 
     # input/output paths.
     PATH_RESULTS = BASEDIR / "data/processed"
