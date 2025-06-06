@@ -12,7 +12,7 @@ from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.multilayer_network.pipe_ramming import GetPotentialPipeRammingCrossings
 from utility_route_planner.util.geo_utilities import get_empty_geodataframe
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import OSMGraphPreprocessor
-from models.multilayer_network.graph_datastructures import NodeInfo
+from models.multilayer_network.graph_datastructures import OSMNodeInfo
 from utility_route_planner.util.write import reset_geopackage
 
 
@@ -40,18 +40,18 @@ class TestPipeRamming:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
         osm_graph = rx.PyGraph()
-        node1 = NodeInfo(osm_id=1, geometry=shapely.Point(0, 0))
-        node2 = NodeInfo(osm_id=2, geometry=shapely.Point(1, 0))
-        node3 = NodeInfo(osm_id=3, geometry=shapely.Point(1, -1))
-        node4 = NodeInfo(osm_id=4, geometry=shapely.Point(1, -2))
-        node5 = NodeInfo(osm_id=5, geometry=shapely.Point(2, 0))
-        node6 = NodeInfo(osm_id=6, geometry=shapely.Point(3, 0))
-        node7 = NodeInfo(osm_id=7, geometry=shapely.Point(3, 1))
-        node8 = NodeInfo(osm_id=8, geometry=shapely.Point(4, 1))
-        node9 = NodeInfo(osm_id=9, geometry=shapely.Point(4, 0))
-        node10 = NodeInfo(osm_id=10, geometry=shapely.Point(5, 0))
-        node11 = NodeInfo(osm_id=11, geometry=shapely.Point(6, 1))
-        node12 = NodeInfo(osm_id=12, geometry=shapely.Point(6, -1))
+        node1 = OSMNodeInfo(osm_id=1, geometry=shapely.Point(0, 0))
+        node2 = OSMNodeInfo(osm_id=2, geometry=shapely.Point(1, 0))
+        node3 = OSMNodeInfo(osm_id=3, geometry=shapely.Point(1, -1))
+        node4 = OSMNodeInfo(osm_id=4, geometry=shapely.Point(1, -2))
+        node5 = OSMNodeInfo(osm_id=5, geometry=shapely.Point(2, 0))
+        node6 = OSMNodeInfo(osm_id=6, geometry=shapely.Point(3, 0))
+        node7 = OSMNodeInfo(osm_id=7, geometry=shapely.Point(3, 1))
+        node8 = OSMNodeInfo(osm_id=8, geometry=shapely.Point(4, 1))
+        node9 = OSMNodeInfo(osm_id=9, geometry=shapely.Point(4, 0))
+        node10 = OSMNodeInfo(osm_id=10, geometry=shapely.Point(5, 0))
+        node11 = OSMNodeInfo(osm_id=11, geometry=shapely.Point(6, 1))
+        node12 = OSMNodeInfo(osm_id=12, geometry=shapely.Point(6, -1))
 
         edge1 = create_edge_info(100, node1, node2)
         edge2 = create_edge_info(101, node2, node3)

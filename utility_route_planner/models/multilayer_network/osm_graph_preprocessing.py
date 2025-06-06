@@ -8,7 +8,7 @@ import osmnx as ox
 import structlog
 import shapely
 
-from models.multilayer_network.graph_datastructures import NodeInfo, EdgeInfo
+from models.multilayer_network.graph_datastructures import OSMNodeInfo, EdgeInfo
 
 logger = structlog.get_logger(__name__)
 
@@ -66,7 +66,7 @@ class OSMGraphPreprocessor:
 
         for node, node_index in nx_rx_node_mapping.items():
             data = nx_graph.nodes[node]
-            info = NodeInfo(node, shapely.Point(data.get("x", 0), data.get("y", 0)), node_index)
+            info = OSMNodeInfo(node, shapely.Point(data.get("x", 0), data.get("y", 0)), node_index)
             rx_graph[node_index] = info
 
         return rx_graph

@@ -13,7 +13,7 @@ from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import (
     OSMGraphPreprocessor,
 )
-from models.multilayer_network.graph_datastructures import NodeInfo, EdgeInfo
+from models.multilayer_network.graph_datastructures import OSMNodeInfo, EdgeInfo
 
 
 class TestOSMGraphPreprocessor:
@@ -83,15 +83,15 @@ class TestOSMGraphPreprocessor:
 
         preprocessed_graph.remove_node(2)
 
-        new_node_1 = NodeInfo(osm_id=123, geometry=shapely.Point(1, 1))
+        new_node_1 = OSMNodeInfo(osm_id=123, geometry=shapely.Point(1, 1))
         idx_1 = preprocessed_graph.add_node(new_node_1)
         assert idx_1 == 2  # must be equal to the removed node id
         preprocessed_graph[idx_1].node_id = idx_1
 
-        new_node_2 = NodeInfo(osm_id=124, geometry=shapely.Point(1, 2))
+        new_node_2 = OSMNodeInfo(osm_id=124, geometry=shapely.Point(1, 2))
         idx_2 = preprocessed_graph.add_node(new_node_2)
         preprocessed_graph[idx_2].node_id = idx_2
-        new_node_3 = NodeInfo(osm_id=125, geometry=shapely.Point(1, 3))
+        new_node_3 = OSMNodeInfo(osm_id=125, geometry=shapely.Point(1, 3))
         idx_3 = preprocessed_graph.add_node(new_node_3)
         preprocessed_graph[idx_3].node_id = idx_3
 
@@ -149,7 +149,7 @@ class TestOSMGraphPreprocessor:
         nx_nodes = nx_graph.nodes(data=True)
         for rx_node in rx_graph.nodes():
             # Check if the properties of the node are the same as the nx_graph
-            assert isinstance(rx_node, NodeInfo)
+            assert isinstance(rx_node, OSMNodeInfo)
             assert nx_nodes[rx_node.osm_id].get("x") == rx_node.geometry.x
             assert nx_nodes[rx_node.osm_id].get("y") == rx_node.geometry.y
 

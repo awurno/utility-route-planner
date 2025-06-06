@@ -8,9 +8,20 @@ import shapely
 
 @dataclass
 class NodeInfo:
-    osm_id: int
+    node_id: int | None
     geometry: shapely.Point
-    node_id: int | None = None  # index of the node in the rustworkx graph.
+
+
+@dataclass
+class OSMNodeInfo(NodeInfo):
+    osm_id: int
+
+
+@dataclass
+class HexagonNodeInfo(NodeInfo):
+    suitability_value: float
+    axial_q: float
+    axial_r: float
 
 
 @dataclass
