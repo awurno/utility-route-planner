@@ -38,6 +38,7 @@ class Config:
     PATH_GEOPACKAGE_MCDA_OUTPUT = BASEDIR / "data/processed/mcda_output.gpkg"
     PATH_GEOPACKAGE_LCPA_OUTPUT = BASEDIR / "data/processed/lcpa_results.gpkg"
     PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT = BASEDIR / "data/processed/multilayer_network.gpkg"
+    PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT = BASEDIR / "data/processed/vector_graph_results.gpkg"
 
     # Testing paths.
     PATH_EXAMPLE_RASTER = BASEDIR / "data/examples/pytest_example_suitability_raster.tif"
