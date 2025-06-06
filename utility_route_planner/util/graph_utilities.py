@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import shapely
 
-from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import NodeInfo, EdgeInfo
+from models.multilayer_network.graph_datastructures import NodeInfo, EdgeInfo
 
 
 def create_edge_info(osm_id: int, start_node: NodeInfo, end_node: NodeInfo) -> EdgeInfo:

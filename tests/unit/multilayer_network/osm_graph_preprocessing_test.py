@@ -12,9 +12,8 @@ import shapely
 from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import (
     OSMGraphPreprocessor,
-    NodeInfo,
-    EdgeInfo,
 )
+from models.multilayer_network.graph_datastructures import NodeInfo, EdgeInfo
 
 
 class TestOSMGraphPreprocessor:
