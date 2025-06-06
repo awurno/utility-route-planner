@@ -13,7 +13,7 @@ from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import (
     OSMGraphPreprocessor,
 )
-from models.multilayer_network.graph_datastructures import OSMNodeInfo, EdgeInfo
+from models.multilayer_network.graph_datastructures import OSMNodeInfo, OSMEdgeInfo
 
 
 class TestOSMGraphPreprocessor:
@@ -101,7 +101,7 @@ class TestOSMGraphPreprocessor:
         idx_5 = preprocessed_graph.add_edge(
             0,
             1,
-            EdgeInfo(
+            OSMEdgeInfo(
                 osm_id=126,
                 geometry=shapely.LineString([preprocessed_graph[0].geometry, preprocessed_graph[1].geometry]),
                 length=1,
@@ -111,7 +111,7 @@ class TestOSMGraphPreprocessor:
         idx_6 = preprocessed_graph.add_edge(
             idx_2,
             idx_3,
-            EdgeInfo(
+            OSMEdgeInfo(
                 osm_id=127,
                 geometry=shapely.LineString([preprocessed_graph[idx_2].geometry, preprocessed_graph[idx_3].geometry]),
                 length=2,

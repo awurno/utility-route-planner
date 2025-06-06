@@ -26,7 +26,15 @@ class HexagonNodeInfo(NodeInfo):
 
 @dataclass
 class EdgeInfo:
-    osm_id: int
     length: float
     geometry: shapely.LineString
-    edge_id: int | None = None  # index of the edge in the rustworkx graph.
+
+
+@dataclass
+class OSMEdgeInfo(EdgeInfo):
+    osm_id: int
+
+
+@dataclass
+class HexagonEdgeInfo(EdgeInfo):
+    weight: float

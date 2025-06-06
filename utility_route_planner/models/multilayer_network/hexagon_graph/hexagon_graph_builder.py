@@ -6,7 +6,8 @@ import geopandas as gpd
 import rustworkx as rx
 import structlog
 
-from models.multilayer_network.hexagon_graph.hexagon_edge_generator import HexagonEdgeGenerator
+from utility_route_planner.models.multilayer_network.graph_datastructures import HexagonNodeInfo, HexagonEdgeInfo
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_edge_generator import HexagonEdgeGenerator
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_constructor import (
     HexagonalGridConstructor,
 )
@@ -26,12 +27,17 @@ class HexagonGraphBuilder:
         grid_constructor = HexagonalGridConstructor(self.vectors_for_project_area, self.hexagon_size)
         hexagonal_grid = grid_constructor.construct_grid()
 
-        nodes = hexagonal_grid[["suitability_value", "axial_q", "axial_r", "x", "y"]].to_dict(orient="index").items()
-        self.graph.add_nodes_from(nodes)
+        node_values = hexagonal_grid[["geometry", "suitability_value", "axial_q", "axial_r"]].values
+        hexagonal_nodes = [HexagonNodeInfo(node_id, *node_value) for node_id, node_value in enumerate(node_values)]
+        self.graph.add_nodes_from(hexagonal_nodes)
 
         hexagon_edge_generator = HexagonEdgeGenerator(hexagonal_grid)
         for edges in hexagon_edge_generator.generate():
-            self.graph.add_edges_from(edges)
+            hexagonal_edges = [
+                (edge.node_id_source, edge.node_id_target, HexagonEdgeInfo(edge.length, edge.geometry, edge.weight))
+                for edge in edges.itertuples(index=False)
+            ]
+            self.graph.add_edges_from(hexagonal_edges)
 
         logger.info(
             f"Graph has {self.graph.num_nodes()} nodes & {self.graph.num_edges()} edges for hexagon_size {self.hexagon_size}"
