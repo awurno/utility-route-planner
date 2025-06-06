@@ -83,6 +83,7 @@ class TestPipeRamming:
             node11.node_id,
             node12.node_id,
         ) = node_ids
+
         edges_to_add = [
             (node1.node_id, node2.node_id, edge1),
             (node2.node_id, node3.node_id, edge2),

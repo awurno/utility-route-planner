@@ -7,7 +7,7 @@ import shapely
 
 from settings import Config
 from utility_route_planner.models.multilayer_network.exceptions import NoGraphDataForProjectArea
-from utility_route_planner.util.osm_graph_downloader import OSMGraphDownloader
+from utility_route_planner.models.multilayer_network.osm_graph_downloader import OSMGraphDownloader
 
 
 class TestOSMGraphDownloader:
