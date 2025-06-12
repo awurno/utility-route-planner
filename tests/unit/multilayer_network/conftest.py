@@ -14,7 +14,7 @@ def load_osm_graph_pickle(refresh_example_graph=False) -> MultiGraph:
     # Option to refresh to example osm graph.
     if refresh_example_graph:
         import geopandas as gpd
-        from utility_route_planner.util.osm_graph_downloader import OSMGraphDownloader
+        from utility_route_planner.models.multilayer_network.osm_graph_downloader import OSMGraphDownloader
 
         project_area = (
             gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
