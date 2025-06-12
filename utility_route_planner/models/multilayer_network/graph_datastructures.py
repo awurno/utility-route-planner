@@ -8,7 +8,6 @@ import shapely
 
 @dataclass
 class NodeInfo:
-    node_id: int | None
     geometry: shapely.Point
 
 

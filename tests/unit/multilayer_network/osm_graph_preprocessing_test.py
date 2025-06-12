@@ -147,15 +147,16 @@ class TestOSMGraphPreprocessor:
         assert nx_graph.number_of_edges() == rx_graph.num_edges()
 
         nx_nodes = nx_graph.nodes(data=True)
-        for rx_node in rx_graph.nodes():
+        for node_id in rx_graph.node_indices():
+            node = rx_graph[node_id]
             # Check if the properties of the node are the same as the nx_graph
-            assert isinstance(rx_node, OSMNodeInfo)
-            assert nx_nodes[rx_node.osm_id].get("x") == rx_node.geometry.x
-            assert nx_nodes[rx_node.osm_id].get("y") == rx_node.geometry.y
+            assert isinstance(node, OSMNodeInfo)
+            assert nx_nodes[node.osm_id].get("x") == node.geometry.x
+            assert nx_nodes[node.osm_id].get("y") == node.geometry.y
 
             # Check if we have the same edges as neighbours in both graphs
-            rx_adjacent_edges = rx_graph.adj(rx_node.node_id)
-            nx_adjacent_edges = nx_graph.edges(rx_node.osm_id, data=True)
+            rx_adjacent_edges = rx_graph.adj(node_id)
+            nx_adjacent_edges = nx_graph.edges(node.osm_id, data=True)
             assert len(rx_adjacent_edges) == len(nx_adjacent_edges)
 
             # Check if the edge properties are the same
