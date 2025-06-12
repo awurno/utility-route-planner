@@ -11,7 +11,7 @@ from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_edge_
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_constructor import (
     HexagonalGridConstructor,
 )
-from util.timer import time_function
+from utility_route_planner.util.timer import time_function
 
 logger = structlog.get_logger(__name__)
 

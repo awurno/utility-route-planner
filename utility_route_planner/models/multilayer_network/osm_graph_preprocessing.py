@@ -8,7 +8,7 @@ import osmnx as ox
 import structlog
 import shapely
 
-from models.multilayer_network.graph_datastructures import OSMNodeInfo, OSMEdgeInfo
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo
 
 logger = structlog.get_logger(__name__)
 
@@ -56,9 +56,9 @@ class OSMGraphPreprocessor:
                 (
                     nx_rx_node_mapping[x[0]],
                     nx_rx_node_mapping[x[1]],
-                    OSMEdgeInfo(
-                        x[2].get("osmid", 0), x[2].get("length", 0), x[2].get("geometry", shapely.LineString()), idx
-                    ),
+                    # OSMEdgeInfo(
+                    #     x[2].get("osmid", 0), x[2].get("length", 0), x[2].get("geometry", shapely.LineString()), idx
+                    # ),
                 )
                 for idx, x in enumerate(nx_graph.edges(data=True), start=0)
             ]

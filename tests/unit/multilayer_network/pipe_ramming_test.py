@@ -12,7 +12,7 @@ from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.multilayer_network.pipe_ramming import GetPotentialPipeRammingCrossings
 from utility_route_planner.util.geo_utilities import get_empty_geodataframe
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import OSMGraphPreprocessor
-from models.multilayer_network.graph_datastructures import OSMNodeInfo
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo
 from utility_route_planner.util.write import reset_geopackage
 
 

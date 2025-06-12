@@ -7,11 +7,11 @@ import pytest
 import shapely
 import geopandas as gpd
 
-from models.mcda.mcda_engine import McdaCostSurfaceEngine
-from models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
-from models.multilayer_network.hexagon_graph.hexagon_utils import convert_hexagon_graph_to_gdfs
+from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
 from settings import Config
-from util.write import write_results_to_geopackage
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import convert_hexagon_graph_to_gdfs
+from utility_route_planner.util.write import write_results_to_geopackage
 
 
 class TestVectorToGraph:
@@ -48,11 +48,11 @@ class TestVectorToGraph:
         )
 
     @pytest.fixture()
-    def vectors_for_project_areas(self, ede_project_area: shapely.Polygon) -> gpd.GeoDataFrame:
+    def vectors_for_project_areas(self, larger_project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
             Config.PYTEST_PATH_GEOPACKAGE_MCDA,
-            ede_project_area,
+            larger_project_area,
         )
         mcda_engine.preprocess_vectors()
         concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
