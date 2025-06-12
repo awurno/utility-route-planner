@@ -10,7 +10,7 @@ from settings import Config
 from utility_route_planner.util.graph_utilities import create_edge_info
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.multilayer_network.pipe_ramming import GetPotentialPipeRammingCrossings
-from utility_route_planner.util.geo_utilities import get_empty_geodataframe
+from utility_route_planner.util.geo_utilities import get_empty_geodataframe, osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import OSMGraphPreprocessor, NodeInfo
 from utility_route_planner.util.write import reset_geopackage
 
@@ -108,7 +108,8 @@ class TestPipeRamming:
         crossings = GetPotentialPipeRammingCrossings(
             osm_graph, get_empty_geodataframe(), get_empty_geodataframe(), debug=debug
         )
-        nodes, edges = crossings.create_street_segment_groups()
+        nodes, edges = osm_graph_to_gdfs(crossings.osm_graph)
+        nodes, edges = crossings.create_street_segment_groups(nodes, edges)
 
         # Do a sanity check on the grouped edges and nodes.
         assert len(edges) == osm_graph.num_edges()
@@ -148,6 +149,25 @@ class TestPipeRamming:
         assert group_110 == group_111 == group_112
         assert (edges["group"] == group_110).sum() == 3
 
+    def test_find_junction_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
+        if debug:
+            reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
+
+        osm_graph, mcda_engine = setup_pipe_ramming_example_polygon
+
+        project_area = shapely.Point(174967.12, 450898.60).buffer(50)
+        nodes, edges = osm_graph_to_gdfs(osm_graph)
+        nodes = gpd.clip(nodes, project_area)
+        edges = gpd.clip(edges, project_area)
+
+        obstacles = mcda_engine.processed_vectors["pand"]  # can be expanded with water, trees.
+        roads = mcda_engine.processed_vectors["wegdeel"]
+
+        crossings = GetPotentialPipeRammingCrossings(
+            osm_graph, Config.PATH_EXAMPLE_RASTER, roads, obstacles, debug=debug
+        )
+        crossings.create_junction_crossings(nodes, edges)
+
     def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
@@ -156,5 +176,8 @@ class TestPipeRamming:
 
         obstacles = mcda_engine.processed_vectors["pand"]  # can be expanded with water, trees.
         roads = mcda_engine.processed_vectors["wegdeel"]
-        crossings = GetPotentialPipeRammingCrossings(osm_graph, roads, obstacles, debug=debug)
+
+        crossings = GetPotentialPipeRammingCrossings(
+            osm_graph, Config.PATH_EXAMPLE_RASTER, roads, obstacles, debug=debug
+        )
         crossings.get_crossings()
