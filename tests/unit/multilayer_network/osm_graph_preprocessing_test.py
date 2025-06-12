@@ -132,9 +132,9 @@ class TestOSMGraphPreprocessor:
         assert len(gdf_nodes) == rx_graph.num_nodes()
         assert len(gdf_edges) == rx_graph.num_edges()
 
-        for node in rx_graph.nodes():
-            assert gdf_nodes.loc[node.node_id].osm_id == node.osm_id
-            assert gdf_nodes.loc[node.node_id].geometry == node.geometry
+        for node in rx_graph.node_indices():
+            assert gdf_nodes.loc[node].osm_id == node.osm_id
+            assert gdf_nodes.loc[node].geometry == node.geometry
 
         for edge in rx_graph.edges():
             assert gdf_edges.loc[edge.edge_id].osm_id == edge.osm_id

@@ -132,7 +132,7 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
 
 def osm_graph_to_gdfs(graph: rx.PyGraph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     if graph.num_nodes() > 0 and graph.num_edges() > 0:
-        data = [(node.osm_id, node.node_id, node.geometry) for node in graph.nodes()]
+        data = [(graph[node_id].osm_id, node_id, graph[node_id].geometry) for node_id in graph.node_indices()]
         gdf_nodes = gpd.GeoDataFrame(data, crs=Config.CRS, columns=["osm_id", "node_id", "geometry"])
         gdf_nodes.set_index("node_id", inplace=True, drop=True)
 
