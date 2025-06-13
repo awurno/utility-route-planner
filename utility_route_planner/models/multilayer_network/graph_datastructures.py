@@ -1,13 +1,14 @@
 #  SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
 #  #
 #  SPDX-License-Identifier: Apache-2.0
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import shapely
 
 
 @dataclass
 class NodeInfo:
+    node_id: int = field(init=False)
     geometry: shapely.Point
 
 
@@ -25,6 +26,7 @@ class HexagonNodeInfo(NodeInfo):
 
 @dataclass
 class EdgeInfo:
+    edge_id: int = field(init=False)
     length: float
     geometry: shapely.LineString
 

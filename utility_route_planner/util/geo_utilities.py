@@ -132,12 +132,12 @@ def load_suitability_raster_data(path_raster: Path | str, project_area: shapely.
 
 def osm_graph_to_gdfs(graph: rx.PyGraph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     if graph.num_nodes() > 0 and graph.num_edges() > 0:
-        data = [(graph[node_id].osm_id, node_id, graph[node_id].geometry) for node_id in graph.node_indices()]
+        data = [(node.osm_id, node.node_id, node.geometry) for node in graph.nodes()]
         gdf_nodes = gpd.GeoDataFrame(data, crs=Config.CRS, columns=["osm_id", "node_id", "geometry"])
         gdf_nodes.set_index("node_id", inplace=True, drop=True)
 
-        data = [(edge.osm_id, edge.edge_id, edge.length, edge.geometry) for edge in graph.edges()]  # type: ignore
-        gdf_edges = gpd.GeoDataFrame(data, crs=Config.CRS, columns=["osm_id", "edge_id", "length", "geometry"])
+        data = [(edge.edge_id, edge.osm_id, edge.length, edge.geometry) for edge in graph.edges()]  # type: ignore
+        gdf_edges = gpd.GeoDataFrame(data, crs=Config.CRS, columns=["edge_id", "osm_id", "length", "geometry"])
         gdf_edges.set_index("edge_id", inplace=True, drop=True)
         return gdf_nodes, gdf_edges
     else:

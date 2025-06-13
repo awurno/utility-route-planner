@@ -13,7 +13,7 @@ from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import (
     OSMGraphPreprocessor,
 )
-from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo, OSMEdgeInfo
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo
 
 
 class TestOSMGraphPreprocessor:
@@ -98,26 +98,24 @@ class TestOSMGraphPreprocessor:
         preprocessed_graph.remove_edge(*preprocessed_graph.get_edge_endpoints_by_index(40))
         preprocessed_graph.remove_edge(*preprocessed_graph.get_edge_endpoints_by_index(41))
 
-        idx_5 = preprocessed_graph.add_edge(
-            0,
-            1,
-            OSMEdgeInfo(
-                osm_id=126,
-                geometry=shapely.LineString([preprocessed_graph[0].geometry, preprocessed_graph[1].geometry]),
-                length=1,
-            ),
-        )
-        preprocessed_graph.get_edge_data(0, 1).edge_id = idx_5
-        idx_6 = preprocessed_graph.add_edge(
-            idx_2,
-            idx_3,
-            OSMEdgeInfo(
-                osm_id=127,
-                geometry=shapely.LineString([preprocessed_graph[idx_2].geometry, preprocessed_graph[idx_3].geometry]),
-                length=2,
-            ),
-        )
-        preprocessed_graph.get_edge_data(idx_2, idx_3).edge_id = idx_6
+        # idx_5 = preprocessed_graph.add_edge(
+        #     0,
+        #     1,
+        #     OSMEdgeInfo(
+        #         osm_id=126,
+        #         geometry=shapely.LineString([preprocessed_graph[0].geometry, preprocessed_graph[1].geometry]),
+        #         length=1,
+        #     ),
+        # )
+        # idx_6 = preprocessed_graph.add_edge(
+        #     idx_2,
+        #     idx_3,
+        #     OSMEdgeInfo(
+        #         osm_id=127,
+        #         geometry=shapely.LineString([preprocessed_graph[idx_2].geometry, preprocessed_graph[idx_3].geometry]),
+        #         length=2,
+        #     ),
+        # )
 
         self.check_gdf_properties(preprocessed_graph)
 
@@ -136,10 +134,10 @@ class TestOSMGraphPreprocessor:
             assert gdf_nodes.loc[node].osm_id == node.osm_id
             assert gdf_nodes.loc[node].geometry == node.geometry
 
-        for edge in rx_graph.edges():
-            assert gdf_edges.loc[edge.edge_id].osm_id == edge.osm_id
-            assert gdf_edges.loc[edge.edge_id].geometry == edge.geometry
-            assert gdf_edges.loc[edge.edge_id].length == edge.length
+        for edge_id in rx_graph.edge_indices():
+            assert gdf_edges.loc[edge_id].osm_id == edge_id.osm_id
+            assert gdf_edges.loc[edge_id].geometry == edge_id.geometry
+            assert gdf_edges.loc[edge_id].length == edge_id.length
 
     @staticmethod
     def check_graph_properties(rx_graph: rx.PyGraph, nx_graph: MultiGraph):

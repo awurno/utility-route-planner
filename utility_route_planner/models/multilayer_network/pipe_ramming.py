@@ -72,14 +72,13 @@ class GetPotentialPipeRammingCrossings:
                 for node_id_2 in nodes_to_check:
                     if node_degree[node_id_2] == 2 and node_id_2 not in seen_nodes:
                         adjacent = self.osm_graph.adj(node_id_2)
-                        edges_to_group.extend(adjacent.values())
+                        edges_to_group.extend([edge.edge_id for edge in adjacent.values()])
                         nodes_to_check.extend(list(adjacent.keys()))
 
                     nodes_to_check.remove(node_id_2)
                     seen_nodes.add(node_id_2)
 
-            node_ids = [edge.edge_id for edge in edges_to_group]
-            edges.loc[node_ids, "group"] = edge_group_nr
+            edges.loc[edges_to_group, "group"] = edge_group_nr
 
         logger.info(f"{len(edges)} edges were grouped into {edges['group'].nunique()} segments.")
 
