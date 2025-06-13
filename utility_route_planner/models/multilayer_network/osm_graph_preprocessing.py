@@ -51,22 +51,22 @@ class OSMGraphPreprocessor:
 
         nodes = list(nx_graph.nodes)
         nx_rx_node_mapping = dict(zip(nodes, rx_graph.add_nodes_from(nodes)))
-        rx_graph.add_edges_from(
-            [
-                (
-                    nx_rx_node_mapping[edge[0]],
-                    nx_rx_node_mapping[edge[1]],
-                    OSMEdgeInfo(
-                        edge[2].get("length", 0), edge[2].get("geometry", shapely.LineString()), edge[2].get("osmid", 0)
-                    ),
-                )
-                for edge in nx_graph.edges(data=True)
-            ]
-        )
+        edges = [
+            (
+                nx_rx_node_mapping[u],
+                nx_rx_node_mapping[v],
+                OSMEdgeInfo(edge.get("length", 0), edge.get("geometry", shapely.LineString()), edge.get("osmid", 0)),
+            )
+            for u, v, edge in nx_graph.edges(data=True)
+        ]
+        edge_ids = rx_graph.add_edges_from(edges)
+        for (_, _, edge), edge_id in zip(edges, edge_ids):
+            edge.edge_id = edge_id
 
         for node, node_index in nx_rx_node_mapping.items():
             data = nx_graph.nodes[node]
             info = OSMNodeInfo(shapely.Point(data.get("x", 0), data.get("y", 0)), data.get("osmid"))
+            info.node_id = node_index
             rx_graph[node_index] = info
 
         return rx_graph
