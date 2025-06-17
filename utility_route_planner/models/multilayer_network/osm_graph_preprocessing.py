@@ -65,7 +65,7 @@ class OSMGraphPreprocessor:
 
         for node, node_index in nx_rx_node_mapping.items():
             data = nx_graph.nodes[node]
-            info = OSMNodeInfo(shapely.Point(data.get("x", 0), data.get("y", 0)), data.get("osmid"))
+            info = OSMNodeInfo(shapely.Point(data.get("x", 0), data.get("y", 0)), node)
             info.node_id = node_index
             rx_graph[node_index] = info
 
