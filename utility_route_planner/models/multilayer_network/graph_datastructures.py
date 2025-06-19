@@ -11,6 +11,9 @@ class NodeInfo:
     node_id: int = field(init=False)
     geometry: shapely.Point
 
+    def set_node_id(self, node_id: int):
+        self.node_id = node_id
+
 
 @dataclass
 class OSMNodeInfo(NodeInfo):
@@ -29,6 +32,9 @@ class EdgeInfo:
     edge_id: int = field(init=False)
     length: float
     geometry: shapely.LineString
+
+    def set_edge_id(self, edge_id: int):
+        self.edge_id = edge_id
 
 
 @dataclass
