@@ -12,9 +12,8 @@ import shapely
 from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import (
     OSMGraphPreprocessor,
-    NodeInfo,
-    EdgeInfo,
 )
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMEdgeInfo, OSMNodeInfo
 
 
 class TestOSMGraphPreprocessor:
@@ -84,15 +83,15 @@ class TestOSMGraphPreprocessor:
 
         preprocessed_graph.remove_node(2)
 
-        new_node_1 = NodeInfo(osm_id=123, geometry=shapely.Point(1, 1))
+        new_node_1 = OSMNodeInfo(osm_id=123, geometry=shapely.Point(1, 1))
         idx_1 = preprocessed_graph.add_node(new_node_1)
         assert idx_1 == 2  # must be equal to the removed node id
         preprocessed_graph[idx_1].node_id = idx_1
 
-        new_node_2 = NodeInfo(osm_id=124, geometry=shapely.Point(1, 2))
+        new_node_2 = OSMNodeInfo(osm_id=124, geometry=shapely.Point(1, 2))
         idx_2 = preprocessed_graph.add_node(new_node_2)
         preprocessed_graph[idx_2].node_id = idx_2
-        new_node_3 = NodeInfo(osm_id=125, geometry=shapely.Point(1, 3))
+        new_node_3 = OSMNodeInfo(osm_id=125, geometry=shapely.Point(1, 3))
         idx_3 = preprocessed_graph.add_node(new_node_3)
         preprocessed_graph[idx_3].node_id = idx_3
 
@@ -102,7 +101,7 @@ class TestOSMGraphPreprocessor:
         idx_5 = preprocessed_graph.add_edge(
             0,
             1,
-            EdgeInfo(
+            OSMEdgeInfo(
                 osm_id=126,
                 geometry=shapely.LineString([preprocessed_graph[0].geometry, preprocessed_graph[1].geometry]),
                 length=1,
@@ -112,7 +111,7 @@ class TestOSMGraphPreprocessor:
         idx_6 = preprocessed_graph.add_edge(
             idx_2,
             idx_3,
-            EdgeInfo(
+            OSMEdgeInfo(
                 osm_id=127,
                 geometry=shapely.LineString([preprocessed_graph[idx_2].geometry, preprocessed_graph[idx_3].geometry]),
                 length=2,
@@ -148,15 +147,16 @@ class TestOSMGraphPreprocessor:
         assert nx_graph.number_of_edges() == rx_graph.num_edges()
 
         nx_nodes = nx_graph.nodes(data=True)
-        for rx_node in rx_graph.nodes():
+        for node_id in rx_graph.node_indices():
+            node = rx_graph[node_id]
             # Check if the properties of the node are the same as the nx_graph
-            assert isinstance(rx_node, NodeInfo)
-            assert nx_nodes[rx_node.osm_id].get("x") == rx_node.geometry.x
-            assert nx_nodes[rx_node.osm_id].get("y") == rx_node.geometry.y
+            assert isinstance(node, OSMNodeInfo)
+            assert nx_nodes[node.osm_id].get("x") == node.geometry.x
+            assert nx_nodes[node.osm_id].get("y") == node.geometry.y
 
             # Check if we have the same edges as neighbours in both graphs
-            rx_adjacent_edges = rx_graph.adj(rx_node.node_id)
-            nx_adjacent_edges = nx_graph.edges(rx_node.osm_id, data=True)
+            rx_adjacent_edges = rx_graph.adj(node_id)
+            nx_adjacent_edges = nx_graph.edges(node.osm_id, data=True)
             assert len(rx_adjacent_edges) == len(nx_adjacent_edges)
 
             # Check if the edge properties are the same

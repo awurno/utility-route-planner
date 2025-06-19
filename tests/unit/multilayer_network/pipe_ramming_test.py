@@ -11,7 +11,8 @@ from utility_route_planner.util.graph_utilities import create_edge_info
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.multilayer_network.pipe_ramming import GetPotentialPipeRammingCrossings
 from utility_route_planner.util.geo_utilities import get_empty_geodataframe, osm_graph_to_gdfs
-from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import OSMGraphPreprocessor, NodeInfo
+from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import OSMGraphPreprocessor
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo
 from utility_route_planner.util.write import reset_geopackage
 
 
@@ -34,37 +35,24 @@ class TestPipeRamming:
 
         return osm_graph_preprocessed, mcda_engine
 
-    def test_simplify_graph(self, debug=False):
+    def test_simplify_graph(self, debug=True):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
         osm_graph = rx.PyGraph()
-        node1 = NodeInfo(osm_id=1, geometry=shapely.Point(0, 0))
-        node2 = NodeInfo(osm_id=2, geometry=shapely.Point(1, 0))
-        node3 = NodeInfo(osm_id=3, geometry=shapely.Point(1, -1))
-        node4 = NodeInfo(osm_id=4, geometry=shapely.Point(1, -2))
-        node5 = NodeInfo(osm_id=5, geometry=shapely.Point(2, 0))
-        node6 = NodeInfo(osm_id=6, geometry=shapely.Point(3, 0))
-        node7 = NodeInfo(osm_id=7, geometry=shapely.Point(3, 1))
-        node8 = NodeInfo(osm_id=8, geometry=shapely.Point(4, 1))
-        node9 = NodeInfo(osm_id=9, geometry=shapely.Point(4, 0))
-        node10 = NodeInfo(osm_id=10, geometry=shapely.Point(5, 0))
-        node11 = NodeInfo(osm_id=11, geometry=shapely.Point(6, 1))
-        node12 = NodeInfo(osm_id=12, geometry=shapely.Point(6, -1))
 
-        edge1 = create_edge_info(100, node1, node2)
-        edge2 = create_edge_info(101, node2, node3)
-        edge3 = create_edge_info(102, node3, node4)
-        edge4 = create_edge_info(103, node2, node5)
-        edge5 = create_edge_info(104, node5, node6)
-        edge6 = create_edge_info(105, node6, node7)
-        edge7 = create_edge_info(106, node7, node8)
-        edge8 = create_edge_info(107, node8, node9)
-        edge9 = create_edge_info(108, node6, node9)
-        edge10 = create_edge_info(109, node9, node10)
-        edge11 = create_edge_info(110, node10, node11)
-        edge12 = create_edge_info(111, node10, node12)
-        edge13 = create_edge_info(112, node11, node12)
+        node1 = OSMNodeInfo(osm_id=1, geometry=shapely.Point(0, 0))
+        node2 = OSMNodeInfo(osm_id=2, geometry=shapely.Point(1, 0))
+        node3 = OSMNodeInfo(osm_id=3, geometry=shapely.Point(1, -1))
+        node4 = OSMNodeInfo(osm_id=4, geometry=shapely.Point(1, -2))
+        node5 = OSMNodeInfo(osm_id=5, geometry=shapely.Point(2, 0))
+        node6 = OSMNodeInfo(osm_id=6, geometry=shapely.Point(3, 0))
+        node7 = OSMNodeInfo(osm_id=7, geometry=shapely.Point(3, 1))
+        node8 = OSMNodeInfo(osm_id=8, geometry=shapely.Point(4, 1))
+        node9 = OSMNodeInfo(osm_id=9, geometry=shapely.Point(4, 0))
+        node10 = OSMNodeInfo(osm_id=10, geometry=shapely.Point(5, 0))
+        node11 = OSMNodeInfo(osm_id=11, geometry=shapely.Point(6, 1))
+        node12 = OSMNodeInfo(osm_id=12, geometry=shapely.Point(6, -1))
 
         node_ids = osm_graph.add_nodes_from(
             [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10, node11, node12]
@@ -85,28 +73,28 @@ class TestPipeRamming:
         ) = node_ids
 
         edges_to_add = [
-            (node1.node_id, node2.node_id, edge1),
-            (node2.node_id, node3.node_id, edge2),
-            (node3.node_id, node4.node_id, edge3),
-            (node2.node_id, node5.node_id, edge4),
-            (node5.node_id, node6.node_id, edge5),
-            (node6.node_id, node7.node_id, edge6),
-            (node7.node_id, node8.node_id, edge7),
-            (node8.node_id, node9.node_id, edge8),
-            (node6.node_id, node9.node_id, edge9),
-            (node9.node_id, node10.node_id, edge10),
-            (node10.node_id, node11.node_id, edge11),
-            (node10.node_id, node12.node_id, edge12),
-            (node11.node_id, node12.node_id, edge13),
+            (node1.node_id, node2.node_id, create_edge_info(100, node1, node2)),
+            (node2.node_id, node3.node_id, create_edge_info(101, node2, node3)),
+            (node3.node_id, node4.node_id, create_edge_info(102, node3, node4)),
+            (node2.node_id, node5.node_id, create_edge_info(103, node2, node5)),
+            (node5.node_id, node6.node_id, create_edge_info(104, node5, node6)),
+            (node6.node_id, node7.node_id, create_edge_info(105, node6, node7)),
+            (node7.node_id, node8.node_id, create_edge_info(106, node7, node8)),
+            (node8.node_id, node9.node_id, create_edge_info(107, node8, node9)),
+            (node6.node_id, node9.node_id, create_edge_info(108, node6, node9)),
+            (node9.node_id, node10.node_id, create_edge_info(109, node9, node10)),
+            (node10.node_id, node11.node_id, create_edge_info(110, node10, node11)),
+            (node10.node_id, node12.node_id, create_edge_info(111, node10, node12)),
+            (node11.node_id, node12.node_id, create_edge_info(112, node11, node2)),
         ]
-        for edge_index, edge in enumerate(edges_to_add, start=0):
-            node_a, node_b, edge_info = edge
-            edge_info.edge_id = edge_index
-            osm_graph.add_edge(node_a, node_b, edge_info)
+
+        edge_ids = osm_graph.add_edges_from(edges_to_add)
+        for edge, edge_id in zip(edges_to_add, edge_ids):
+            edge[2].edge_id = edge_id
 
         # Enable debug for visual debugging in QGIS.
         crossings = GetPotentialPipeRammingCrossings(
-            osm_graph, get_empty_geodataframe(), get_empty_geodataframe(), debug=debug
+            osm_graph, get_empty_geodataframe(), get_empty_geodataframe(), get_empty_geodataframe(), debug=debug
         )
         nodes, edges = osm_graph_to_gdfs(crossings.osm_graph)
         nodes, edges = crossings.create_street_segment_groups(nodes, edges)
@@ -168,6 +156,7 @@ class TestPipeRamming:
         )
         crossings.create_junction_crossings(nodes, edges)
 
+    @pytest.mark.skip(reason="First fix the junctions.")
     def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)

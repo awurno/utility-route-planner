@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 import shapely
 
-from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import NodeInfo, EdgeInfo
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo, OSMEdgeInfo
 
 
-def create_edge_info(osm_id: int, start_node: NodeInfo, end_node: NodeInfo) -> EdgeInfo:
+def create_edge_info(osm_id: int, start_node: OSMNodeInfo, end_node: OSMNodeInfo) -> OSMEdgeInfo:
     geometry = shapely.LineString([start_node.geometry, end_node.geometry])
     length = geometry.length
-    return EdgeInfo(osm_id=osm_id, length=length, geometry=geometry)
+    return OSMEdgeInfo(osm_id=osm_id, length=length, geometry=geometry)

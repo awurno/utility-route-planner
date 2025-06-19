@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
 #
 # SPDX-License-Identifier: Apache-2.0
-from dataclasses import dataclass
 
 import networkx as nx
 import rustworkx as rx
@@ -9,22 +8,9 @@ import osmnx as ox
 import structlog
 import shapely
 
+from utility_route_planner.models.multilayer_network.graph_datastructures import OSMEdgeInfo, OSMNodeInfo
+
 logger = structlog.get_logger(__name__)
-
-
-@dataclass
-class NodeInfo:
-    osm_id: int
-    geometry: shapely.Point
-    node_id: int | None = None  # index of the node in the rustworkx graph.
-
-
-@dataclass
-class EdgeInfo:
-    osm_id: int
-    length: float
-    geometry: shapely.LineString
-    edge_id: int | None = None  # index of the edge in the rustworkx graph.
 
 
 class OSMGraphPreprocessor:
@@ -65,22 +51,22 @@ class OSMGraphPreprocessor:
 
         nodes = list(nx_graph.nodes)
         nx_rx_node_mapping = dict(zip(nodes, rx_graph.add_nodes_from(nodes)))
-        rx_graph.add_edges_from(
-            [
-                (
-                    nx_rx_node_mapping[x[0]],
-                    nx_rx_node_mapping[x[1]],
-                    EdgeInfo(
-                        x[2].get("osmid", 0), x[2].get("length", 0), x[2].get("geometry", shapely.LineString()), idx
-                    ),
-                )
-                for idx, x in enumerate(nx_graph.edges(data=True), start=0)
-            ]
-        )
+        edges = [
+            (
+                nx_rx_node_mapping[u],
+                nx_rx_node_mapping[v],
+                OSMEdgeInfo(edge.get("length", 0), edge.get("geometry", shapely.LineString()), edge.get("osmid", 0)),
+            )
+            for u, v, edge in nx_graph.edges(data=True)
+        ]
+        edge_ids = rx_graph.add_edges_from(edges)
+        for (_, _, edge), edge_id in zip(edges, edge_ids):
+            edge.edge_id = edge_id
 
         for node, node_index in nx_rx_node_mapping.items():
             data = nx_graph.nodes[node]
-            info = NodeInfo(node, shapely.Point(data.get("x", 0), data.get("y", 0)), node_index)
+            info = OSMNodeInfo(shapely.Point(data.get("x", 0), data.get("y", 0)), node)
+            info.node_id = node_index
             rx_graph[node_index] = info
 
         return rx_graph
