@@ -6,6 +6,7 @@ import math
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import rustworkx as rx
 import shapely
 
@@ -32,14 +33,14 @@ def get_hexagon_width_and_height(hexagon_size: float) -> tuple[float, float]:
 
 @time_function
 def convert_hexagon_graph_to_gdfs(hexagon_graph: rx.PyGraph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    nodes = hexagon_graph.nodes()
+    nodes_gdf = gpd.GeoDataFrame(hexagon_graph.nodes(), crs=Config.CRS)
 
-    nodes_gdf = gpd.GeoDataFrame.from_dict(dict(nodes), orient="index")
-    nodes_gdf = nodes_gdf.set_geometry(gpd.points_from_xy(nodes_gdf["x"], nodes_gdf["y"], crs=Config.CRS))
+    edge_keys = pd.DataFrame(hexagon_graph.edge_list(), columns=["u", "v"])
+    edge_attributes = gpd.GeoDataFrame(hexagon_graph.edges())
+    edges_gdf = gpd.GeoDataFrame(pd.concat([edge_keys, edge_attributes], axis=1), crs=Config.CRS)
 
-    edges_gdf = gpd.GeoDataFrame(hexagon_graph.weighted_edge_list(), columns=["u", "v", "weight"])
-    u_coords = nodes_gdf.loc[edges_gdf["u"], ["x", "y"]].values
-    v_coords = nodes_gdf.loc[edges_gdf["v"], ["x", "y"]].values
+    u_coords = nodes_gdf.loc[edges_gdf["u"]].get_coordinates().values
+    v_coords = nodes_gdf.loc[edges_gdf["v"]].get_coordinates().values
 
     # Stack u and v coordinates on axis 1 to get correct linestring coordinate format: [[u_x, u_y], [v_x, v_y]]
     line_string_coords = np.stack([u_coords, v_coords], axis=1)
