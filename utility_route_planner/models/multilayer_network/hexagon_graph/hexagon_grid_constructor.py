@@ -5,20 +5,33 @@
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 
+from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import get_hexagon_width_and_height
 from settings import Config
 
 
 class HexagonalGridConstructor:
-    def __init__(self, vectors_for_project_area: gpd.GeoDataFrame, hexagon_size: float):
-        self.vectors_for_project_area = vectors_for_project_area
+    def __init__(
+        self,
+        project_area: shapely.Polygon,
+        raster_preset: RasterPreset,
+        preprocessed_vectors: dict[str, gpd.GeoDataFrame],
+        hexagon_size: float,
+    ):
+        self.project_area = project_area
+        self.raster_preset = raster_preset
+        self.preprocessed_vectors = preprocessed_vectors
         self.hexagon_size = hexagon_size
         self.hexagon_width, self.hexagon_height = get_hexagon_width_and_height(hexagon_size)
 
     def construct_grid(self) -> gpd.GeoDataFrame:
         hexagonal_grid_bounding_box = self.construct_hexagonal_grid_for_bounding_box()
-        hexagonal_grid = self.get_hexagonal_grid_for_project_area(hexagonal_grid_bounding_box)
+        merged_preprocessed_vectors = self.merge_preprocessed_vectors()
+        hexagonal_grid = self.get_hexagonal_grid_for_project_area(
+            hexagonal_grid_bounding_box, merged_preprocessed_vectors
+        )
 
         hexagonal_grid["axial_q"], hexagonal_grid["axial_r"] = self.convert_cartesian_coordinates_to_axial(
             hexagonal_grid, size=self.hexagon_size
@@ -31,13 +44,19 @@ class HexagonalGridConstructor:
         hexagonal_grid = hexagonal_grid.reset_index(drop=True)
         return hexagonal_grid
 
+    def merge_preprocessed_vectors(self) -> gpd.GeoDataFrame:
+        for criterion, vector_gdf in self.preprocessed_vectors.items():
+            vector_gdf["criterion"] = criterion
+            vector_gdf["group"] = self.raster_preset.criteria[criterion].group
+        return gpd.GeoDataFrame(pd.concat(self.preprocessed_vectors.values()), crs=Config.CRS)
+
     def construct_hexagonal_grid_for_bounding_box(self) -> gpd.GeoDataFrame:
         """
         Given the bounding box of the project area, create a hexagonal grid in flat-top orientation.
 
         :return: GeoDataFrame where each point represents a location on the grid
         """
-        x_min, y_min, x_max, y_max = self.vectors_for_project_area.total_bounds
+        x_min, y_min, x_max, y_max = self.project_area.bounds
 
         # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
         # by the surrounding tiles
@@ -54,7 +73,9 @@ class HexagonalGridConstructor:
         )
         return bounding_box_grid.reset_index(names="node_id")
 
-    def get_hexagonal_grid_for_project_area(self, bounding_box_grid: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def get_hexagonal_grid_for_project_area(
+        self, bounding_box_grid: gpd.GeoDataFrame, preprocessed_vectors: gpd.GeoDataFrame
+    ) -> gpd.GeoDataFrame:
         """
         Given the hexagonal grid for the bounding box of the project area, remove all points that are not within any
         vector polygon that is provided as input. In addition, the suitability value for each point on the grid is
@@ -66,12 +87,53 @@ class HexagonalGridConstructor:
         """
         points_within_project_area = gpd.sjoin(
             bounding_box_grid,
-            self.vectors_for_project_area[["suitability_value", "geometry"]],
+            preprocessed_vectors[["group", "suitability_value", "geometry"]],
             predicate="within",
             how="inner",
         ).set_index("node_id")
 
-        aggregated_suitability_values = points_within_project_area.groupby("node_id").agg({"suitability_value": "sum"})
+        group_keys = preprocessed_vectors["group"].unique()
+        aggregated_group_a = pd.DataFrame()
+        aggregated_group_b = pd.DataFrame()
+        aggregated_group_c = pd.DataFrame()
+        points_grouped_by_group = points_within_project_area.groupby("group")
+        for group_key in group_keys:
+            group = points_grouped_by_group.get_group(group_key)
+
+            match group_key:
+                case "a":
+                    aggregated_group_a = group.groupby("node_id").agg(
+                        a=pd.NamedAgg(column="suitability_value", aggfunc="max")
+                    )
+                case "b":
+                    aggregated_group_b = group.groupby("node_id").agg(
+                        b=pd.NamedAgg(column="suitability_value", aggfunc="sum")
+                    )
+                case "c":
+                    aggregated_group_c = group.groupby("node_id").agg(
+                        c=pd.NamedAgg(column="suitability_value", aggfunc="sum")
+                    )
+                case _:
+                    print("Invalid group value")
+
+        aggregated_suitability_values = pd.DataFrame()
+        if len(aggregated_group_a) > 0 and len(aggregated_group_b) > 0:
+            aggregated_suitability_values = pd.concat([aggregated_group_a, aggregated_group_b], axis=1)
+            aggregated_suitability_values = aggregated_suitability_values.fillna(0)
+            aggregated_suitability_values["suitability_value"] = (
+                aggregated_suitability_values.a + aggregated_suitability_values.b
+            )
+            aggregated_suitability_values = aggregated_suitability_values.drop(columns=["a", "b"])
+        elif len(aggregated_group_a) > 0 and len(aggregated_group_b) == 0:
+            aggregated_suitability_values["suitability_value"] = aggregated_group_a.a
+
+        # TODO: check whether setting group c to highest possible value is correct
+        if len(aggregated_group_c) > 0:
+            aggregated_suitability_values = pd.concat([aggregated_suitability_values, aggregated_group_c], axis=1)
+            aggregated_suitability_values.loc[aggregated_suitability_values.c.notna(), "suitability_value"] = (
+                Config.MAX_NODE_SUITABILITY_VALUE
+            )
+            aggregated_suitability_values = aggregated_suitability_values.drop(columns=["c"])
 
         # Join location afterwards, as this is faster than picking the first one within the aggregation step
         hexagon_points = gpd.GeoDataFrame(
