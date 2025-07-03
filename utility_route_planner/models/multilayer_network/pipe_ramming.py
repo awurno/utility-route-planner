@@ -57,18 +57,18 @@ class GetPotentialPipeRammingCrossings:
         """
         logger.info("Finding road crossings.")
         osm_nodes, osm_edges = osm_graph_to_gdfs(self.osm_graph)
+        osm_nodes, street_segments = self.create_street_segment_groups(osm_nodes, osm_edges)
 
         # Finds crossings for junctions.
-        self.create_junction_crossings(osm_nodes, osm_edges)
+        self.create_junction_crossings(osm_nodes, street_segments)
 
         # Find crossings for larger street segments.
-        osm_nodes, street_segments = self.create_street_segment_groups(osm_nodes, osm_edges)
         self.get_crossings_per_segment(osm_nodes, street_segments)
 
         logger.info("Road crossings found.")
         return
 
-    def create_junction_crossings(self, osm_nodes, osm_edges):
+    def create_junction_crossings(self, osm_nodes, osm_street_segments):
         # Find the degree of each node in the graph.
         node_degree = {
             i: self.osm_graph.degree(i) for i in self.osm_graph.node_indices() if self.osm_graph.degree(i) > 2
@@ -97,25 +97,71 @@ class GetPotentialPipeRammingCrossings:
         # junctions.dissolve(inplace=True)
 
         # Split the buffer with the edges. Each segment should get a connection to the other segment if they share a boundary
-        for idx, junction_node in junctions.iterrows():
-            # TODO discuss: create linestrings by connecting all outer points to each other. This wil not work for degree == 3.
-            outer_points = osm_edges.intersection(junction_node.geometry.exterior)
-            outer_points = outer_points[~outer_points.is_empty]
-            junction_edges = osm_edges[osm_edges.intersects(junction_node.geometry)]
-            # TODO select linestrings only adjacent to the node within threshold?
+        for node_id, junction_node in junctions.iterrows():
+            junction_edge_groups = osm_street_segments.loc[self.osm_graph.incident_edges(node_id)].group
+            # TODO this will give problems when junctions are very close by each other, i think we better extend the direct incident edges.
+            junction_edges = osm_street_segments[osm_street_segments["group"].isin(junction_edge_groups)]
+
+            # First, split the buffered junction by the osm_edges to create the sides to connect.
             line_split_collection = [junction_node.geometry.boundary, *junction_edges.geometry.to_list()]
             merged_lines = shapely.ops.linemerge(line_split_collection)
             border_lines = shapely.ops.unary_union(merged_lines)
             street_sides = [i for i in shapely.ops.polygonize(border_lines)]
 
+            # Second, intersect the hexagon_nodes eligible for creating crossings to each created side.
+            street_sides = gpd.GeoDataFrame(street_sides, columns=["geometry"], crs=Config.CRS)
+            cost_surface_nodes_junction = cost_surface_nodes_filtered.sjoin(
+                street_sides, how="inner", predicate="intersects"
+            )
+            cost_surface_nodes_junction.rename(columns={"index_right": "idx_street_side"}, inplace=True)
+
+            # Third, check number of sides created and if there are nodes in each side to connect.
             if not len(street_sides) == junction_node.degree:
                 logger.warning(
                     f"Node {junction_node['osm_id']} has {junction_node.degree} edges, but {len(street_sides)} polygons were created."
                 )
-                continue
+            if not cost_surface_nodes_junction["idx_street_side"].nunique() == junction_node.degree:
+                logger.warning("Not all street sides have nodes to connect to.")
+
+            # Check for edges which are almost 180 degrees apart, create straight crossings for those.
+            adjacent_edges = osm_street_segments.loc[self.osm_graph.incident_edges(node_id)]
+            adjacent_edges["point_a"] = adjacent_edges["geometry"].apply(lambda line: shapely.Point(line.coords[0]))
+            adjacent_edges["point_b"] = adjacent_edges["geometry"].apply(lambda line: shapely.Point(line.coords[1]))
+            for edge_1, edge_2 in itertools.combinations(adjacent_edges.index, 2):
+                # Get the outer points of the edges to compare the angle to.
+                if adjacent_edges.loc[edge_1].point_a.equals(osm_nodes.loc[node_id].geometry):
+                    a = adjacent_edges.loc[edge_1].point_b
+                else:
+                    a = adjacent_edges.loc[edge_1].point_a
+                if adjacent_edges.loc[edge_2].point_a.equals(osm_nodes.loc[node_id].geometry):
+                    b = adjacent_edges.loc[edge_2].point_b
+                else:
+                    b = adjacent_edges.loc[edge_2].point_a
+
+                # Convert to vectors: from C to A and from C to B
+                vec_CA = np.array([a.x - osm_nodes.loc[node_id].geometry.x, a.y - osm_nodes.loc[node_id].geometry.y])
+                vec_CB = np.array([b.x - osm_nodes.loc[node_id].geometry.x, b.y - osm_nodes.loc[node_id].geometry.y])
+
+                cos_theta = np.dot(vec_CA, vec_CB) / (np.linalg.norm(vec_CA) * np.linalg.norm(vec_CB))
+                angle_rad = np.arccos(np.clip(cos_theta, -1, 1))
+                angle_deg = np.degrees(angle_rad)
+
+                print(f"Angle between edges {edge_1} and {edge_2} at junction {node_id}: {angle_deg:.2f} degrees.")
+
+            match junction_node.degree:
+                case 3:
+                    # T junction, treat sides differently. the | part is less important than the - part.
+                    pass
+                case 4:
+                    # find the segments which belong to each other.
+                    outer_points = osm_street_segments.intersection(junction_node.geometry.exterior)
+                    outer_points = outer_points[~outer_points.is_empty]
+                    junction_edges = osm_street_segments[osm_street_segments.intersects(junction_node.geometry)]
+
+                case _:
+                    logger.warning("not implemented")
 
             # Alternative approach, for each edge from the center node, create a linestring perpendicular to the edge. and move outwards.
-
             for side_1, side_2 in itertools.combinations(street_sides, 2):
                 # Check if the two sides share an edge, if so, we can create a crossing.
                 paths = [i for i in shapely.shared_paths(side_1.exterior, side_2.exterior).geoms if not i.is_empty]
@@ -141,9 +187,15 @@ class GetPotentialPipeRammingCrossings:
             write_results_to_geopackage(out, cost_surface_nodes_filtered, "pytest_cost_surface_filtered")
             # Plot junctions
             write_results_to_geopackage(out, junctions, "pytest_osm_junctions")
-            write_results_to_geopackage(out, osm_edges, "pytest_osm_streets")
+            write_results_to_geopackage(out, osm_street_segments, "pytest_osm_streets")
             # Plot an individual junction with its street sides and outer points.
-            write_results_to_geopackage(out, shapely.MultiPolygon(street_sides), "pytest_street_sides")
+            write_results_to_geopackage(out, junction_edges, "pytest_osm_junction_edges")
+            write_results_to_geopackage(out, street_sides, "pytest_street_sides")
+            write_results_to_geopackage(out, cost_surface_nodes_junction, "pytest_cost_surface_nodes_junction")
+
+            write_results_to_geopackage(out, a, "pytest_point_a")
+            write_results_to_geopackage(out, b, "pytest_point_b")
+
             write_results_to_geopackage(out, outer_points, "pytest_outer_points")
             write_results_to_geopackage(out, side_1, "pytest_side_1")
             write_results_to_geopackage(out, side_2, "pytest_side_2")
