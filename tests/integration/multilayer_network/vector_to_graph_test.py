@@ -59,7 +59,7 @@ class TestVectorToGraph:
         concatenated_vectors = concatenated_vectors.reset_index(drop=True)
         return gpd.GeoDataFrame(concatenated_vectors)
 
-    def test_vector_to_graph(self, vectors_for_project_areas: gpd.GeoDataFrame, debug: bool = True):
+    def test_vector_to_graph(self, vectors_for_project_areas: gpd.GeoDataFrame, debug: bool = False):
         hexagon_graph_builder = HexagonGraphBuilder(vectors_for_project_areas, hexagon_size=0.5)
         graph = hexagon_graph_builder.build_graph()
 
