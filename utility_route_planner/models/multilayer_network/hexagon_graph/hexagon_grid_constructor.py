@@ -15,19 +15,17 @@ from settings import Config
 class HexagonalGridConstructor:
     def __init__(
         self,
-        project_area: shapely.Polygon,
         raster_preset: RasterPreset,
         preprocessed_vectors: dict[str, gpd.GeoDataFrame],
         hexagon_size: float,
     ):
-        self.project_area = project_area
         self.raster_preset = raster_preset
         self.preprocessed_vectors = preprocessed_vectors
         self.hexagon_size = hexagon_size
         self.hexagon_width, self.hexagon_height = get_hexagon_width_and_height(hexagon_size)
 
-    def construct_grid(self) -> gpd.GeoDataFrame:
-        hexagonal_grid_bounding_box = self.construct_hexagonal_grid_for_bounding_box()
+    def construct_grid(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
+        hexagonal_grid_bounding_box = self.construct_hexagonal_grid_for_bounding_box(project_area)
         merged_preprocessed_vectors = self.merge_preprocessed_vectors()
         hexagonal_grid = self.get_hexagonal_grid_for_project_area(
             hexagonal_grid_bounding_box, merged_preprocessed_vectors
@@ -50,13 +48,13 @@ class HexagonalGridConstructor:
             vector_gdf["group"] = self.raster_preset.criteria[criterion].group
         return gpd.GeoDataFrame(pd.concat(self.preprocessed_vectors.values()), crs=Config.CRS)
 
-    def construct_hexagonal_grid_for_bounding_box(self) -> gpd.GeoDataFrame:
+    def construct_hexagonal_grid_for_bounding_box(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         """
         Given the bounding box of the project area, create a hexagonal grid in flat-top orientation.
 
         :return: GeoDataFrame where each point represents a location on the grid
         """
-        x_min, y_min, x_max, y_max = self.project_area.bounds
+        x_min, y_min, x_max, y_max = project_area.bounds
 
         # 0.75 is used to correctly set the offset of the x coordinate of the center, as each hexagon is partially covered
         # by the surrounding tiles
