@@ -62,7 +62,7 @@ class HexagonalGridConstructor:
         y_coordinates = np.arange(y_min, y_max, self.hexagon_height)
         x_matrix, y_matrix = np.meshgrid(x_coordinates, y_coordinates)
 
-        # Every odd column must be offset by half of the hexagon height to properly determine the vertical
+        # Every even column must be offset by half of the hexagon height to properly determine the vertical
         # position of the hexagon.
         y_matrix[:, ::2] += self.hexagon_height / 2
 

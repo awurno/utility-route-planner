@@ -65,15 +65,24 @@ class TestHexagonalGridConstructor:
         result = grid_constructor.construct_hexagonal_grid_for_bounding_box(square_project_area)
         hexagon_width, hexagon_height = 0.75, 0.866
 
-        # Test number of points (based on size of project area)
-
         # Test spacing between points (based on equation?)
         coordinates = result.geometry.get_coordinates()
         x_coordinates = coordinates["x"].values.reshape(6, 7)
         y_coordinates = coordinates["y"].values.reshape(6, 7)
 
+        # Verify that spacing between x- and y-coordinates satisfy are equal to hexagon heigth and width
+        # and do therefore meet hexagon constaints.
         x_spacing = np.diff(x_coordinates, axis=1)
         assert all(x_space == pytest.approx(hexagon_width, abs=1e-4) for x_space in x_spacing)
 
-        y_spacing = np.diff(y_coordinates, axis=0)
-        assert all(y_space == pytest.approx(hexagon_height, abs=1e-4) for y_space in y_spacing)
+        y_vertical_spacing = np.diff(y_coordinates, axis=0)
+        assert all(y_space == pytest.approx(hexagon_height, abs=1e-4) for y_space in y_vertical_spacing)
+
+        y_horizontal_spacing = np.diff(y_coordinates, axis=1)
+        assert all(y_space == pytest.approx(hexagon_height / 2, abs=1e-4) for y_space in np.abs(y_horizontal_spacing))
+
+        # As every even column is offset by 1/2 the hexagon height, the horizontal spacing should always be negative. For
+        # all odd columns, the sign should be positive
+        signs = np.sign(y_horizontal_spacing)
+        assert all(sign == -1 for sign in signs[:, ::2].flatten())
+        assert all(sign == 1 for sign in signs[:, 1::2].flatten())
