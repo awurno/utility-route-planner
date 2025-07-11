@@ -93,6 +93,7 @@ class TestVectorPreprocessing:
                 ["watervlakte", "haven", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],
                 ["watervlakte", "meer, plas, ven, vijver", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],
                 ["zee", "WaardeOnbekend", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],
+                ["zee", "WaardeOnbekend", shapely.Polygon([[0, 0], [2, 0], [2, 2], [0, 1], [0, 0]])],
             ],
             columns=["class", "plus-type", "geometry"],
             crs=Config.CRS,
@@ -102,28 +103,44 @@ class TestVectorPreprocessing:
         reclassified_gdf = Waterdeel._set_suitability_values(input_gdf, weight_values)
         pd.testing.assert_series_equal(
             reclassified_gdf["sv_1"],
-            pd.Series([-10, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3]),
+            pd.Series([-10, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
         )
         pd.testing.assert_series_equal(
             reclassified_gdf["sv_2"],
-            pd.Series(["WaardeOnbekend", "WaardeOnbekend", 40, 50, 60, 70, 80, 90, 100, 110, "WaardeOnbekend"]),
+            pd.Series(
+                [
+                    "WaardeOnbekend",
+                    "WaardeOnbekend",
+                    40,
+                    50,
+                    60,
+                    70,
+                    80,
+                    90,
+                    100,
+                    110,
+                    "WaardeOnbekend",
+                    "WaardeOnbekend",
+                ]
+            ),
             check_names=False,
             check_exact=True,
         )
         pd.testing.assert_series_equal(
             reclassified_gdf["suitability_value"],
-            pd.Series([-10, 1, 40, 50, 60, 70, 80, 90, 100, 110, 3]),
+            pd.Series([-10, 1, 40, 50, 60, 70, 80, 90, 100, 110, 3, 3]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
         )
 
         buffered_gdf = Waterdeel._update_geometry_values(reclassified_gdf, {"zee": 20})
+        assert len(buffered_gdf) == 11  # Zee is dissolved into one geometry.
         assert buffered_gdf.iloc[:10].area.round(1).unique().tolist() == [1.0]
-        assert buffered_gdf.iloc[[10]].area.round(1).tolist() == [1335.6]
+        assert buffered_gdf.iloc[[10]].area.round(1).tolist() == [1402.4]
 
     def test_begroeid_terreindeel(self):
         weight_values = {
@@ -944,8 +961,8 @@ class TestVectorPreprocessing:
         }
         gdf_1 = gpd.GeoDataFrame(
             [
-                ["haag", shapely.LineString([[0, 0], [1, 0], [1, 1]])],
-                ["haag", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],
+                ["haag", shapely.Polygon([[0, 0], [5, 0], [5, 5], [0, 0]])],  # will be merged
+                ["haag", shapely.Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])],  # will be merged
                 ["waardeOnbekend", shapely.Polygon()],
             ],
             columns=["plus-type", "geometry"],
@@ -954,7 +971,9 @@ class TestVectorPreprocessing:
         )
         gdf_2 = gpd.GeoDataFrame(
             [
-                ["boom", shapely.Point(1, 1)],
+                ["boom", shapely.Point(1, 1)],  # will be merged
+                ["boom", shapely.Point(2, 2)],  # will be merged
+                ["boom", shapely.Point(100, 100)],
             ],
             columns=["plus-type", "geometry"],
             crs=Config.CRS,
@@ -963,7 +982,7 @@ class TestVectorPreprocessing:
         reclassified_gdf = VegetationObject._set_suitability_values([gdf_1, gdf_2], weight_values)
         pd.testing.assert_series_equal(
             reclassified_gdf["sv_1"],
-            pd.Series([1, 1, 2]),
+            pd.Series([1, 1, 2, 2, 2]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
@@ -971,7 +990,7 @@ class TestVectorPreprocessing:
         )
         pd.testing.assert_series_equal(
             reclassified_gdf["suitability_value"],
-            pd.Series([1, 1, 2]),
+            pd.Series([1, 1, 2, 2, 2]),
             check_names=False,
             check_exact=True,
             check_dtype=False,
@@ -982,7 +1001,7 @@ class TestVectorPreprocessing:
         reclassified_gdf = VegetationObject._update_geometry_values(reclassified_gdf, {"boom": 5})
         assert reclassified_gdf.is_empty.value_counts().get(False) == 3
         assert reclassified_gdf.is_empty.value_counts().get(True) is None
-        assert reclassified_gdf.geom_type.unique().tolist() == ["LineString", "Polygon"]
+        assert reclassified_gdf.geom_type.unique().tolist() == ["Polygon"]
 
     def test_wegdeel(self):
         weight_values = {

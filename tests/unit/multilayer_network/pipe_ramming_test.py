@@ -1,12 +1,14 @@
 # SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
 #
 # SPDX-License-Identifier: Apache-2.0
+import pandas as pd
 import pytest
 import geopandas as gpd
 import rustworkx as rx
 import shapely
 
 from settings import Config
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
 from utility_route_planner.util.graph_utilities import create_edge_info
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.multilayer_network.pipe_ramming import GetPotentialPipeRammingCrossings
@@ -33,9 +35,14 @@ class TestPipeRamming:
         )
         mcda_engine.preprocess_vectors()
 
-        return osm_graph_preprocessed, mcda_engine
+        concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
+        concatenated_vectors = concatenated_vectors.reset_index(drop=True)
+        hexagon_graph_builder = HexagonGraphBuilder(gpd.GeoDataFrame(concatenated_vectors), hexagon_size=0.5)
+        cost_surface_graph = hexagon_graph_builder.build_graph()
 
-    def test_simplify_graph(self, debug=True):
+        return osm_graph_preprocessed, mcda_engine, cost_surface_graph
+
+    def test_simplify_graph(self, debug=False):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
@@ -141,7 +148,7 @@ class TestPipeRamming:
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
-        osm_graph, mcda_engine = setup_pipe_ramming_example_polygon
+        osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon
 
         project_area = shapely.Point(174967.12, 450898.60).buffer(50)
         nodes, edges = osm_graph_to_gdfs(osm_graph)
@@ -152,12 +159,12 @@ class TestPipeRamming:
         roads = mcda_engine.processed_vectors["wegdeel"]
 
         crossings = GetPotentialPipeRammingCrossings(
-            osm_graph, Config.PATH_EXAMPLE_RASTER, roads, obstacles, debug=debug
+            osm_graph, Config.PATH_EXAMPLE_RASTER, roads, obstacles, cost_surface_graph, debug=debug
         )
         crossings.create_junction_crossings(nodes, edges)
 
     @pytest.mark.skip(reason="First fix the junctions.")
-    def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
+    def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=False):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
