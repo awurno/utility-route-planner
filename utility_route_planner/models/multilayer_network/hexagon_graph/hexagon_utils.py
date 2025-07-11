@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import rustworkx as rx
 import shapely
+from geopandas import GeoDataFrame
 
 from settings import Config
 from utility_route_planner.util.timer import time_function
@@ -32,20 +33,23 @@ def get_hexagon_width_and_height(hexagon_size: float) -> tuple[float, float]:
 
 
 @time_function
-def convert_hexagon_graph_to_gdfs(hexagon_graph: rx.PyGraph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+def convert_hexagon_graph_to_gdfs(
+    hexagon_graph: rx.PyGraph, edges: bool = True
+) -> tuple[GeoDataFrame, None] | GeoDataFrame:
     nodes_gdf = gpd.GeoDataFrame(hexagon_graph.nodes(), crs=Config.CRS)
 
-    edge_keys = pd.DataFrame(hexagon_graph.edge_list(), columns=["u", "v"])
-    edge_attributes = gpd.GeoDataFrame(hexagon_graph.edges())
-    edges_gdf = gpd.GeoDataFrame(pd.concat([edge_keys, edge_attributes], axis=1), crs=Config.CRS)
+    if edges:
+        edge_keys = pd.DataFrame(hexagon_graph.edge_list(), columns=["u", "v"])
+        edge_attributes = gpd.GeoDataFrame(hexagon_graph.edges())
+        edges_gdf = gpd.GeoDataFrame(pd.concat([edge_keys, edge_attributes], axis=1), crs=Config.CRS)
+        u_coords = nodes_gdf.loc[edges_gdf["u"]].get_coordinates().values
+        v_coords = nodes_gdf.loc[edges_gdf["v"]].get_coordinates().values
 
-    u_coords = nodes_gdf.loc[edges_gdf["u"]].get_coordinates().values
-    v_coords = nodes_gdf.loc[edges_gdf["v"]].get_coordinates().values
+        # Stack u and v coordinates on axis 1 to get correct linestring coordinate format: [[u_x, u_y], [v_x, v_y]]
+        line_string_coords = np.stack([u_coords, v_coords], axis=1)
+        edge_line_strings = shapely.linestrings(line_string_coords)
 
-    # Stack u and v coordinates on axis 1 to get correct linestring coordinate format: [[u_x, u_y], [v_x, v_y]]
-    line_string_coords = np.stack([u_coords, v_coords], axis=1)
-    edge_line_strings = shapely.linestrings(line_string_coords)
-
-    edges_gdf = edges_gdf.set_geometry(edge_line_strings, crs=Config.CRS)
-
-    return nodes_gdf, edges_gdf
+        edges_gdf = edges_gdf.set_geometry(edge_line_strings, crs=Config.CRS)
+        return nodes_gdf, edges_gdf
+    else:
+        return nodes_gdf
