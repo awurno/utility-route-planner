@@ -4,8 +4,10 @@
 
 import geopandas as gpd
 import rustworkx as rx
+import shapely
 import structlog
 
+from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset
 from utility_route_planner.models.multilayer_network.graph_datastructures import HexagonNodeInfo, HexagonEdgeInfo
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_edge_generator import HexagonEdgeGenerator
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_constructor import (
@@ -17,14 +19,24 @@ logger = structlog.get_logger(__name__)
 
 
 class HexagonGraphBuilder:
-    def __init__(self, vectors_for_project_area: gpd.GeoDataFrame, hexagon_size: float):
-        self.vectors_for_project_area = vectors_for_project_area
+    def __init__(
+        self,
+        project_area: shapely.Polygon,
+        raster_preset: RasterPreset,
+        preprocessed_vectors: gpd.GeoDataFrame,
+        hexagon_size: float,
+    ):
+        self.project_area = project_area
+        self.raster_preset = raster_preset
+        self.preprocessed_vectors = preprocessed_vectors
         self.hexagon_size = hexagon_size
         self.graph = rx.PyGraph()
 
     @time_function
     def build_graph(self) -> rx.PyGraph:
-        grid_constructor = HexagonalGridConstructor(self.vectors_for_project_area, self.hexagon_size)
+        grid_constructor = HexagonalGridConstructor(
+            self.project_area, self.raster_preset, self.preprocessed_vectors, self.hexagon_size
+        )
         hexagonal_grid = grid_constructor.construct_grid()
 
         node_values = hexagonal_grid[["geometry", "suitability_value", "axial_q", "axial_r"]].values
