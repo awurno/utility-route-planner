@@ -21,28 +21,32 @@ from utility_route_planner.util.write import reset_geopackage
 class TestPipeRamming:
     @pytest.fixture
     def setup_pipe_ramming_example_polygon(self, load_osm_graph_pickle):
-        project_area = (
-            gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
-            .iloc[0]
-            .geometry
-        )
+        def _setup(project_area=None):
+            if project_area is None:
+                project_area = (
+                    gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
+                    .iloc[0]
+                    .geometry
+                )
 
-        osm_graph_preprocessor = OSMGraphPreprocessor(load_osm_graph_pickle)
-        osm_graph_preprocessed = osm_graph_preprocessor.preprocess_graph()
+            osm_graph_preprocessor = OSMGraphPreprocessor(load_osm_graph_pickle)
+            osm_graph_preprocessed = osm_graph_preprocessor.preprocess_graph()
 
-        mcda_engine = McdaCostSurfaceEngine(
-            Config.RASTER_PRESET_NAME_BENCHMARK, Config.PYTEST_PATH_GEOPACKAGE_MCDA, project_area
-        )
-        mcda_engine.preprocess_vectors()
+            mcda_engine = McdaCostSurfaceEngine(
+                Config.RASTER_PRESET_NAME_BENCHMARK, Config.PYTEST_PATH_GEOPACKAGE_MCDA, project_area
+            )
+            mcda_engine.preprocess_vectors()
 
-        concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
-        concatenated_vectors = concatenated_vectors.reset_index(drop=True)
-        hexagon_graph_builder = HexagonGraphBuilder(gpd.GeoDataFrame(concatenated_vectors), hexagon_size=0.5)
-        cost_surface_graph = hexagon_graph_builder.build_graph()
+            concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
+            concatenated_vectors = concatenated_vectors.reset_index(drop=True)
+            hexagon_graph_builder = HexagonGraphBuilder(gpd.GeoDataFrame(concatenated_vectors), hexagon_size=0.5)
+            cost_surface_graph = hexagon_graph_builder.build_graph()
 
-        return osm_graph_preprocessed, mcda_engine, cost_surface_graph
+            return osm_graph_preprocessed, mcda_engine, cost_surface_graph
 
-    def test_simplify_graph(self, debug=False):
+        return _setup
+
+    def test_create_street_segment_groups(self, debug=False):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
@@ -100,9 +104,7 @@ class TestPipeRamming:
             edge[2].edge_id = edge_id
 
         # Enable debug for visual debugging in QGIS.
-        crossings = GetPotentialPipeRammingCrossings(
-            osm_graph, get_empty_geodataframe(), get_empty_geodataframe(), get_empty_geodataframe(), debug=debug
-        )
+        crossings = GetPotentialPipeRammingCrossings(osm_graph, rx.PyGraph(), get_empty_geodataframe(), debug=debug)
         nodes, edges = osm_graph_to_gdfs(crossings.osm_graph)
         nodes, edges = crossings.create_street_segment_groups(nodes, edges)
 
@@ -148,20 +150,15 @@ class TestPipeRamming:
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
-        osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon
+        project_area = shapely.Point(174967.12, 450898.60).buffer(200)
 
-        project_area = shapely.Point(174967.12, 450898.60).buffer(50)
-        nodes, edges = osm_graph_to_gdfs(osm_graph)
-        nodes = gpd.clip(nodes, project_area)
-        edges = gpd.clip(edges, project_area)
-
+        osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon(project_area)
         obstacles = mcda_engine.processed_vectors["pand"]  # can be expanded with water, trees.
-        roads = mcda_engine.processed_vectors["wegdeel"]
 
-        crossings = GetPotentialPipeRammingCrossings(
-            osm_graph, Config.PATH_EXAMPLE_RASTER, roads, obstacles, cost_surface_graph, debug=debug
-        )
-        crossings.create_junction_crossings(nodes, edges)
+        crossings = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, obstacles, debug=debug)
+        osm_edges, osm_nodes = crossings.convert_osm_graph_to_gdfs()
+        osm_nodes, street_segments = crossings.create_street_segment_groups(osm_nodes, osm_edges)
+        crossings.create_junction_crossings(osm_nodes, street_segments)
 
     @pytest.mark.skip(reason="First fix the junctions.")
     def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=False):

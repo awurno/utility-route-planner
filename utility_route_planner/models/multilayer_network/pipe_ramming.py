@@ -22,17 +22,14 @@ class GetPotentialPipeRammingCrossings:
     def __init__(
         self,
         osm_graph: rx.PyGraph,
-        path_cost_surface: str,
-        mcda_roads: gpd.GeoDataFrame,
-        obstacles: gpd.GeoDataFrame,
         cost_surface_graph: rx.PyGraph,
+        obstacles: gpd.GeoDataFrame,
         debug: bool = False,
     ):
         self.osm_graph = osm_graph
         self.cost_surface_graph = cost_surface_graph
-        self.path_cost_surface = path_cost_surface
-        self.mcda_roads = mcda_roads  # add berm?
-        self.obstacles = obstacles  # Everything which blocks a possible pipe ramming.
+        # Everything which blocks a possible pipe ramming, or filter on suitability value?
+        self.obstacles = obstacles
 
         # Minimum length of a street segment to be considered for adding pipe ramming crossings.
         self.threshold_edge_length_crossing_m = Config.THRESHOLD_SEGMENT_CROSSING_LENGTH_M
@@ -56,17 +53,23 @@ class GetPotentialPipeRammingCrossings:
         After this, check the remaining street segments and split them if they are long enough.
         """
         logger.info("Finding road crossings.")
-        osm_nodes, osm_edges = osm_graph_to_gdfs(self.osm_graph)
+        osm_edges, osm_nodes = self.convert_osm_graph_to_gdfs()  # TODO move to init and put on self?
+
+        # Group the edges into street segments between junctions (node degree > 2).
         osm_nodes, street_segments = self.create_street_segment_groups(osm_nodes, osm_edges)
 
-        # Finds crossings for junctions.
+        # Finds crossings (parallel to the edge!) for junctions.
         self.create_junction_crossings(osm_nodes, street_segments)
 
-        # Find crossings for larger street segments.
+        # Find crossings (perpendicular to the edge!) for larger street segments.
         self.get_crossings_per_segment(osm_nodes, street_segments)
 
-        logger.info("Road crossings found.")
+        logger.info("Found n crossings.")
         return
+
+    def convert_osm_graph_to_gdfs(self):
+        osm_nodes, osm_edges = osm_graph_to_gdfs(self.osm_graph)
+        return osm_edges, osm_nodes
 
     def create_junction_crossings(self, osm_nodes, osm_street_segments):
         # Find the degree of each node in the graph.
@@ -81,7 +84,7 @@ class GetPotentialPipeRammingCrossings:
         else:
             logger.info(f"Found {len(junctions)} junctions to consider for pipe ramming.")
 
-        # TODO should we mask this or not by the fietspaden and voetpaden? if so, we should add this as a property to the node
+        # TODO discuss adding the properties (BGT elements) to the hexagon nodes. That way you can force it to only include sidewalks, ignoring the suitability value.
         cost_surface_nodes = convert_hexagon_graph_to_gdfs(self.cost_surface_graph, edges=False)
         # to_remove = self.mcda_roads[~self.mcda_roads["function"].isin(["fietspand", "voetpad"])]
         # cost_surface_nodes_filtered = cost_surface_nodes.overlay(to_remove, how="difference")
@@ -93,8 +96,6 @@ class GetPotentialPipeRammingCrossings:
         junctions["geometry"] = junctions.buffer(
             self.max_pipe_ramming_length_m + self.max_pipe_ramming_length_m * 0.5, 6
         )
-        # TODO discuss: Group/cluster junction nodes with a degree of 3 or more which are close to each other?
-        # junctions.dissolve(inplace=True)
 
         # Split the buffer with the edges. Each segment should get a connection to the other segment if they share a boundary
         for node_id, junction_node in junctions.iterrows():
