@@ -23,7 +23,7 @@ class HexagonGraphBuilder:
         self,
         project_area: shapely.Polygon,
         raster_preset: RasterPreset,
-        preprocessed_vectors: gpd.GeoDataFrame,
+        preprocessed_vectors: dict[str, gpd.GeoDataFrame],
         hexagon_size: float,
     ):
         self.project_area = project_area
@@ -34,10 +34,8 @@ class HexagonGraphBuilder:
 
     @time_function
     def build_graph(self) -> rx.PyGraph:
-        grid_constructor = HexagonalGridConstructor(
-            self.project_area, self.raster_preset, self.preprocessed_vectors, self.hexagon_size
-        )
-        hexagonal_grid = grid_constructor.construct_grid()
+        grid_constructor = HexagonalGridConstructor(self.raster_preset, self.preprocessed_vectors, self.hexagon_size)
+        hexagonal_grid = grid_constructor.construct_grid(self.project_area)
 
         node_values = hexagonal_grid[["geometry", "suitability_value", "axial_q", "axial_r"]].values
         hexagonal_nodes = [HexagonNodeInfo(*node_value) for node_value in node_values]

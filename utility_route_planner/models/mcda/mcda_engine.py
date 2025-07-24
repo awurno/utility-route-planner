@@ -42,7 +42,7 @@ class McdaCostSurfaceEngine:
         raster_name_prefix: str = "",
     ):
         self.raster_preset = load_preset(preset_to_load, path_geopackage_mcda_input, project_area_geometry)
-        self.processed_vectors: dict = {}
+        self.processed_vectors: dict[str, gpd.GeoDataFrame] = {}
         self.unprocessed_criteria_names: set = set()
         self.processed_criteria_names: set = set()
         self.raster_name_prefix: str = raster_name_prefix
