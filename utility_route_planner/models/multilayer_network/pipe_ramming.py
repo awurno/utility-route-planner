@@ -27,6 +27,7 @@ class GetPotentialPipeRammingCrossings:
         debug: bool = False,
     ):
         self.osm_graph = osm_graph
+        self.osm_nodes, self.osm_edges = osm_graph_to_gdfs(osm_graph)
         self.cost_surface_graph = cost_surface_graph
         # Everything which blocks a possible pipe ramming, or filter on suitability value?
         self.obstacles = obstacles
@@ -53,31 +54,69 @@ class GetPotentialPipeRammingCrossings:
         After this, check the remaining street segments and split them if they are long enough.
         """
         logger.info("Finding road crossings.")
-        osm_edges, osm_nodes = self.convert_osm_graph_to_gdfs()  # TODO move to init and put on self?
 
         # Group the edges into street segments between junctions (node degree > 2).
-        osm_nodes, street_segments = self.create_street_segment_groups(osm_nodes, osm_edges)
+        self.create_street_segment_groups()
 
         # Finds crossings (parallel to the edge!) for junctions.
-        self.create_junction_crossings(osm_nodes, street_segments)
+        self.create_junction_crossings()
 
         # Find crossings (perpendicular to the edge!) for larger street segments.
-        self.get_crossings_per_segment(osm_nodes, street_segments)
+        self.get_crossings_per_segment()
 
         logger.info("Found n crossings.")
         return
 
-    def convert_osm_graph_to_gdfs(self):
-        osm_nodes, osm_edges = osm_graph_to_gdfs(self.osm_graph)
-        return osm_edges, osm_nodes
+    def create_street_segment_groups(self):
+        """
+        Similar function: https://osmnx.readthedocs.io/en/stable/user-reference.html#osmnx.simplification.simplify_graph
+        Publication: https://onlinelibrary.wiley.com/doi/10.1111/tgis.70037
+        """
+        # Group the edges which are connected by nodes with only 2 edges. We refer to this as a street segment.
+        node_degree = {i: self.osm_graph.degree(i) for i in self.osm_graph.node_indices()}
+        # Initialize all edges with a unique group number, then start merging adjacent edges.
+        self.osm_edges["group"] = pd.Series(range(len(self.osm_edges)), index=self.osm_edges.index)
 
-    def create_junction_crossings(self, osm_nodes, osm_street_segments):
-        # Find the degree of each node in the graph.
-        node_degree = {
-            i: self.osm_graph.degree(i) for i in self.osm_graph.node_indices() if self.osm_graph.degree(i) > 2
-        }
-        osm_nodes["degree"] = pd.Series(node_degree, index=osm_nodes.index, dtype=int)
-        junctions = osm_nodes[osm_nodes["degree"] > 2]
+        seen_nodes = set()
+        for edge_group_nr, (node_id, degree) in enumerate(node_degree.items(), start=len(self.osm_edges) + 1):
+            if degree != 2 and node_id not in seen_nodes:
+                continue
+
+            # Get the complete street segment to merge.
+            edges_to_group = []
+            nodes_to_check = [node_id]
+            while nodes_to_check:
+                for node_id_2 in nodes_to_check:
+                    if node_degree[node_id_2] == 2 and node_id_2 not in seen_nodes:
+                        adjacent = self.osm_graph.adj(node_id_2)
+                        edges_to_group.extend([edge.edge_id for edge in adjacent.values()])
+                        nodes_to_check.extend(list(adjacent.keys()))
+
+                    nodes_to_check.remove(node_id_2)
+                    seen_nodes.add(node_id_2)
+
+            self.osm_edges.loc[edges_to_group, "group"] = edge_group_nr
+
+        logger.info(f"{len(self.osm_edges)} edges were grouped into {self.osm_edges['group'].nunique()} segments.")
+        # Optionally, we can simplify the graph object by removing the nodes and merging the edges to 1 EdgeInfo.
+
+        if self.debug:
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, self.osm_nodes, "pytest_nodes"
+            )
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, self.osm_edges, "pytest_edges"
+            )
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT,
+                self.osm_edges.dissolve(by="group"),
+                "pytest_edges_with_segment_groups",
+            )
+
+    def create_junction_crossings(self):
+        node_degree = {i: self.osm_graph.degree(i) for i in self.osm_graph.node_indices()}
+        self.osm_nodes["degree"] = pd.Series(node_degree, index=self.osm_nodes.index, dtype=int)
+        junctions = self.osm_nodes[self.osm_nodes["degree"] > 2]
         if len(junctions) == 0:
             logger.warning("No junctions found to consider for pipe ramming.")
             return
@@ -97,11 +136,11 @@ class GetPotentialPipeRammingCrossings:
             self.max_pipe_ramming_length_m + self.max_pipe_ramming_length_m * 0.5, 6
         )
 
-        # Split the buffer with the edges. Each segment should get a connection to the other segment if they share a boundary
+        # Split the buffer with the edges.
         for node_id, junction_node in junctions.iterrows():
-            junction_edge_groups = osm_street_segments.loc[self.osm_graph.incident_edges(node_id)].group
+            junction_edge_groups = self.osm_edges.loc[self.osm_graph.incident_edges(node_id)].group
             # TODO this will give problems when junctions are very close by each other, i think we better extend the direct incident edges.
-            junction_edges = osm_street_segments[osm_street_segments["group"].isin(junction_edge_groups)]
+            junction_edges = self.osm_edges[self.osm_edges["group"].isin(junction_edge_groups)]
 
             # First, split the buffered junction by the osm_edges to create the sides to connect.
             line_split_collection = [junction_node.geometry.boundary, *junction_edges.geometry.to_list()]
@@ -125,23 +164,27 @@ class GetPotentialPipeRammingCrossings:
                 logger.warning("Not all street sides have nodes to connect to.")
 
             # Check for edges which are almost 180 degrees apart, create straight crossings for those.
-            adjacent_edges = osm_street_segments.loc[self.osm_graph.incident_edges(node_id)]
+            adjacent_edges = self.osm_edges.loc[self.osm_graph.incident_edges(node_id)]
             adjacent_edges["point_a"] = adjacent_edges["geometry"].apply(lambda line: shapely.Point(line.coords[0]))
             adjacent_edges["point_b"] = adjacent_edges["geometry"].apply(lambda line: shapely.Point(line.coords[1]))
             for edge_1, edge_2 in itertools.combinations(adjacent_edges.index, 2):
                 # Get the outer points of the edges to compare the angle to.
-                if adjacent_edges.loc[edge_1].point_a.equals(osm_nodes.loc[node_id].geometry):
+                if adjacent_edges.loc[edge_1].point_a.equals(self.osm_nodes.loc[node_id].geometry):
                     a = adjacent_edges.loc[edge_1].point_b
                 else:
                     a = adjacent_edges.loc[edge_1].point_a
-                if adjacent_edges.loc[edge_2].point_a.equals(osm_nodes.loc[node_id].geometry):
+                if adjacent_edges.loc[edge_2].point_a.equals(self.osm_nodes.loc[node_id].geometry):
                     b = adjacent_edges.loc[edge_2].point_b
                 else:
                     b = adjacent_edges.loc[edge_2].point_a
 
                 # Convert to vectors: from C to A and from C to B
-                vec_CA = np.array([a.x - osm_nodes.loc[node_id].geometry.x, a.y - osm_nodes.loc[node_id].geometry.y])
-                vec_CB = np.array([b.x - osm_nodes.loc[node_id].geometry.x, b.y - osm_nodes.loc[node_id].geometry.y])
+                vec_CA = np.array(
+                    [a.x - self.osm_nodes.loc[node_id].geometry.x, a.y - self.osm_nodes.loc[node_id].geometry.y]
+                )
+                vec_CB = np.array(
+                    [b.x - self.osm_nodes.loc[node_id].geometry.x, b.y - self.osm_nodes.loc[node_id].geometry.y]
+                )
 
                 cos_theta = np.dot(vec_CA, vec_CB) / (np.linalg.norm(vec_CA) * np.linalg.norm(vec_CB))
                 angle_rad = np.arccos(np.clip(cos_theta, -1, 1))
@@ -151,13 +194,13 @@ class GetPotentialPipeRammingCrossings:
 
             match junction_node.degree:
                 case 3:
-                    # T junction, treat sides differently. the | part is less important than the - part.
+                    # T-junction, treat sides differently. the | part is less important than the - part.
                     pass
                 case 4:
                     # find the segments which belong to each other.
-                    outer_points = osm_street_segments.intersection(junction_node.geometry.exterior)
+                    outer_points = self.osm_edges.intersection(junction_node.geometry.exterior)
                     outer_points = outer_points[~outer_points.is_empty]
-                    junction_edges = osm_street_segments[osm_street_segments.intersects(junction_node.geometry)]
+                    junction_edges = self.osm_edges[self.osm_edges.intersects(junction_node.geometry)]
 
                 case _:
                     logger.warning("not implemented")
@@ -188,7 +231,7 @@ class GetPotentialPipeRammingCrossings:
             write_results_to_geopackage(out, cost_surface_nodes_filtered, "pytest_cost_surface_filtered")
             # Plot junctions
             write_results_to_geopackage(out, junctions, "pytest_osm_junctions")
-            write_results_to_geopackage(out, osm_street_segments, "pytest_osm_streets")
+            write_results_to_geopackage(out, self.osm_edges, "pytest_osm_streets")
             # Plot an individual junction with its street sides and outer points.
             write_results_to_geopackage(out, junction_edges, "pytest_osm_junction_edges")
             write_results_to_geopackage(out, street_sides, "pytest_street_sides")
@@ -202,59 +245,14 @@ class GetPotentialPipeRammingCrossings:
             write_results_to_geopackage(out, side_2, "pytest_side_2")
             write_results_to_geopackage(out, outer_points_subset_2, "pytest_nodes_to_connect")
 
-    def create_street_segment_groups(self, nodes, edges) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    def get_crossings_per_segment(self):
         """
-        Similar function: https://osmnx.readthedocs.io/en/stable/user-reference.html#osmnx.simplification.simplify_graph
-        Publication: https://onlinelibrary.wiley.com/doi/10.1111/tgis.70037
-        """
-        # Group the edges which are connected by nodes with only 2 edges. We refer to this as a street segment.
-        node_degree = {i: self.osm_graph.degree(i) for i in self.osm_graph.node_indices()}
-        # Initialize all edges with a unique group number, then start merging adjacent edges.
-        edges["group"] = pd.Series(range(len(edges)), index=edges.index)
-
-        seen_nodes = set()
-        for edge_group_nr, (node_id, degree) in enumerate(node_degree.items(), start=len(edges) + 1):
-            if degree != 2 and node_id not in seen_nodes:
-                continue
-
-            # Get the complete street segment to merge.
-            edges_to_group = []
-            nodes_to_check = [node_id]
-            while nodes_to_check:
-                for node_id_2 in nodes_to_check:
-                    if node_degree[node_id_2] == 2 and node_id_2 not in seen_nodes:
-                        adjacent = self.osm_graph.adj(node_id_2)
-                        edges_to_group.extend([edge.edge_id for edge in adjacent.values()])
-                        nodes_to_check.extend(list(adjacent.keys()))
-
-                    nodes_to_check.remove(node_id_2)
-                    seen_nodes.add(node_id_2)
-
-            edges.loc[edges_to_group, "group"] = edge_group_nr
-
-        logger.info(f"{len(edges)} edges were grouped into {edges['group'].nunique()} segments.")
-
-        if self.debug:
-            write_results_to_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, nodes, "pytest_nodes")
-            write_results_to_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, edges, "pytest_edges")
-            write_results_to_geopackage(
-                Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT,
-                edges.dissolve(by="group"),
-                "pytest_edges_with_segment_groups",
-            )
-
-        # Optionally, we can simplify the graph object by removing the nodes and merging the edges to 1 EdgeInfo.
-        return nodes, edges
-
-    def get_crossings_per_segment(self, nodes: gpd.GeoDataFrame, street_segments: gpd.GeoDataFrame):
-        """
-        Find the crossings for the pipe ramming process.
-        This is a placeholder for the actual implementation.
+        Create perpendicular crossings for long street segments when there are no obstacles in the way.
         """
         logger.info("Finding crossings in grouped edges and nodes.")
 
         # Get road crossings for only long segments.
-        merged_segments = street_segments.dissolve(by="group")
+        merged_segments = self.osm_edges.dissolve(by="group")
         merged_segments["length"] = merged_segments.geometry.length
         merged_segments["find_crossings"] = merged_segments["length"] >= self.threshold_edge_length_crossing_m * 2
 

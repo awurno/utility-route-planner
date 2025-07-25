@@ -117,8 +117,9 @@ class TestPipeRamming:
 
         # Enable debug for visual debugging in QGIS.
         crossings = GetPotentialPipeRammingCrossings(osm_graph, rx.PyGraph(), get_empty_geodataframe(), debug=debug)
-        nodes, edges = osm_graph_to_gdfs(crossings.osm_graph)
-        nodes, edges = crossings.create_street_segment_groups(nodes, edges)
+        crossings.create_street_segment_groups()
+
+        edges, nodes = crossings.osm_edges, crossings.osm_nodes
 
         # Do a sanity check on the grouped edges and nodes.
         assert len(edges) == osm_graph.num_edges()
@@ -168,9 +169,11 @@ class TestPipeRamming:
         obstacles = mcda_engine.processed_vectors["pand"]  # can be expanded with water, trees.
 
         crossings = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, obstacles, debug=debug)
-        osm_edges, osm_nodes = crossings.convert_osm_graph_to_gdfs()
-        osm_nodes, street_segments = crossings.create_street_segment_groups(osm_nodes, osm_edges)
-        crossings.create_junction_crossings(osm_nodes, street_segments)
+        crossings.create_street_segment_groups()
+        crossings.osm_edges = crossings.osm_edges.clip(project_area)
+        crossings.osm_nodes = crossings.osm_nodes.clip(project_area)
+        # edit osm graph?
+        crossings.create_junction_crossings()
 
     @pytest.mark.skip(reason="First fix the junctions.")
     def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=False):
