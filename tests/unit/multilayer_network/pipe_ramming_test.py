@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: Contributors to the utility-route-project and Alliander N.V.
 #
 # SPDX-License-Identifier: Apache-2.0
-import pandas as pd
 import pytest
 import geopandas as gpd
 import rustworkx as rx
@@ -9,19 +8,20 @@ import shapely
 
 from settings import Config
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import convert_hexagon_graph_to_gdfs
 from utility_route_planner.util.graph_utilities import create_edge_info
 from utility_route_planner.models.mcda.mcda_engine import McdaCostSurfaceEngine
 from utility_route_planner.models.multilayer_network.pipe_ramming import GetPotentialPipeRammingCrossings
 from utility_route_planner.util.geo_utilities import get_empty_geodataframe, osm_graph_to_gdfs
 from utility_route_planner.models.multilayer_network.osm_graph_preprocessing import OSMGraphPreprocessor
 from utility_route_planner.models.multilayer_network.graph_datastructures import OSMNodeInfo
-from utility_route_planner.util.write import reset_geopackage
+from utility_route_planner.util.write import reset_geopackage, write_results_to_geopackage
 
 
 class TestPipeRamming:
     @pytest.fixture
     def setup_pipe_ramming_example_polygon(self, load_osm_graph_pickle):
-        def _setup(project_area=None):
+        def _setup(project_area=None, debug=False):
             if project_area is None:
                 project_area = (
                     gpd.read_file(Config.PYTEST_PATH_GEOPACKAGE_MCDA, layer=Config.PYTEST_LAYER_NAME_PROJECT_AREA)
@@ -37,10 +37,22 @@ class TestPipeRamming:
             )
             mcda_engine.preprocess_vectors()
 
-            concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
-            concatenated_vectors = concatenated_vectors.reset_index(drop=True)
-            hexagon_graph_builder = HexagonGraphBuilder(gpd.GeoDataFrame(concatenated_vectors), hexagon_size=0.5)
+            hexagon_graph_builder = HexagonGraphBuilder(
+                mcda_engine.project_area_geometry,
+                mcda_engine.raster_preset,
+                mcda_engine.processed_vectors,
+                hexagon_size=0.5,
+            )
             cost_surface_graph = hexagon_graph_builder.build_graph()
+
+            if debug:
+                osm_nodes, osm_edges = osm_graph_to_gdfs(osm_graph_preprocessed)
+                cost_surface_nodes = convert_hexagon_graph_to_gdfs(cost_surface_graph, edges=False)
+                out = Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT
+                reset_geopackage(out, truncate=False)
+                write_results_to_geopackage(out, osm_nodes, "osm_nodes")
+                write_results_to_geopackage(out, osm_edges, "osm_edges")
+                write_results_to_geopackage(out, cost_surface_nodes, "cost_surface_nodes")
 
             return osm_graph_preprocessed, mcda_engine, cost_surface_graph
 
@@ -146,7 +158,7 @@ class TestPipeRamming:
         assert group_110 == group_111 == group_112
         assert (edges["group"] == group_110).sum() == 3
 
-    def test_find_junction_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
+    def test_find_junction_crossings_pytest_example_area(self, setup_pipe_ramming_example_polygon, debug=True):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
