@@ -159,10 +159,11 @@ class TestPipeRamming:
         assert group_110 == group_111 == group_112
         assert (edges["group"] == group_110).sum() == 3
 
-    def test_find_junction_crossings_pytest_example_area(self, setup_pipe_ramming_example_polygon, debug=True):
+    def test_find_crossings_single_degree_4_junction(self, setup_pipe_ramming_example_polygon, debug=True):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
+        node_id_to_test = 386
         project_area = shapely.Point(174967.12, 450898.60).buffer(200)
 
         osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon(project_area)
@@ -170,10 +171,13 @@ class TestPipeRamming:
 
         crossings = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, obstacles, debug=debug)
         crossings.create_street_segment_groups()
-        crossings.osm_edges = crossings.osm_edges.clip(project_area)
-        crossings.osm_nodes = crossings.osm_nodes.clip(project_area)
+        junctions, suitable_cost_surface_nodes_to_cross = crossings.prepare_junction_crossings()
+        crossings.get_crossing_for_junction(
+            suitable_cost_surface_nodes_to_cross, node_id_to_test, junctions.loc[node_id_to_test]
+        )
+
         # edit osm graph?
-        crossings.create_junction_crossings()
+        crossings.prepare_junction_crossings()
 
     @pytest.mark.skip(reason="First fix the junctions.")
     def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=False):
