@@ -154,4 +154,8 @@ def get_angle_between_points(point_a: shapely.Point, point_b: shapely.Point, cen
     vector_b = np.array([point_b.x - center_point.x, point_b.y - center_point.y])
     cos_theta = np.dot(vector_a, vector_b) / (np.linalg.norm(vector_a) * np.linalg.norm(vector_b))
     angle_radians = np.arccos(np.clip(cos_theta, -1, 1))
-    return float(np.degrees(angle_radians))
+    cross = np.cross(vector_a, vector_b)
+    angle_deg = np.degrees(angle_radians)
+    if cross < 0:
+        angle_deg = 360 - angle_deg
+    return float(angle_deg)
