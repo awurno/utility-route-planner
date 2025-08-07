@@ -26,11 +26,9 @@ class HexagonalGridConstructor:
 
     def construct_grid(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         hexagonal_grid_bounding_box = self.construct_hexagonal_grid_for_bounding_box(project_area)
-        merged_preprocessed_vectors = self.merge_preprocessed_vectors()
-        hexagonal_grid = self.get_hexagonal_grid_for_project_area(
-            hexagonal_grid_bounding_box, merged_preprocessed_vectors
-        )
+        point_in_project_area = self.get_points_in_project_area(hexagonal_grid_bounding_box)
 
+        hexagonal_grid = self.get_hexagonal_grid_for_project_area(point_in_project_area)
         hexagonal_grid["axial_q"], hexagonal_grid["axial_r"] = self.convert_cartesian_coordinates_to_axial(
             hexagonal_grid, size=self.hexagon_size
         )
@@ -41,12 +39,6 @@ class HexagonalGridConstructor:
         # Reset index of grid to align with node ids generated using rustworkx
         hexagonal_grid = hexagonal_grid.reset_index(drop=True)
         return hexagonal_grid
-
-    def merge_preprocessed_vectors(self) -> gpd.GeoDataFrame:
-        for criterion, vector_gdf in self.preprocessed_vectors.items():
-            vector_gdf["criterion"] = criterion
-            vector_gdf["group"] = self.raster_preset.criteria[criterion].group
-        return gpd.GeoDataFrame(pd.concat(self.preprocessed_vectors.values()), crs=Config.CRS)
 
     def construct_hexagonal_grid_for_bounding_box(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         """
@@ -71,26 +63,37 @@ class HexagonalGridConstructor:
         )
         return bounding_box_grid.reset_index(names="node_id")
 
-    def get_hexagonal_grid_for_project_area(
-        self, bounding_box_grid: gpd.GeoDataFrame, preprocessed_vectors: gpd.GeoDataFrame
-    ) -> gpd.GeoDataFrame:
+    def get_points_in_project_area(self, bounding_box_grid: gpd.GeoDataFrame):
         """
-        Given the hexagonal grid for the bounding box of the project area, remove all points that are not within any
-        vector polygon that is provided as input. In addition, the suitability value for each point on the grid is
+        Concatenate all preprocessed vectors into a single geodataframe. Use this concatenated dataframe
+        filter all points from the bounding box that do not intersect with any of the vectors.
+        """
+        for criterion, vector_gdf in self.preprocessed_vectors.items():
+            vector_gdf["criterion"] = criterion
+            vector_gdf["group"] = self.raster_preset.criteria[criterion].group
+        concatenated_vectors = gpd.GeoDataFrame(pd.concat(self.preprocessed_vectors.values()), crs=Config.CRS)
+
+        points_within_project_area = gpd.sjoin(
+            bounding_box_grid,
+            concatenated_vectors[["group", "suitability_value", "geometry"]],
+            predicate="within",
+            how="inner",
+        ).set_index("node_id")
+
+        return points_within_project_area
+
+    def get_hexagonal_grid_for_project_area(self, points_within_project_area: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Co
+        he suitability value for each point on the grid is
         computed given the vector the point intersects with. In case a point intersects multiple polygons the
         suitability values are summed for now.
 
         :return: GeoDataFrame containing all points within the project area in combination with aggregated suitability
         values for every point.
         """
-        points_within_project_area = gpd.sjoin(
-            bounding_box_grid,
-            preprocessed_vectors[["group", "suitability_value", "geometry"]],
-            predicate="within",
-            how="inner",
-        ).set_index("node_id")
 
-        group_keys = preprocessed_vectors["group"].unique()
+        group_keys = points_within_project_area["group"].unique()
         aggregated_group_a = pd.DataFrame()
         aggregated_group_b = pd.DataFrame()
         aggregated_group_c = pd.DataFrame()
