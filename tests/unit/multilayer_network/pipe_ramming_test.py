@@ -163,21 +163,27 @@ class TestPipeRamming:
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
-        node_id_to_test = 386
+        node_id_to_test = 509  # 386
         project_area = shapely.Point(174967.12, 450898.60).buffer(200)
 
         osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon(project_area)
         obstacles = mcda_engine.processed_vectors["pand"]  # can be expanded with water, trees.
 
-        crossings = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, obstacles, debug=debug)
-        crossings.create_street_segment_groups()
-        junctions, suitable_cost_surface_nodes_to_cross = crossings.prepare_junction_crossings()
-        crossings.get_crossing_for_junction(
+        pipe_ramming = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, obstacles, debug=debug)
+        pipe_ramming.create_street_segment_groups()
+        junctions, suitable_cost_surface_nodes_to_cross = pipe_ramming.prepare_junction_crossings()
+        crossing = pipe_ramming.get_crossing_for_junction(
             suitable_cost_surface_nodes_to_cross, node_id_to_test, junctions.loc[node_id_to_test]
         )
+        assert crossing is not None
 
-        # edit osm graph?
-        crossings.prepare_junction_crossings()
+    def test_find_all_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
+        if debug:
+            reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
+
+        osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon()
+        pipe_ramming = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, "", debug=debug)
+        _ = pipe_ramming.get_crossings()
 
     @pytest.mark.skip(reason="First fix the junctions.")
     def test_find_road_crossings(self, setup_pipe_ramming_example_polygon, debug=False):
