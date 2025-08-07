@@ -15,7 +15,7 @@ from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_
 )
 
 
-class TestHexagonalGridConstructor:
+class TestConstructHexagonalGridForBoundingBox:
     @pytest.fixture()
     def square_project_area(self) -> shapely.Polygon:
         return shapely.Polygon(
@@ -60,7 +60,7 @@ class TestHexagonalGridConstructor:
         hexagon_size = 0.5
         return HexagonalGridConstructor(raster_preset, preprocessed_vectors, hexagon_size)
 
-    def test_construct_hexagonal_grid_for_bounding_box_for_square_project_area(
+    def test_square_project_area(
         self, grid_constructor: HexagonalGridConstructor, square_project_area: shapely.Polygon
     ):
         result = grid_constructor.construct_hexagonal_grid_for_bounding_box(square_project_area)
@@ -69,12 +69,44 @@ class TestHexagonalGridConstructor:
         x_coordinates = coordinates["x"].values.reshape(6, 7)
         y_coordinates = coordinates["y"].values.reshape(6, 7)
 
-        # Set expected spacing between hexagon points based on known equations.
-        expected_horizontal_spacing = 3 / 2 * grid_constructor.hexagon_size
-        expected_vertical_spacing = math.sqrt(3) * grid_constructor.hexagon_size
+        hexagon_size = grid_constructor.hexagon_size
+        self.check_grid_bounding_box(hexagon_size, square_project_area, x_coordinates, y_coordinates)
+        self.check_grid_spacing(hexagon_size, x_coordinates, y_coordinates)
 
-        # Verify that spacing between x- and y-coordinates satisfy are equal to hexagon heigth and width
-        # and do therefore meet hexagon constaints.
+    def test_triangular_project_area(
+        self, grid_constructor: HexagonalGridConstructor, triangular_project_area: shapely.Polygon
+    ):
+        result = grid_constructor.construct_hexagonal_grid_for_bounding_box(triangular_project_area)
+        coordinates = result.geometry.get_coordinates()
+        x_coordinates = coordinates["x"].values.reshape(5, 6)
+        y_coordinates = coordinates["y"].values.reshape(5, 6)
+
+        self.check_grid_spacing(grid_constructor.hexagon_size, x_coordinates, y_coordinates)
+
+        hexagon_size = grid_constructor.hexagon_size
+        self.check_grid_bounding_box(hexagon_size, triangular_project_area, x_coordinates, y_coordinates)
+        self.check_grid_spacing(hexagon_size, x_coordinates, y_coordinates)
+
+    @staticmethod
+    def check_grid_bounding_box(
+        hexagon_size: float, project_area: shapely.Polygon, x_coordinates: np.ndarray, y_coordinates: np.ndarray
+    ):
+        """
+        Verifies that all coordinates are within or on the border of the project area polygon bounding box. At this stage,
+        the grid should be equal to the square equal to the bounding box, independent of the shape of the project area polygon.
+        """
+        exptected_x_min, exptected_y_min, exptected_x_max, exptected_y_max = project_area.bounds
+
+        assert pytest.approx(exptected_x_min) == x_coordinates.min()
+        assert exptected_x_max >= x_coordinates.max() >= (exptected_x_max - hexagon_size)
+        assert pytest.approx(exptected_y_min) == y_coordinates.min()
+        assert exptected_y_max >= y_coordinates.max() >= (exptected_y_max - hexagon_size)
+
+    @staticmethod
+    def check_grid_spacing(hexagon_size: float, x_coordinates: np.ndarray, y_coordinates: np.ndarray):
+        # Set expected spacing between hexagon points based on known equations.
+        expected_horizontal_spacing = 3 / 2 * hexagon_size
+        expected_vertical_spacing = math.sqrt(3) * hexagon_size
 
         # Verify that spacing between x-coordinates of hexagon center points equals the expected horizontal spacing
         x_spacing = np.diff(x_coordinates, axis=1)
