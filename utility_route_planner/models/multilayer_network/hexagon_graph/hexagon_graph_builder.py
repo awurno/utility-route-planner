@@ -23,7 +23,7 @@ class HexagonGraphBuilder:
         self,
         project_area: shapely.Polygon,
         raster_preset: RasterPreset,
-        preprocessed_vectors: gpd.GeoDataFrame,
+        preprocessed_vectors: dict[str, gpd.GeoDataFrame],
         hexagon_size: float,
     ):
         self.project_area = project_area

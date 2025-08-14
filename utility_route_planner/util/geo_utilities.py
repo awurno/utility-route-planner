@@ -4,6 +4,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import rasterio
 import rustworkx as rx
 import rasterio.mask
@@ -143,3 +144,18 @@ def osm_graph_to_gdfs(graph: rx.PyGraph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataF
     else:
         logger.warning("There are no edges or nodes. Cannot convert to GeoDataFrames.")
         return get_empty_geodataframe(), get_empty_geodataframe()
+
+
+def get_angle_between_points(point_a: shapely.Point, point_b: shapely.Point, center_point: shapely.Point) -> float:
+    """
+    Calculate the angle between two points with respect to a center point.
+    """
+    vector_a = np.array([point_a.x - center_point.x, point_a.y - center_point.y])
+    vector_b = np.array([point_b.x - center_point.x, point_b.y - center_point.y])
+    cos_theta = np.dot(vector_a, vector_b) / (np.linalg.norm(vector_a) * np.linalg.norm(vector_b))
+    angle_radians = np.arccos(np.clip(cos_theta, -1, 1))
+    cross = np.cross(vector_a, vector_b)
+    angle_deg = np.degrees(angle_radians)
+    if cross < 0:
+        angle_deg = 360 - angle_deg
+    return float(angle_deg)
