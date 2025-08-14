@@ -26,19 +26,19 @@ class HexagonalGridConstructor:
 
     def construct_grid(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         hexagonal_grid_bounding_box = self.construct_hexagonal_grid_for_bounding_box(project_area)
-        point_in_project_area = self.get_points_in_project_area(hexagonal_grid_bounding_box)
+        hexagonal_grid_for_project_area = self.filter_grid_to_project_area(hexagonal_grid_bounding_box)
 
-        hexagonal_grid = self.get_hexagonal_grid_for_project_area(point_in_project_area)
-        hexagonal_grid["axial_q"], hexagonal_grid["axial_r"] = self.convert_cartesian_coordinates_to_axial(
-            hexagonal_grid, size=self.hexagon_size
+        weighted_hexagonal_grid = self.assign_suitability_values_to_grid(hexagonal_grid_for_project_area)
+        weighted_hexagonal_grid["axial_q"], weighted_hexagonal_grid["axial_r"] = (
+            self.convert_cartesian_coordinates_to_axial(weighted_hexagonal_grid, size=self.hexagon_size)
         )
-        hexagonal_grid = gpd.GeoDataFrame(
-            pd.concat([hexagonal_grid, hexagonal_grid.get_coordinates()], axis=1), geometry="geometry"
+        weighted_hexagonal_grid = gpd.GeoDataFrame(
+            pd.concat([weighted_hexagonal_grid, weighted_hexagonal_grid.get_coordinates()], axis=1), geometry="geometry"
         )
 
         # Reset index of grid to align with node ids generated using rustworkx
-        hexagonal_grid = hexagonal_grid.reset_index(drop=True)
-        return hexagonal_grid
+        weighted_hexagonal_grid = weighted_hexagonal_grid.reset_index(drop=True)
+        return weighted_hexagonal_grid
 
     def construct_hexagonal_grid_for_bounding_box(self, project_area: shapely.Polygon) -> gpd.GeoDataFrame:
         """
@@ -63,7 +63,7 @@ class HexagonalGridConstructor:
         )
         return bounding_box_grid.reset_index(names="node_id")
 
-    def get_points_in_project_area(self, bounding_box_grid: gpd.GeoDataFrame):
+    def filter_grid_to_project_area(self, bounding_box_grid: gpd.GeoDataFrame):
         """
         Concatenate all preprocessed vectors into a single geodataframe. Use this concatenated dataframe
         filter all points from the bounding box that do not intersect with any of the vectors.
@@ -82,7 +82,7 @@ class HexagonalGridConstructor:
 
         return points_within_project_area
 
-    def get_hexagonal_grid_for_project_area(self, points_within_project_area: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def assign_suitability_values_to_grid(self, points_within_project_area: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Co
         he suitability value for each point on the grid is
@@ -127,8 +127,9 @@ class HexagonalGridConstructor:
             aggregated_suitability_values = aggregated_suitability_values.drop(columns=["a", "b"])
         elif len(aggregated_group_a) > 0 and len(aggregated_group_b) == 0:
             aggregated_suitability_values["suitability_value"] = aggregated_group_a.a
+        elif len(aggregated_group_b) > 0 and len(aggregated_group_a) == 0:
+            aggregated_suitability_values["suitability_value"] = aggregated_group_b.b
 
-        # TODO: check whether setting group c to highest possible value is correct
         if len(aggregated_group_c) > 0:
             aggregated_suitability_values = pd.concat([aggregated_suitability_values, aggregated_group_c], axis=1)
             aggregated_suitability_values.loc[aggregated_suitability_values.c.notna(), "suitability_value"] = (
