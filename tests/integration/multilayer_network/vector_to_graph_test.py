@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import pandas as pd
 import pytest
 import shapely
 import geopandas as gpd
@@ -48,19 +47,23 @@ class TestVectorToGraph:
         )
 
     @pytest.fixture()
-    def vectors_for_project_areas(self, larger_project_area: shapely.Polygon) -> gpd.GeoDataFrame:
+    def vectors_for_project_areas(self, larger_project_area: shapely.Polygon) -> McdaCostSurfaceEngine:
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
             Config.PYTEST_PATH_GEOPACKAGE_MCDA,
             larger_project_area,
         )
         mcda_engine.preprocess_vectors()
-        concatenated_vectors = pd.concat(mcda_engine.processed_vectors.values())
-        concatenated_vectors = concatenated_vectors.reset_index(drop=True)
-        return gpd.GeoDataFrame(concatenated_vectors)
+        return mcda_engine
 
-    def test_vector_to_graph(self, vectors_for_project_areas: gpd.GeoDataFrame, debug: bool = False):
-        hexagon_graph_builder = HexagonGraphBuilder(vectors_for_project_areas, hexagon_size=0.5)
+    def test_vector_to_graph(self, vectors_for_project_areas: McdaCostSurfaceEngine, debug: bool = True):
+        mcda_engine = vectors_for_project_areas
+        hexagon_graph_builder = HexagonGraphBuilder(
+            mcda_engine.project_area_geometry,
+            mcda_engine.raster_preset,
+            mcda_engine.processed_vectors,
+            hexagon_size=0.5,
+        )
         graph = hexagon_graph_builder.build_graph()
 
         if debug:
