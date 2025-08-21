@@ -55,4 +55,4 @@ class HexagonEdgeGenerator:
         neighbours = gpd.GeoDataFrame(neighbours, geometry=edge_line_strings, crs=Config.CRS)
         neighbours["length"] = neighbours.geometry.length
 
-        return neighbours[["node_id_source", "node_id_target", "length", "geometry", "weight"]]
+        return neighbours[["node_id_source", "node_id_target", "length", "weight", "geometry"]]
