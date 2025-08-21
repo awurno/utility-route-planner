@@ -11,8 +11,8 @@ import shapely
 
 from settings import Config
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
-from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_constructor import (
-    HexagonalGridConstructor,
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_builder import (
+    HexagonGridBuilder,
 )
 
 
@@ -33,9 +33,9 @@ def raster_preset() -> RasterPreset:
 @pytest.fixture()
 def grid_constructor(
     raster_preset: RasterPreset, preprocessed_vectors: dict[str, gpd.GeoDataFrame]
-) -> HexagonalGridConstructor:
+) -> HexagonGridBuilder:
     hexagon_size = 0.5
-    return HexagonalGridConstructor(raster_preset, preprocessed_vectors, hexagon_size)
+    return HexagonGridBuilder(raster_preset, preprocessed_vectors, hexagon_size)
 
 
 class TestConstructHexagonalGridForBoundingBox:
@@ -62,9 +62,7 @@ class TestConstructHexagonalGridForBoundingBox:
             ]
         )
 
-    def test_square_project_area(
-        self, grid_constructor: HexagonalGridConstructor, square_project_area: shapely.Polygon
-    ):
+    def test_square_project_area(self, grid_constructor: HexagonGridBuilder, square_project_area: shapely.Polygon):
         result = grid_constructor.construct_hexagonal_grid_for_bounding_box(square_project_area)
 
         coordinates = result.geometry.get_coordinates()
@@ -76,7 +74,7 @@ class TestConstructHexagonalGridForBoundingBox:
         self.check_grid_spacing(hexagon_size, x_coordinates, y_coordinates)
 
     def test_triangular_project_area(
-        self, grid_constructor: HexagonalGridConstructor, triangular_project_area: shapely.Polygon
+        self, grid_constructor: HexagonGridBuilder, triangular_project_area: shapely.Polygon
     ):
         result = grid_constructor.construct_hexagonal_grid_for_bounding_box(triangular_project_area)
         coordinates = result.geometry.get_coordinates()
@@ -134,7 +132,7 @@ class TestConstructHexagonalGridForBoundingBox:
 
 
 class TestAssignSuitabilityValuesToGrid:
-    def test_no_overlapping_points(self, grid_constructor: HexagonalGridConstructor):
+    def test_no_overlapping_points(self, grid_constructor: HexagonGridBuilder):
         """
         Verify that all suitability values remain intact in case no points are overlapping. Only points in group c
         should have a suitability value which equals the max node suitability value.
@@ -177,7 +175,7 @@ class TestAssignSuitabilityValuesToGrid:
 
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
 
-    def test_overlapping_points_group_a(self, grid_constructor: HexagonalGridConstructor):
+    def test_overlapping_points_group_a(self, grid_constructor: HexagonGridBuilder):
         """
         Verify that for overlapping points in group a, the max value is used as suitability value
         that point.
@@ -197,7 +195,7 @@ class TestAssignSuitabilityValuesToGrid:
 
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
 
-    def test_overlapping_points_group_b(self, grid_constructor: HexagonalGridConstructor):
+    def test_overlapping_points_group_b(self, grid_constructor: HexagonGridBuilder):
         """
         Verify that for overlapping points in group b, values for all points are summed to
         compute the suitability value
@@ -217,7 +215,7 @@ class TestAssignSuitabilityValuesToGrid:
 
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
 
-    def test_overlapping_points_group_c(self, grid_constructor: HexagonalGridConstructor):
+    def test_overlapping_points_group_c(self, grid_constructor: HexagonGridBuilder):
         """
         Verify that for overlapping points in group c, the suitability value for the respective nodes is always
         set to the max node suitability value.
@@ -240,7 +238,7 @@ class TestAssignSuitabilityValuesToGrid:
 
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
 
-    def test_sum_overlapping_group_a_and_b(self, grid_constructor: HexagonalGridConstructor):
+    def test_sum_overlapping_group_a_and_b(self, grid_constructor: HexagonGridBuilder):
         """
         Verify that when nodes from group a and b intersect, the values are summed. Suitability values of
         all nodes in these groups that do not intersect should remain intact.
@@ -271,7 +269,7 @@ class TestAssignSuitabilityValuesToGrid:
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
 
     @pytest.mark.parametrize("group", ["a", "b"])
-    def test_group_a_or_b_filled_while_other_empty(self, group: str, grid_constructor: HexagonalGridConstructor):
+    def test_group_a_or_b_filled_while_other_empty(self, group: str, grid_constructor: HexagonGridBuilder):
         """
         In case either group a or b is filled while the other group is empty, the assigned suitability
         values for each point should be equal to that of the filled group.
@@ -296,7 +294,7 @@ class TestAssignSuitabilityValuesToGrid:
 
 
 class TestCartesianToAxialConversion:
-    def test_conversion(self, grid_constructor: HexagonalGridConstructor):
+    def test_conversion(self, grid_constructor: HexagonGridBuilder):
         center_points = gpd.GeoDataFrame(
             geometry=[
                 shapely.Point(174966.804, 451064.681),

@@ -10,8 +10,8 @@ import structlog
 from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset
 from utility_route_planner.models.multilayer_network.graph_datastructures import HexagonNodeInfo, HexagonEdgeInfo
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_edge_generator import HexagonEdgeGenerator
-from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_constructor import (
-    HexagonalGridConstructor,
+from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_grid_builder import (
+    HexagonGridBuilder,
 )
 from utility_route_planner.util.timer import time_function
 
@@ -19,6 +19,12 @@ logger = structlog.get_logger(__name__)
 
 
 class HexagonGraphBuilder:
+    """
+    Class is used to construct a spatial graph in flat-top hexagonal structure given a set of spatial input
+    vectors. Each node and edge have an assigned suitability value that is computed based on the location
+    and intersecting vector.
+    """
+
     def __init__(
         self,
         project_area: shapely.Polygon,
@@ -34,7 +40,7 @@ class HexagonGraphBuilder:
 
     @time_function
     def build_graph(self) -> rx.PyGraph:
-        grid_constructor = HexagonalGridConstructor(self.raster_preset, self.preprocessed_vectors, self.hexagon_size)
+        grid_constructor = HexagonGridBuilder(self.raster_preset, self.preprocessed_vectors, self.hexagon_size)
         hexagonal_grid = grid_constructor.construct_grid(self.project_area)
 
         node_values = hexagonal_grid[["geometry", "suitability_value", "axial_q", "axial_r"]].values

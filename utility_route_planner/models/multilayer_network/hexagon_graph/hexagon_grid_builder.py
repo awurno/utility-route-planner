@@ -12,7 +12,13 @@ from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils
 from settings import Config
 
 
-class HexagonalGridConstructor:
+class HexagonGridBuilder:
+    """
+    Class that is used to build a spatial grid with a hexagonal structure given a set of preprocessed vectors and
+    raster preset. Each point has as assigned suitabililty value that is used to construct a spatial graph in the next
+    step.
+    """
+
     def __init__(
         self,
         raster_preset: RasterPreset,
