@@ -293,6 +293,3 @@ class TestAssignSuitabilityValuesToGrid:
         ).set_index("node_id")
 
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
-
-    def test_overlapping_points_all_groups(self):
-        pass

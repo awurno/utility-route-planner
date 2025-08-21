@@ -84,10 +84,14 @@ class HexagonalGridConstructor:
 
     def assign_suitability_values_to_grid(self, points_within_project_area: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
-        Co
-        he suitability value for each point on the grid is
-        computed given the vector the point intersects with. In case a point intersects multiple polygons the
-        suitability values are summed for now.
+        Given the group the vector of a suitability value belongs to, a specific aggregation functions is applied for overlapping
+        points within this group:
+        - group a: take max suitability value of overlapping points
+        - group b: sum overlapping suitability values
+        - group c: sum overlapping suitability values
+
+        In case points that intersect with group a and b are overlapping, they are summed after aggregation. Finally, all points
+        that intersect with group c are set to the max possible suitability value.
 
         :return: GeoDataFrame containing all points within the project area in combination with aggregated suitability
         values for every point.
