@@ -30,7 +30,7 @@ class HexagonalGridConstructor:
 
         weighted_hexagonal_grid = self.assign_suitability_values_to_grid(hexagonal_grid_for_project_area)
         weighted_hexagonal_grid["axial_q"], weighted_hexagonal_grid["axial_r"] = (
-            self.convert_cartesian_coordinates_to_axial(weighted_hexagonal_grid, size=self.hexagon_size)
+            self.convert_cartesian_coordinates_to_axial(weighted_hexagonal_grid)
         )
         weighted_hexagonal_grid = gpd.GeoDataFrame(
             pd.concat([weighted_hexagonal_grid, weighted_hexagonal_grid.get_coordinates()], axis=1), geometry="geometry"
@@ -154,9 +154,8 @@ class HexagonalGridConstructor:
 
         return hexagon_points
 
-    @staticmethod
     def convert_cartesian_coordinates_to_axial(
-        hexagon_center_points: gpd.GeoDataFrame, size: float
+        self, hexagon_center_points: gpd.GeoDataFrame
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         To efficiently determine neighbours to construct a hexagonal graph later on, convert all cartesian coordinates
@@ -171,8 +170,8 @@ class HexagonalGridConstructor:
         x, y = np.split(hexagon_center_points.get_coordinates().values, 2, axis=1)
 
         # Convert x- and y-coordinates to axial
-        q = (2 / 3 * x) / size
-        r = (-1 / 3 * x + np.sqrt(3) / 3 * y) / size
+        q = (2 / 3 * x) / self.hexagon_size
+        r = (-1 / 3 * x + np.sqrt(3) / 3 * y) / self.hexagon_size
 
         # Convert coordinates to integers and correct rounding errors
         xgrid = np.round(q).astype(np.int32)

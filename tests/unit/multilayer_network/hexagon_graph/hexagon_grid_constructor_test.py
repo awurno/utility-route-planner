@@ -293,3 +293,28 @@ class TestAssignSuitabilityValuesToGrid:
         ).set_index("node_id")
 
         gpd.testing.assert_geodataframe_equal(expected_suitability_values, result)
+
+
+class TestCartesianToAxialConversion:
+    def test_conversion(self, grid_constructor: HexagonalGridConstructor):
+        center_points = gpd.GeoDataFrame(
+            geometry=[
+                shapely.Point(174966.804, 451064.681),
+                shapely.Point(174967.554, 451065.114),
+                shapely.Point(174968.304, 451064.681),
+                shapely.Point(174967.554, 451064.248),
+                shapely.Point(174966.804, 451063.815),
+                shapely.Point(174967.554, 451063.382),
+                shapely.Point(174968.304, 451063.815),
+            ]
+        )
+        xgrid_result, ygrid_result = grid_constructor.convert_cartesian_coordinates_to_axial(center_points)
+
+        #                           -1       0         +1        center(0)  -1       0         +1
+        expected_xgrid = np.array([[233289], [233290], [233291], [233290], [233289], [233290], [233291]])
+
+        #                           +1        +1        0        center(0) +1        -1        -1
+        expected_ygrid = np.array([[404200], [404200], [404199], [404199], [404199], [404198], [404198]])
+
+        assert all(expected_xgrid == xgrid_result)
+        assert all(expected_ygrid == ygrid_result)
