@@ -176,8 +176,8 @@ class HexagonGridBuilder:
         x, y = np.split(hexagon_center_points.get_coordinates().values, 2, axis=1)
 
         # Convert x- and y-coordinates to axial
-        q = (2 / 3 * x) / self.hexagon_size
-        r = (-1 / 3 * x + np.sqrt(3) / 3 * y) / self.hexagon_size
+        q = (-2 / 3 * x) / self.hexagon_size
+        r = (1 / 3 * x + np.sqrt(3) / 3 * y) / self.hexagon_size
 
         # Convert coordinates to integers and correct rounding errors
         xgrid = np.round(q).astype(np.int32)
