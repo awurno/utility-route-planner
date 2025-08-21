@@ -163,7 +163,7 @@ class TestPipeRamming:
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
-        node_id_to_test = 509  # 386
+        node_id_to_test = 499  # 386
         project_area = shapely.Point(174967.12, 450898.60).buffer(200)
 
         osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon(project_area)
