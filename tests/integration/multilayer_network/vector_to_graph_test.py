@@ -47,7 +47,7 @@ class TestVectorToGraph:
         )
 
     @pytest.fixture()
-    def mcda_engine_for_project_area(self, larger_project_area: shapely.Polygon) -> McdaCostSurfaceEngine:
+    def vectors_for_project_areas(self, larger_project_area: shapely.Polygon) -> McdaCostSurfaceEngine:
         mcda_engine = McdaCostSurfaceEngine(
             Config.RASTER_PRESET_NAME_BENCHMARK,
             Config.PYTEST_PATH_GEOPACKAGE_MCDA,
@@ -56,8 +56,8 @@ class TestVectorToGraph:
         mcda_engine.preprocess_vectors()
         return mcda_engine
 
-    def test_vector_to_graph(self, mcda_engine_for_project_area: McdaCostSurfaceEngine, debug: bool = False):
-        mcda_engine = mcda_engine_for_project_area
+    def test_vector_to_graph(self, vectors_for_project_areas: McdaCostSurfaceEngine, debug: bool = True):
+        mcda_engine = vectors_for_project_areas
         hexagon_graph_builder = HexagonGraphBuilder(
             mcda_engine.project_area_geometry,
             mcda_engine.raster_preset,
