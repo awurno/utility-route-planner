@@ -35,7 +35,7 @@ class GetPotentialPipeRammingCrossings:
         self.osm_graph = osm_graph
         self.osm_nodes, self.osm_edges = osm_graph_to_gdfs(osm_graph)
         self.cost_surface_graph = cost_surface_graph
-        # # TODO Optional extra obstacles to consider when determining crossings, disregarding the cost surface?
+        # # TODO implement extra obstacles to consider when determining crossings, disregarding the cost surface?
         self.obstacles = obstacles
         # Minimum length of a street segment to be considered for adding pipe ramming crossings.
         self.threshold_edge_length_crossing_m = Config.THRESHOLD_SEGMENT_CROSSING_LENGTH_M
@@ -72,15 +72,23 @@ class GetPotentialPipeRammingCrossings:
         for node_id, junction_area in junctions.iterrows():
             crossing = self.get_crossing_for_junction(suitable_cost_surface_nodes_to_cross, node_id, junction_area)
             if len(crossing):
-                logger.warning(f"No crossings found for junction {node_id}.")
-            else:
                 crossing_collection.append(crossing)
+            else:
+                logger.warning(f"No crossings found for junction {node_id}.")
 
         # Find crossings (perpendicular to the edge!) for larger street segments.
         # self.get_crossings_per_segment()
 
-        logger.info("Found n crossings.")
+        # Add all crossings
+        self.add_crossings_to_graph(crossing_collection)
+
+        logger.info(f"Found and added {len(crossing_collection)} crossings.")
         return crossing_collection
+
+    def add_crossings_to_graph(self, crossing_collection):
+        """Add the crossings to the cost surface graph and set the edge ids."""
+        edge_ids = self.cost_surface_graph.add_edges_from(crossing_collection)
+        [edge_info[2].set_edge_id(edge_id) for edge_id, edge_info in zip(edge_ids, crossing_collection)]
 
     def create_street_segment_groups(self):
         """
@@ -291,23 +299,28 @@ class GetPotentialPipeRammingCrossings:
                 subset="combinations", keep="first"
             )
 
-            # used only for plotting the debug polygons
+            # Used only for plotting the debug polygons
             best_crossings["group"] = row.group
             crossing_collection_polygons.append(best_crossings)
-            # used only for plotting the debug polygons
 
             for index in best_crossings.index:
-                weight = closest_node_linestrings_filtered[index].length / 2  # TODO discuss how to calculate this.
+                weight = rx.dijkstra_shortest_path_lengths(
+                    self.cost_surface_graph,
+                    closest_node_pairs[index].iloc[0],
+                    lambda x: x.weight,
+                    closest_node_pairs[index].iloc[1],
+                )
                 crossing_to_add = (
                     int(closest_node_pairs[index].iloc[0]),
                     int(closest_node_pairs[index].iloc[1]),
                     PipeRammingEdgeInfo(
-                        node_id,
-                        row.group,
-                        row.osm_id,
-                        weight,
-                        closest_node_linestrings_filtered[index].length,
-                        closest_node_linestrings_filtered[index],
+                        osm_id_junction=node_id,
+                        group=row.group,
+                        osm_edge_id=row.osm_id,
+                        # TODO-discuss: what is the cost of going through the cost surface?
+                        weight=int(weight[closest_node_pairs[index].iloc[1]] / 5),
+                        length=closest_node_linestrings_filtered[index].length,
+                        geometry=closest_node_linestrings_filtered[index],
                     ),
                 )
                 crossing_collection.append(crossing_to_add)
@@ -340,9 +353,20 @@ class GetPotentialPipeRammingCrossings:
             write_results_to_geopackage(
                 out, pd.concat(crossing_collection_polygons, ignore_index=True), f"{prefix}best_crossings_polygons"
             )
+            # We have to be a bit creative here because we cant access the geometry due to the edge-id not being set yet.
             write_results_to_geopackage(
                 out,
-                shapely.MultiLineString([i[2].geometry for i in crossing_collection]),
+                shapely.MultiLineString(
+                    [
+                        shapely.LineString(
+                            [
+                                self.cost_surface_graph.get_node_data(i[0]).geometry,
+                                self.cost_surface_graph.get_node_data(i[1]).geometry,
+                            ]
+                        )
+                        for i in crossing_collection
+                    ]
+                ),
                 f"{prefix}best_crossings_linestrings",
             )
 
