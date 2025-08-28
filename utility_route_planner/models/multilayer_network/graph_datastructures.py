@@ -48,10 +48,8 @@ class HexagonEdgeInfo(EdgeInfo):
 
 
 @dataclass
-class PipeRammingEdgeInfo:  # TODO inherit from EdgeInfo?
+class PipeRammingEdgeInfo(EdgeInfo):
     osm_id_junction: int
     group: int
     osm_edge_id: int
     weight: float
-    length: float
-    geometry: shapely.LineString
