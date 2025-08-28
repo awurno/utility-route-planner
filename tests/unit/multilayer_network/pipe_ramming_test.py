@@ -159,7 +159,7 @@ class TestPipeRamming:
         assert group_110 == group_111 == group_112
         assert (edges["group"] == group_110).sum() == 3
 
-    def test_find_crossings_single_degree_4_junction(self, setup_pipe_ramming_example_polygon, debug=True):
+    def test_junction_find_crossings_single_degree_4(self, setup_pipe_ramming_example_polygon, debug=True):
         if debug:
             reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
 
@@ -170,10 +170,8 @@ class TestPipeRamming:
 
         pipe_ramming = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, debug=debug)
         pipe_ramming.create_street_segment_groups()
-        junctions, suitable_cost_surface_nodes_to_cross = pipe_ramming.prepare_junction_crossings()
-        crossing = pipe_ramming.get_crossing_for_junction(
-            suitable_cost_surface_nodes_to_cross, node_id_to_test, junctions.loc[node_id_to_test]
-        )
+        junctions = pipe_ramming.prepare_junction_crossings()
+        crossing = pipe_ramming.get_crossing_for_junction(node_id_to_test, junctions.loc[node_id_to_test])
         assert len(crossing) == 3
 
         # Test our newly found crossing in a shortest path.
@@ -196,12 +194,30 @@ class TestPipeRamming:
                 Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, path_points, "pytest_nodes_result"
             )
 
-    def test_find_crossings_with_custom_obstacles(self, setup_pipe_ramming_example_polygon, debug=False):
+    def test_junction_find_crossings_with_custom_obstacles(self, setup_pipe_ramming_example_polygon, debug=False):
         # Obstacle can be a random polygon, check that it is respected.
         pass
 
-    def test_junction_find_crossing_nothing_found(self, setup_pipe_ramming_example_polygon, debug=False):
+    def test_junction_find_crossings_nothing_found(self, setup_pipe_ramming_example_polygon, debug=False):
         # Check that it works when there is no crossing possible.
+        pass
+
+    def test_street_segment_group_find_crossings_long(self, setup_pipe_ramming_example_polygon, debug=True):
+        if debug:
+            reset_geopackage(Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT, truncate=False)
+        segment_group_to_cross = 3760
+
+        project_area = shapely.Point(174974, 451093).buffer(200)
+        osm_graph, mcda_engine, cost_surface_graph = setup_pipe_ramming_example_polygon(project_area)
+
+        pipe_ramming = GetPotentialPipeRammingCrossings(osm_graph, cost_surface_graph, debug=debug)
+        pipe_ramming.create_street_segment_groups()
+        segments_of_interest = pipe_ramming.prepare_segment_crossings()
+        _ = pipe_ramming.get_crossings_per_segment(
+            segment_group_to_cross, segments_of_interest.loc[segment_group_to_cross].geometry
+        )
+
+    def test_street_segment_group_find_crossings_short(self):
         pass
 
     def test_find_all_crossings(self, setup_pipe_ramming_example_polygon, debug=True):
