@@ -11,8 +11,14 @@ import itertools
 from settings import Config
 import geopandas as gpd
 
+from utility_route_planner.models.multilayer_network.graph_datastructures import PipeRammingEdgeInfo
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import convert_hexagon_graph_to_gdfs
-from utility_route_planner.util.geo_utilities import osm_graph_to_gdfs, get_empty_geodataframe, get_angle_between_points
+from utility_route_planner.util.geo_utilities import (
+    osm_graph_to_gdfs,
+    get_empty_geodataframe,
+    get_angle_between_points,
+    extend_linestring_towards_point,
+)
 from utility_route_planner.util.write import write_results_to_geopackage
 
 logger = structlog.get_logger(__name__)
@@ -23,20 +29,25 @@ class GetPotentialPipeRammingCrossings:
         self,
         osm_graph: rx.PyGraph,
         cost_surface_graph: rx.PyGraph,
-        obstacles: gpd.GeoDataFrame,
+        obstacles: gpd.GeoDataFrame = get_empty_geodataframe(),
         debug: bool = False,
     ):
         self.osm_graph = osm_graph
         self.osm_nodes, self.osm_edges = osm_graph_to_gdfs(osm_graph)
         self.cost_surface_graph = cost_surface_graph
-        # Everything which blocks a possible pipe ramming, or filter on suitability value?
+        # TODO discuss adding the properties (BGT elements) to the hexagon nodes. That way you can force it to only include sidewalks, ignoring the suitability value.
+        self.cost_surface_nodes = convert_hexagon_graph_to_gdfs(self.cost_surface_graph, edges=False)
+        # # TODO implement extra obstacles to consider when determining crossings, disregarding the cost surface?
         self.obstacles = obstacles
         # Minimum length of a street segment to be considered for adding pipe ramming crossings.
-        self.threshold_edge_length_crossing_m = Config.THRESHOLD_SEGMENT_CROSSING_LENGTH_M
-        # Maximum length possible of a pipe ramming crossing.
+        self.threshold_edge_length_crossing_m = 30
+        # Maximum/minimum length possible of a pipe ramming crossing.
         self.max_pipe_ramming_length_m = 15
+        self.min_pipe_ramming_length_m = 3
         # Cost surface value below which we consider a crossing suitable.
-        self.suitability_value_threshold = 10  # TODO this is a value which includes sidewalk/berm
+        self.suitability_value_crossing_threshold = 10
+        # Cost surface value above which we consider unsuitable for crossing.
+        self.suitability_value_obstacles_threshold = 76
         self.debug = debug
 
     def get_crossings(self):
@@ -58,20 +69,30 @@ class GetPotentialPipeRammingCrossings:
         self.create_street_segment_groups()
 
         # Finds crossings (parallel to the edge!) for junctions.
-        junctions, suitable_cost_surface_nodes_to_cross = self.prepare_junction_crossings()
-        crossing_collection = pd.DataFrame()
-        for node_id, junction_node in junctions.iterrows():
-            crossing = self.get_crossing_for_junction(suitable_cost_surface_nodes_to_cross, node_id, junction_node)
-            if crossing.empty:
-                logger.warning(f"No crossings found for junction {node_id}.")
+        junctions_of_interests = self.prepare_junction_crossings()
+        crossing_collection = []
+        for node_id, junction_area in junctions_of_interests.iterrows():
+            crossing = self.get_crossing_for_junction(node_id, junction_area)
+            if len(crossing):
+                crossing_collection.append(crossing)
             else:
-                pd.concat([crossing_collection, crossing], ignore_index=True)
+                logger.warning(f"No crossings found for junction {node_id}.")
 
         # Find crossings (perpendicular to the edge!) for larger street segments.
-        # self.get_crossings_per_segment()
+        merged_segments_of_interest = self.prepare_segment_crossings()
+        for segment_group, segment in merged_segments_of_interest.index:
+            _ = self.get_crossings_per_segment(segment_group, segment.geometry)
 
-        logger.info("Found n crossings.")
+        # Add all crossings
+        self.add_crossings_to_graph(crossing_collection)
+
+        logger.info(f"Found and added {len(crossing_collection)} crossings.")
         return crossing_collection
+
+    def add_crossings_to_graph(self, crossing_collection: list):
+        """Add the crossings to the cost surface graph and set the edge ids."""
+        edge_ids = self.cost_surface_graph.add_edges_from(crossing_collection)
+        [edge_info[2].set_edge_id(edge_id) for edge_id, edge_info in zip(edge_ids, crossing_collection)]
 
     def create_street_segment_groups(self):
         """
@@ -107,56 +128,52 @@ class GetPotentialPipeRammingCrossings:
         # Optionally, we can simplify the graph object by removing the nodes and merging the edges to 1 EdgeInfo.
 
         if self.debug:
+            # Plot the basics, OSM + cost surface
             out = Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT
             prefix = "pytest_1_"
-            write_results_to_geopackage(out, self.osm_nodes, f"{prefix}nodes")
-            write_results_to_geopackage(out, self.osm_edges, f"{prefix}edges")
-            write_results_to_geopackage(out, self.osm_edges.dissolve(by="group"), f"{prefix}edges_with_segment_groups")
 
-    def prepare_junction_crossings(self):
+            write_results_to_geopackage(out, self.osm_nodes, f"{prefix}osm_nodes")
+            write_results_to_geopackage(out, self.osm_edges, f"{prefix}osm_edges")
+
+            write_results_to_geopackage(out, self.cost_surface_nodes, f"{prefix}cost_surface_nodes")
+            cost_surface_nodes_filtered = self.cost_surface_nodes[
+                self.cost_surface_nodes["suitability_value"] < self.suitability_value_crossing_threshold
+            ]
+            write_results_to_geopackage(out, cost_surface_nodes_filtered, f"{prefix}cost_surface_filtered")
+
+    def prepare_junction_crossings(self) -> gpd.GeoDataFrame:
         node_degree = {i: self.osm_graph.degree(i) for i in self.osm_graph.node_indices()}
         self.osm_nodes["degree"] = pd.Series(node_degree, index=self.osm_nodes.index, dtype=int)
         junctions = self.osm_nodes[self.osm_nodes["degree"] > 2]
         if len(junctions) == 0:
             logger.warning("No junctions found to consider for pipe ramming.")
-            return get_empty_geodataframe(), get_empty_geodataframe()
+            return get_empty_geodataframe()
         else:
             logger.info(f"Found {len(junctions)} junctions to consider for pipe ramming.")
 
-        # TODO discuss adding the properties (BGT elements) to the hexagon nodes. That way you can force it to only include sidewalks, ignoring the suitability value.
-        cost_surface_nodes = convert_hexagon_graph_to_gdfs(self.cost_surface_graph, edges=False)
-        # to_remove = self.mcda_roads[~self.mcda_roads["function"].isin(["fietspand", "voetpad"])]
-        # cost_surface_nodes_filtered = cost_surface_nodes.overlay(to_remove, how="difference")
-        cost_surface_nodes_filtered = cost_surface_nodes[
-            cost_surface_nodes["suitability_value"] < self.suitability_value_threshold
-        ]
-
-        # buffer the (concave_hull?) of the grouped nodes equal to the pipe ramming max length, take a bit of margin
+        # Determine the area around the junctions where we can ram pipes.
         junctions["geometry"] = junctions.buffer(self.max_pipe_ramming_length_m + 1)
 
         if self.debug:
             out = Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT
             prefix = "pytest_2_"
-            # Plot hexagons
-            write_results_to_geopackage(out, cost_surface_nodes, f"{prefix}cost_surface_nodes")
-            write_results_to_geopackage(out, cost_surface_nodes_filtered, f"{prefix}cost_surface_filtered")
-            # Plot junctions
             write_results_to_geopackage(out, junctions, f"{prefix}osm_junction_areas")
-            write_results_to_geopackage(out, self.osm_edges, f"{prefix}osm_streets")
 
-        return junctions, cost_surface_nodes_filtered
+        return junctions
 
-    def get_crossing_for_junction(self, cost_surface_nodes_filtered, node_id, junction_node):
+    def get_crossing_for_junction(self, node_id: int, junction_area: gpd.GeoSeries):
+        # TODO discuss what can be done in bulk and what needs to be done per junction.
         # Create rectangles which simulate potential crossings.
-        minx, miny, maxx, maxy = junction_node.geometry.bounds
+        minx, miny, maxx, maxy = junction_area.geometry.bounds
         boxes = [shapely.box(x, miny, min(x + 1, maxx), maxy) for x in np.arange(minx, maxx, 1)]
         center_outer_point = shapely.Point(self.osm_nodes.loc[node_id].geometry.x, maxy)
         grid_rectangles = gpd.GeoDataFrame(data=boxes, columns=["geometry"], crs=Config.CRS)
+        # TODO filter the two crossings closests to the center?
         grid_rectangles["distance_to_junction_center"] = grid_rectangles.distance(self.osm_nodes.loc[node_id].geometry)
 
         # Check for edges which are almost 180 degrees apart, create straight crossings for those.
         adjacent_edges = self.osm_edges.loc[self.osm_graph.incident_edges(node_id)]
-        adjacent_edges = adjacent_edges.clip(junction_node.geometry)
+        adjacent_edges = adjacent_edges.clip(junction_area.geometry)
         adjacent_edges["point_a"] = adjacent_edges["geometry"].apply(lambda line: shapely.Point(line.coords[0]))
         adjacent_edges["point_b"] = adjacent_edges["geometry"].apply(lambda line: shapely.Point(line.coords[1]))
         adjacent_edges["point_inner"] = self.osm_graph.get_node_data(node_id).geometry
@@ -190,43 +207,62 @@ class GetPotentialPipeRammingCrossings:
                 adjacent_edges.loc[idx_edge_1, "group_angle"] = mean_angle_deg
                 adjacent_edges.loc[idx_edge_2, "group_angle"] = mean_angle_deg
 
-        # TODO this will give problems when junctions are very close by each other, i think we better extend the direct incident edges.
-        junction_edge_groups = self.osm_edges.loc[self.osm_graph.incident_edges(node_id)].group
-        junction_edges = self.osm_edges[self.osm_edges["group"].isin(junction_edge_groups)]
-
-        # reworked extend version
-        # https://shapely.readthedocs.io/en/stable/manual.html#shapely.affinity.affine_transform self.osm_edges.loc[self.osm_graph.incident_edges(node_id)]
+        # Extend the linestrings of the edges outwards from the junction node prior to splitting
+        adjacent_edges["extended"] = adjacent_edges.apply(
+            lambda row: extend_linestring_towards_point(
+                row["point_inner"],
+                row["point_outer"],
+                distance=self.max_pipe_ramming_length_m
+                * 3,  # Has to be long enough to cross/split the junction area polygon.
+            ),
+            axis=1,
+        )
 
         # First, split the buffered junction by the osm_edges to create the sides to connect.
-        line_split_collection = [junction_node.geometry.boundary, *junction_edges.geometry.to_list()]
+        line_split_collection = [junction_area.geometry.boundary, *adjacent_edges["extended"].geometry.to_list()]
         merged_lines = shapely.ops.linemerge(line_split_collection)
         border_lines = shapely.ops.unary_union(merged_lines)
         street_sides = [i for i in shapely.ops.polygonize(border_lines)]
 
         # Second, intersect the hexagon_nodes eligible for creating crossings to each created side.
         street_sides = gpd.GeoDataFrame(street_sides, columns=["geometry"], crs=Config.CRS)
-        cost_surface_nodes_junction = cost_surface_nodes_filtered.sjoin(
-            street_sides, how="inner", predicate="intersects"
-        )
+        cost_surface_nodes_junction = self.cost_surface_nodes.sjoin(street_sides, how="inner", predicate="intersects")
         cost_surface_nodes_junction.rename(columns={"index_right": "idx_street_side"}, inplace=True)
 
         # Third, check number of sides created and if there are nodes in each side to connect.
-        if not len(street_sides) == junction_node.degree:
+        if not len(street_sides) == junction_area.degree:
             logger.warning(
-                f"Node {junction_node['osm_id']} has {junction_node.degree} edges, but {len(street_sides)} polygons were created."
+                f"Node {junction_area['osm_id']} has {junction_area.degree} edges, but {len(street_sides)} polygons were created."
             )
-        if not cost_surface_nodes_junction["idx_street_side"].nunique() == junction_node.degree:
+        if not cost_surface_nodes_junction["idx_street_side"].nunique() == junction_area.degree:
             logger.warning("Not all street sides have nodes to connect to.")
 
+        unpassable_area = cost_surface_nodes_junction[
+            cost_surface_nodes_junction["suitability_value"] >= self.suitability_value_obstacles_threshold
+        ].buffer(Config.HEXAGON_SIZE)
+        unpassable_area_single = unpassable_area.union_all()
+        cost_surface_nodes_junction["distance_to_junction_center"] = cost_surface_nodes_junction.distance(
+            self.osm_nodes.loc[node_id].geometry
+        )
+
         seen = set()
-        crossing_collection = pd.DataFrame()
+        crossing_collection_polygons = []
+        crossing_collection = []
         for idx_edge, row in adjacent_edges.iterrows():
             if row.group in seen:
                 continue
             grid_copy = grid_rectangles.copy()
             grid_rotated = grid_copy.rotate(360 - row.group_angle, origin=self.osm_nodes.loc[node_id].geometry)
             grid_copy["geometry"] = grid_rotated
-            grid_with_cost_surface = cost_surface_nodes_junction.sjoin(grid_copy, predicate="intersects", how="left")
+
+            # Clip rotated grid with obstacles to remove unsuitable crossings.
+            grid_copy = grid_copy.overlay(gpd.GeoDataFrame(geometry=unpassable_area, crs=28992), how="difference")
+            grid_copy = grid_copy.explode().reset_index(drop=True)
+
+            # Filter crossings which intersect with at least 1 pair of suitable nodes on either side of the street.
+            grid_with_cost_surface = cost_surface_nodes_junction[
+                cost_surface_nodes_junction["suitability_value"] <= self.suitability_value_crossing_threshold
+            ].sjoin(grid_copy, predicate="intersects", how="left")
             potential = grid_with_cost_surface.groupby(by="index_right", axis=0)["idx_street_side"].nunique()
             combinations = (
                 grid_with_cost_surface.groupby(by="index_right", axis=0)["idx_street_side"]
@@ -235,14 +271,62 @@ class GetPotentialPipeRammingCrossings:
             )
             all_crossings = pd.DataFrame({"potential": potential, "combinations": combinations})
             all_crossings = grid_copy.join(all_crossings[all_crossings.potential > 1], how="right")
+
+            closest_node_pairs = (
+                grid_with_cost_surface[grid_with_cost_surface["index_right"].isin(all_crossings.index)]
+                .groupby(["index_right", "idx_street_side"])["distance_to_junction_center_left"]
+                .idxmin()
+            )
+            pairs = grid_with_cost_surface.loc[closest_node_pairs]
+            #  Check minimal distance, discard short and long crossings.
+            closest_node_linestrings = pairs.groupby("index_right")["geometry"].apply(
+                lambda points: shapely.LineString(points)
+            )
+            closest_node_linestrings_filtered = closest_node_linestrings[
+                (closest_node_linestrings.length >= 3) & (closest_node_linestrings.length <= 15)
+            ]
+            #  Check if there is enough space in either direction for a ramming.
+            side_1 = closest_node_linestrings_filtered.apply(
+                lambda line: shapely.affinity.rotate(line, 180, origin=line.coords[0])
+            )
+            side_2 = closest_node_linestrings_filtered.apply(
+                lambda line: shapely.affinity.rotate(line, 180, origin=line.coords[1])
+            )
+            valid_sides = ~side_1.intersects(unpassable_area_single) | ~side_2.intersects(unpassable_area_single)
+            valid_crossings = all_crossings[all_crossings.index.isin(valid_sides[valid_sides].index)]
+
             # Get the one closest to the center point of the junction
-            best_crossings = all_crossings.sort_values("distance_to_junction_center").drop_duplicates(
+            best_crossings = valid_crossings.sort_values("distance_to_junction_center").drop_duplicates(
                 subset="combinations", keep="first"
             )
+
+            # Used only for plotting the debug polygons
             best_crossings["group"] = row.group
+            crossing_collection_polygons.append(best_crossings)
+
+            for index in best_crossings.index:
+                weight = rx.dijkstra_shortest_path_lengths(
+                    self.cost_surface_graph,
+                    closest_node_pairs[index].iloc[0],
+                    lambda x: x.weight,
+                    closest_node_pairs[index].iloc[1],
+                )
+                crossing_to_add = (
+                    int(closest_node_pairs[index].iloc[0]),
+                    int(closest_node_pairs[index].iloc[1]),
+                    PipeRammingEdgeInfo(
+                        osm_id_junction=node_id,
+                        group=row.group,
+                        osm_edge_id=row.osm_id,
+                        # TODO-discuss: what is the cost of going through the cost surface?
+                        weight=int(weight[closest_node_pairs[index].iloc[1]] / 5),
+                        length=closest_node_linestrings_filtered[index].length,
+                        geometry=closest_node_linestrings_filtered[index],
+                    ),
+                )
+                crossing_collection.append(crossing_to_add)
+
             seen.add(row.group)
-            crossing_collection = pd.concat([crossing_collection, best_crossings], ignore_index=True)
-            # TODO check for obstacles?
 
         if self.debug:
             out = Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT
@@ -255,64 +339,100 @@ class GetPotentialPipeRammingCrossings:
             )
             write_results_to_geopackage(
                 out,
-                adjacent_edges[["osm_id", "length", "group", "point_outer"]],
+                adjacent_edges[["osm_id", "length", "group", "point_outer"]].set_geometry("point_outer"),
                 f"{prefix}junction_adjacent_outer_point",
             )
 
             write_results_to_geopackage(out, grid_rectangles, f"{prefix}rotation_grid")
-            write_results_to_geopackage(out, grid_copy, f"{prefix}rotated_grids")
+            write_results_to_geopackage(out, street_sides, f"{prefix}street_sides")
+            write_results_to_geopackage(out, grid_with_cost_surface, f"{prefix}suitable_cost_surface_nodes_junction")
+            write_results_to_geopackage(out, unpassable_area, f"{prefix}unpassable_area")
+            write_results_to_geopackage(out, grid_copy, f"{prefix}rotated_grid")
             write_results_to_geopackage(out, all_crossings, f"{prefix}all_crossings")
-            write_results_to_geopackage(out, best_crossings, f"{prefix}best_crossings")
-            write_results_to_geopackage(out, crossing_collection, f"{prefix}selected_crossings")
+            write_results_to_geopackage(out, side_1, f"{prefix}side_1")
+            write_results_to_geopackage(out, side_2, f"{prefix}side_2")
+            write_results_to_geopackage(
+                out, pd.concat(crossing_collection_polygons, ignore_index=True), f"{prefix}best_crossings_polygons"
+            )
+            # We have to be a bit creative here because we cant access the geometry due to the edge-id not being set yet.
+            write_results_to_geopackage(
+                out,
+                shapely.MultiLineString(
+                    [
+                        shapely.LineString(
+                            [
+                                self.cost_surface_graph.get_node_data(i[0]).geometry,
+                                self.cost_surface_graph.get_node_data(i[1]).geometry,
+                            ]
+                        )
+                        for i in crossing_collection
+                    ]
+                ),
+                f"{prefix}best_crossings_linestrings",
+            )
 
         return crossing_collection
 
-    def get_crossings_per_segment(self):
-        """
-        Create perpendicular crossings for long street segments when there are no obstacles in the way.
-        """
-        logger.info("Finding crossings in grouped edges and nodes.")
-
+    def prepare_segment_crossings(self) -> gpd.GeoDataFrame:
+        """Identify the segments which are potentially interesting for adding crossings."""
         # Get road crossings for only long segments.
         merged_segments = self.osm_edges.dissolve(by="group")
         merged_segments["length"] = merged_segments.geometry.length
-        merged_segments["find_crossings"] = merged_segments["length"] >= self.threshold_edge_length_crossing_m * 2
+        merged_segments["is_suitable"] = merged_segments["length"] > self.threshold_edge_length_crossing_m * 2
+        merged_segments["geometry"] = merged_segments.line_merge()
+        if not merged_segments.geom_type.unique() == np.array("LineString"):
+            logger.warning(
+                "Some segments are still MultiLineStrings, this is unexpected as a street should always be "
+                "topologically connected."
+            )
+
+        # TODO check for shorter segments where there was no junction crossing found?
+
+        if self.debug:
+            prefix = "pytest_4_"
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT,
+                merged_segments,
+                f"{prefix}merged_segments_of_interest",
+            )
+
+        return merged_segments[merged_segments["is_suitable"]]
+
+    def get_crossings_per_segment(self, segment_group: int, segment_geometry: shapely.LineString):
+        """
+        Create perpendicular crossings for long street segments when there are no obstacles in the way.
+        """
+        logger.info("Finding crossings in street segments.")
+
+        if isinstance(segment_geometry, shapely.MultiLineString):
+            segment_geometry = segment_geometry
 
         # Determine points per segment where crossings can be added.
-        crossing_points = merged_segments.loc[merged_segments["find_crossings"]].copy(deep=True)
-        crossing_points.geometry = crossing_points.geometry.line_merge()
-        crossing_points["geometry"] = crossing_points.geometry.apply(
-            lambda geometry: shapely.MultiPoint(
-                geometry.interpolate(  # Note that interpolate needs LineStrings for equal intervals, not MultiLinestrings.
-                    (
-                        # Interval is now between self.threshold_edge_length_crossing_m and self.threshold_edge_length_crossing_m * 2
-                        np.linspace(
-                            0,
-                            geometry.length,
-                            int(geometry.length // self.threshold_edge_length_crossing_m),
-                            endpoint=False,
-                        )[1:]
-                    )
+        crossing_points = shapely.MultiPoint(
+            segment_geometry.interpolate(  # Note that interpolate needs LineStrings for equal intervals, not MultiLinestrings.
+                (
+                    # Interval is now between self.threshold_edge_length_crossing_m and self.threshold_edge_length_crossing_m * 2
+                    np.linspace(
+                        0,
+                        segment_geometry.length,
+                        int(segment_geometry.length // self.threshold_edge_length_crossing_m),
+                        endpoint=False,
+                    )[1:]
                 )
             )
         )
 
-        for group in crossing_points.index:
-            # split the segment at the crossing point, then buffer the intervals without endcap
-            # intersect with obstacles
-            # check if there is a perpendicular remaining part in the buffered segment
-            print("stahp")
-
-        # TODO: perhaps start with this first and then per segment: Get road crossings per junction?
-
-        # Determine weight
+        # split the segment at the crossing point, then buffer the intervals without endcap
+        # intersect with obstacles
+        # check if there is a perpendicular remaining part in the buffered segment
 
         if self.debug:
             out = Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT
-            prefix = "pytest_4_"
-            write_results_to_geopackage(out, merged_segments, f"{prefix}merged_segments")
+            prefix = "pytest_5_"
+            write_results_to_geopackage(out, segment_geometry, f"{prefix}segment_to_cross")
             write_results_to_geopackage(out, crossing_points, f"{prefix}crossing_points")
-            write_results_to_geopackage(out, self.obstacles, f"{prefix}obstacles")
+
+        return []
 
     def _write_debug_layers(self):
         write_results_to_geopackage(

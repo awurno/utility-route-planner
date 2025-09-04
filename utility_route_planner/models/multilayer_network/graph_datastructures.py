@@ -45,3 +45,11 @@ class OSMEdgeInfo(EdgeInfo):
 @dataclass
 class HexagonEdgeInfo(EdgeInfo):
     weight: float
+
+
+@dataclass
+class PipeRammingEdgeInfo(EdgeInfo):
+    osm_id_junction: int
+    group: int
+    osm_edge_id: int
+    weight: float

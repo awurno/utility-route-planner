@@ -63,6 +63,9 @@ def write_results_to_geopackage(
     logger.info(f"Writing features to geopackage: {layer_name}")
     if isinstance(item_to_write, shapely.Geometry):
         item_to_write = geopandas.GeoSeries(item_to_write, crs=Config.CRS)
+    if isinstance(item_to_write, geopandas.GeoSeries | geopandas.GeoDataFrame):
+        if item_to_write.crs is None:
+            item_to_write.set_crs(Config.CRS, inplace=True)
     if overwrite:
         item_to_write.to_file(path_geopackage, layer=layer_name, driver="GPKG", OVERWRITE="YES")
     else:

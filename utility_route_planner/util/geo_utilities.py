@@ -159,3 +159,15 @@ def get_angle_between_points(point_a: shapely.Point, point_b: shapely.Point, cen
     if cross < 0:
         angle_deg = 360 - angle_deg
     return float(angle_deg)
+
+
+def extend_linestring_towards_point(point_start, point_to_extend, distance):
+    """Extend a linestring with only 2 points in a single direction for a given distance."""
+    # x0, y0 = point_start.x, point_start.y
+    # x1, y1 = point_to_extend.x, point_to_extend.y
+    dx, dy = point_to_extend.x - point_start.x, point_to_extend.y - point_start.y
+    length = np.hypot(dx, dy)
+    dx, dy = dx / length, dy / length
+    new_x = point_start.x + dx * distance
+    new_y = point_start.y + dy * distance
+    return shapely.LineString([point_start, (new_x, new_y)])
