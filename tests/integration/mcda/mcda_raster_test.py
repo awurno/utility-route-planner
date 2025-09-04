@@ -147,36 +147,12 @@ def test_rasterize_vector_data_cell_size_error():
         get_raster_settings(project_area, cell_size=500000)
 
 
-def test_rasterize_single_criterion(debug=False):
+def test_rasterize_single_criterion(single_criterion_vectors: gpd.GeoDataFrame, debug=False):
     max_value = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_UPPER
     min_value = Config.INTERMEDIATE_RASTER_VALUE_LIMIT_LOWER
     no_data = Config.INTERMEDIATE_RASTER_NO_DATA
+    gdf = single_criterion_vectors(max_value, min_value, no_data)
 
-    gdf = gpd.GeoDataFrame(
-        data=[
-            # These layers all overlap each other.
-            [1, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]])],
-            [10, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]])],
-            [10, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]])],
-            [1, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]])],
-            # One larger partly overlapping polygon with a unique value.
-            [5, shapely.Polygon([[174872, 451093], [174870, 451082], [174876, 451081], [174872, 451093]]).buffer(50)],
-            # These values should be reset to the min/max of the intermediate raster values
-            [
-                min_value - 1000,
-                shapely.Polygon([[175091, 450919], [175091, 450911], [175105, 450911], [175091, 450919]]),
-            ],
-            [
-                max_value + 1000,
-                shapely.Polygon([[175012, 450920], [175011, 450907], [175019, 450906], [175012, 450920]]),
-            ],
-            # This value is equal to no-data and should be reset to a "safe" value (+1 it)
-            [no_data, shapely.Polygon([[174917, 450965], [174937, 450962], [174916, 450952], [174917, 450965]])],
-        ],
-        geometry="geometry",
-        crs=Config.CRS,
-        columns=["suitability_value", "geometry"],
-    )
     points_to_sample = gpd.GeoDataFrame(
         data=[
             [1, 10, shapely.Point(174872.396, 451084.460)],
