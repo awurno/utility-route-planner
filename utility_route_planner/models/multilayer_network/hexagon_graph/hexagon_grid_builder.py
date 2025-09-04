@@ -147,6 +147,11 @@ class HexagonGridBuilder:
             )
             aggregated_suitability_values = aggregated_suitability_values.drop(columns=["c"])
 
+        # Make sure all suitability values are within boundaries
+        aggregated_suitability_values["suitability_value"] = aggregated_suitability_values["suitability_value"].clip(
+            Config.MIN_NODE_SUITABILITY_VALUE, Config.MAX_NODE_SUITABILITY_VALUE
+        )
+
         # Join location afterwards, as this is faster than picking the first one within the aggregation step
         hexagon_points = gpd.GeoDataFrame(
             aggregated_suitability_values.join(
