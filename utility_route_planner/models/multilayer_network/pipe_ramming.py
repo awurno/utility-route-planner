@@ -165,7 +165,9 @@ class GetPotentialPipeRammingCrossings:
         # TODO discuss what can be done in bulk and what needs to be done per junction.
         # Create rectangles which simulate potential crossings.
         minx, miny, maxx, maxy = junction_area.geometry.bounds
-        boxes = [shapely.box(x, miny, min(x + 1, maxx), maxy) for x in np.arange(minx, maxx, 1)]
+        boxes = [
+            shapely.box(x, miny, min(x + 1, maxx), maxy) for x in np.arange(minx, maxx, 1)
+        ]  # TODO replace 1 with hexagon grid size?
         center_outer_point = shapely.Point(self.osm_nodes.loc[node_id].geometry.x, maxy)
         grid_rectangles = gpd.GeoDataFrame(data=boxes, columns=["geometry"], crs=Config.CRS)
         # TODO filter the two crossings closests to the center?
@@ -272,6 +274,7 @@ class GetPotentialPipeRammingCrossings:
             all_crossings = pd.DataFrame({"potential": potential, "combinations": combinations})
             all_crossings = grid_copy.join(all_crossings[all_crossings.potential > 1], how="right")
 
+            # TODO I think we can reuse some stuff here for the segment crossings.
             closest_node_pairs = (
                 grid_with_cost_surface[grid_with_cost_surface["index_right"].isin(all_crossings.index)]
                 .groupby(["index_right", "idx_street_side"])["distance_to_junction_center_left"]
@@ -352,6 +355,9 @@ class GetPotentialPipeRammingCrossings:
             write_results_to_geopackage(out, side_1, f"{prefix}side_1")
             write_results_to_geopackage(out, side_2, f"{prefix}side_2")
             write_results_to_geopackage(
+                out, closest_node_linestrings_filtered, f"{prefix}closest_node_linestrings_filtered"
+            )
+            write_results_to_geopackage(
                 out, pd.concat(crossing_collection_polygons, ignore_index=True), f"{prefix}best_crossings_polygons"
             )
             # We have to be a bit creative here because we cant access the geometry due to the edge-id not being set yet.
@@ -398,7 +404,9 @@ class GetPotentialPipeRammingCrossings:
 
         return merged_segments[merged_segments["is_suitable"]]
 
-    def get_crossings_per_segment(self, segment_group: int, segment_geometry: shapely.LineString):
+    def get_crossings_per_segment(
+        self, segment_group: int, segment_geometry: shapely.LineString, buffer_value: int = 30
+    ):
         """
         Create perpendicular crossings for long street segments when there are no obstacles in the way.
         """
@@ -421,6 +429,38 @@ class GetPotentialPipeRammingCrossings:
                 )
             )
         )
+        segment_geometry_area = segment_geometry.buffer(buffer_value, cap_style="flat")
+        nodes_of_interest = self.cost_surface_nodes[self.cost_surface_nodes.intersects(segment_geometry_area)]
+        nodes_of_interest = nodes_of_interest[
+            nodes_of_interest["suitability_value"] <= self.suitability_value_crossing_threshold
+        ]
+
+        sides = shapely.ops.split(segment_geometry_area, segment_geometry)
+        assert int(shapely.get_num_geometries(sides)) == 2, (
+            "Splitting the segment area should result in exactly two sides."
+        )
+        gdf_sides = gpd.GeoDataFrame(geometry=[i for i in sides.geoms], crs=Config.CRS)
+        nodes_of_interest = nodes_of_interest.sjoin(gdf_sides, how="left", rsuffix="side")
+
+        # Buffer each linestring in the larger linestring separately, rotated them 90 degrees and create rectangles.
+        for street in list(self.osm_edges[self.osm_edges["group"] == segment_group].geometry):
+            if not street.length > buffer_value:
+                print("We need to extend the linestring here I think.")
+            street_rotated = shapely.affinity.rotate(street, 90, origin="centroid")
+            interval = np.linspace(0, street.length / 2, int((street.length / 2) // 1), endpoint=False)[1:]
+            linestrings = (
+                [(street_rotated.offset_curve(i)) for i in interval]
+                + [(street_rotated.offset_curve(-i)) for i in interval]
+                + [street_rotated]
+            )
+
+            # Split the buffered street side with the linestrings to create potential crossing rectangles.
+            merged_lines = shapely.ops.linemerge([street.buffer(buffer_value, cap_style="flat").boundary, *linestrings])
+            border_lines = shapely.ops.unary_union(merged_lines)
+            potential_rammings = gpd.GeoDataFrame(geometry=[i for i in shapely.ops.polygonize(border_lines)])
+
+            # TODO reuse the functionality from the junction crossings to filter the rectangles.
+            _ = nodes_of_interest.sjoin(potential_rammings, how="inner", rsuffix="ramming")
 
         # split the segment at the crossing point, then buffer the intervals without endcap
         # intersect with obstacles
@@ -430,7 +470,12 @@ class GetPotentialPipeRammingCrossings:
             out = Config.PATH_GEOPACKAGE_MULTILAYER_NETWORK_OUTPUT
             prefix = "pytest_5_"
             write_results_to_geopackage(out, segment_geometry, f"{prefix}segment_to_cross")
+            write_results_to_geopackage(out, segment_geometry_area, f"{prefix}segment_to_cross_buffered")
             write_results_to_geopackage(out, crossing_points, f"{prefix}crossing_points")
+            write_results_to_geopackage(
+                out, nodes_of_interest, f"{prefix}cost_surface_nodes_of_interest", overwrite=True
+            )
+            write_results_to_geopackage(out, gdf_sides, f"{prefix}street_sides")
 
         return []
 
