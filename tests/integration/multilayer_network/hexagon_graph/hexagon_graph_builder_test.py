@@ -31,11 +31,13 @@ def test_build_graph_for_single_criterion(
     ede_project_area: shapely.MultiPolygon,
     debug: bool = False,
 ):
-    vectors = {
-        "wegdeel": single_criterion_vectors(
-            Config.MAX_NODE_SUITABILITY_VALUE, Config.MIN_NODE_SUITABILITY_VALUE, Config.MAX_NODE_SUITABILITY_VALUE
-        )
-    }
+    max_value = Config.MAX_NODE_SUITABILITY_VALUE
+    min_value = Config.MIN_NODE_SUITABILITY_VALUE
+    single_criterion_vectors = single_criterion_vectors(max_value, min_value, max_value)
+    project_area = ede_project_area
+
+    # Pick a criterion, as the hexagon graph builder requires that each criterion has a name.
+    vectors = {"wegdeel": single_criterion_vectors}
 
     hexagon_graph_builder = HexagonGraphBuilder(
         ede_project_area,
@@ -46,36 +48,41 @@ def test_build_graph_for_single_criterion(
     graph = hexagon_graph_builder.build_graph()
     nodes_gdf, edges_gdf = convert_hexagon_graph_to_gdfs(graph)
 
-    max_value = Config.MAX_NODE_SUITABILITY_VALUE
-    min_value = Config.MIN_NODE_SUITABILITY_VALUE
-    no_data = Config.MAX_NODE_SUITABILITY_VALUE
-
     points_to_sample = gpd.GeoDataFrame(
         data=[
-            [1, 10, shapely.Point(174871.877, 451084.402)],  #
-            [2, 5, shapely.Point(174868.877, 451086.134)],  #
-            [5, max_value, shapely.Point(175012.877, 450908.599)],
-            [6, min_value, shapely.Point(175093.877, 450912.929)],
-            [7, no_data, shapely.Point(174923.627, 450959.261)],
+            # Multiple overlapping values, take the max value
+            [1, 10, shapely.Point(174871.877, 451084.402)],
+            # Single vector, must be equal to vector suitability value
+            [2, 5, shapely.Point(174868.877, 451086.134)],
+            # Vector value exceeds max node value, must be reset to max value
+            [3, max_value, shapely.Point(175012.877, 450908.599)],
+            # Vector value lower than node min value, must be reset to min value
+            [4, min_value, shapely.Point(175093.877, 450912.929)],
+            # Vector value equal to max value, must remain the same
+            [5, max_value, shapely.Point(174923.627, 450959.261)],
         ],
         geometry="geometry",
         crs=Config.CRS,
         columns=["sample_id", "expected_suitability_value", "geometry"],
     )
 
-    # TODO: assert if suitability values are matching
-    # result = points_to_sample.sjoin_nearest(nodes_gdf)
+    # Verify that the nodes near the sample points are equal to the expected value on the sample points.
+    joined_sample_points = points_to_sample.sjoin_nearest(nodes_gdf)
+    assert joined_sample_points["expected_suitability_value"].equals(joined_sample_points["suitability_value"])
 
     if debug:
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, single_criterion_vectors, "vectors", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, project_area, "pytest_project_area", overwrite=True
         )
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "graph_nodes", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, single_criterion_vectors, "pytest_vectors", overwrite=True
         )
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "graph_edges", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "pytest_graph_nodes", overwrite=True
         )
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_to_sample, "points_to_sample", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "pytest_graph_edges", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_to_sample, "pytest_points_to_sample", overwrite=True
         )

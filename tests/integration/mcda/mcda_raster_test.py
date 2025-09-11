@@ -161,6 +161,7 @@ def test_rasterize_single_criterion(single_criterion_vectors: gpd.GeoDataFrame, 
             [4, no_data, shapely.Point(174686.5, 451164.9)],
             [5, max_value, shapely.Point(175013, 450909)],
             [6, min_value, shapely.Point(175094, 450913)],
+            # This value is equal to no-data and should be reset to a "safe" value (+1 it)
             [7, no_data + 1, shapely.Point(174923.49, 450959.17)],
         ],
         geometry="geometry",

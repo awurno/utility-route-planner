@@ -43,7 +43,6 @@ def single_criterion_vectors() -> gpd.GeoDataFrame:
                     max_value + 1000,
                     shapely.Polygon([[175012, 450920], [175011, 450907], [175019, 450906], [175012, 450920]]),
                 ],
-                # This value is equal to no-data and should be reset to a "safe" value (+1 it)
                 [no_data, shapely.Polygon([[174917, 450965], [174937, 450962], [174916, 450952], [174917, 450965]])],
             ],
             geometry="geometry",
