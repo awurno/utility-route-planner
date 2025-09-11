@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Callable
 import geopandas as gpd
 import pytest
 import shapely
 
 from settings import Config
-from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset, load_preset
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import convert_hexagon_graph_to_gdfs
 from utility_route_planner.util.write import write_results_to_geopackage
@@ -20,28 +20,22 @@ def ede_project_area() -> shapely.MultiPolygon:
     )
 
 
-@pytest.fixture()
-def raster_preset(ede_project_area):
-    return load_preset(Config.RASTER_PRESET_NAME_BENCHMARK, Config.PYTEST_PATH_GEOPACKAGE_MCDA, ede_project_area)
-
-
 def test_build_graph_for_single_criterion(
-    single_criterion_vectors: gpd.GeoDataFrame,
-    raster_preset: RasterPreset,
+    single_criterion_vectors: Callable,
     ede_project_area: shapely.MultiPolygon,
     debug: bool = False,
 ):
     max_value = Config.MAX_NODE_SUITABILITY_VALUE
     min_value = Config.MIN_NODE_SUITABILITY_VALUE
     single_criterion_vectors = single_criterion_vectors(max_value, min_value, max_value)
-    project_area = ede_project_area
 
-    # Pick a criterion, as the hexagon graph builder requires that each criterion has a name.
-    vectors = {"wegdeel": single_criterion_vectors}
+    # Create a simple vector dict for the single criterion.
+    vectors = {"test": single_criterion_vectors}
+    raster_criteria_groups = {"test": "a"}
 
     hexagon_graph_builder = HexagonGraphBuilder(
         ede_project_area,
-        raster_preset,
+        raster_criteria_groups,
         vectors,
         hexagon_size=0.5,
     )
@@ -72,7 +66,7 @@ def test_build_graph_for_single_criterion(
 
     if debug:
         write_results_to_geopackage(
-            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, project_area, "pytest_project_area", overwrite=True
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, ede_project_area, "pytest_project_area", overwrite=True
         )
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, single_criterion_vectors, "pytest_vectors", overwrite=True
@@ -86,3 +80,24 @@ def test_build_graph_for_single_criterion(
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_to_sample, "pytest_points_to_sample", overwrite=True
         )
+
+
+def test_build_graph_for_multiple_criteria(
+    multi_criteria_vectors: gpd.GeoDataFrame, ede_project_area: shapely.MultiPolygon, debug: bool = False
+):
+    max_value = Config.MAX_NODE_SUITABILITY_VALUE
+    min_value = Config.MIN_NODE_SUITABILITY_VALUE
+    multiple_criteria_vectors = multi_criteria_vectors(max_value, min_value)
+
+    raster_criteria_groups = {criterion_name: group for criterion_name, group, _ in multiple_criteria_vectors}
+    preprocessed_vectors = {
+        criterion_name: criterion_gdf for criterion_name, _, criterion_gdf in multiple_criteria_vectors
+    }
+
+    hexagon_graph_builder = HexagonGraphBuilder(
+        ede_project_area,
+        raster_criteria_groups,
+        preprocessed_vectors,
+        hexagon_size=0.5,
+    )
+    hexagon_graph_builder.build_graph()

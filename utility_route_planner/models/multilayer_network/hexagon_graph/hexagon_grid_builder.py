@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import shapely
 
-from utility_route_planner.models.mcda.load_mcda_preset import RasterPreset
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import get_hexagon_width_and_height
 from settings import Config
 
@@ -21,11 +20,11 @@ class HexagonGridBuilder:
 
     def __init__(
         self,
-        raster_preset: RasterPreset,
+        raster_groups: dict[str, str],
         preprocessed_vectors: dict[str, gpd.GeoDataFrame],
         hexagon_size: float,
     ):
-        self.raster_preset = raster_preset
+        self.raster_groups = raster_groups
         self.preprocessed_vectors = preprocessed_vectors
         self.hexagon_size = hexagon_size
         self.hexagon_width, self.hexagon_height = get_hexagon_width_and_height(hexagon_size)
@@ -76,7 +75,7 @@ class HexagonGridBuilder:
         """
         for criterion, vector_gdf in self.preprocessed_vectors.items():
             vector_gdf["criterion"] = criterion
-            vector_gdf["group"] = self.raster_preset.criteria[criterion].group
+            vector_gdf["group"] = self.raster_groups[criterion]
         concatenated_vectors = gpd.GeoDataFrame(pd.concat(self.preprocessed_vectors.values()), crs=Config.CRS)
 
         points_within_project_area = gpd.sjoin(
