@@ -37,9 +37,12 @@ class TestPipeRamming:
             )
             mcda_engine.preprocess_vectors()
 
+            raster_groups = {
+                criteria_key: criteria.group for criteria_key, criteria in mcda_engine.raster_preset.criteria.items()
+            }
             hexagon_graph_builder = HexagonGraphBuilder(
                 mcda_engine.project_area_geometry,
-                mcda_engine.raster_preset,
+                raster_groups,
                 mcda_engine.processed_vectors,
                 hexagon_size=0.5,
             )
