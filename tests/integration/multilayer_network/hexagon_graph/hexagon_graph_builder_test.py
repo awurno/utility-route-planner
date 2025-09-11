@@ -10,7 +10,7 @@ import shapely
 from settings import Config
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_graph_builder import HexagonGraphBuilder
 from utility_route_planner.models.multilayer_network.hexagon_graph.hexagon_utils import convert_hexagon_graph_to_gdfs
-from utility_route_planner.util.write import write_results_to_geopackage
+from utility_route_planner.util.write import reset_geopackage, write_results_to_geopackage
 
 
 @pytest.fixture()
@@ -65,6 +65,7 @@ def test_build_graph_for_single_criterion(
     assert joined_sample_points["expected_suitability_value"].equals(joined_sample_points["suitability_value"])
 
     if debug:
+        reset_geopackage(Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT)
         write_results_to_geopackage(
             Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, ede_project_area, "pytest_project_area", overwrite=True
         )
@@ -101,3 +102,57 @@ def test_build_graph_for_multiple_criteria(
         hexagon_size=0.5,
     )
     hexagon_graph_builder.build_graph()
+
+    graph = hexagon_graph_builder.build_graph()
+    nodes_gdf, edges_gdf = convert_hexagon_graph_to_gdfs(graph)
+
+    points_to_sample = gpd.GeoDataFrame(
+        data=[
+            [1, 14.0, shapely.Point(175090.35, 450911.67)],  # overlap between b1 and b2
+            [2, min_value, shapely.Point(175091.8234, 450911.7488)],  # overlap between a1, b1 and b2
+            [3, -1.0, shapely.Point(175088.2180, 450912.7950)],  # only b1
+            [5, max_value, shapely.Point(175013.3110, 450910.3013)],  # overlap between b1 and a1
+            [6, 5.0, shapely.Point(174839.089, 451050.785)],  # just a1
+            [7, 70.0, shapely.Point(174813.2646, 451113.9146)],  # overlap between b1 and a1
+            [9, 0.0, shapely.Point(174833.90, 451067.57)],  # b1 and a1 sum is 0 here
+            [10, max_value, shapely.Point(174878.65, 451132.89)],  # c1 overlaps a1
+            [11, max_value, shapely.Point(174799.54, 451170.54)],  # c1
+            [12, max_value, shapely.Point(174921.44, 451123.59)],  # c1 overlapping c1
+            [13, max_value, shapely.Point(174745.32, 451159.41)],  # c1 outside the project area
+            [14, max_value, shapely.Point(175092.267, 450908.932)],  # c2 overlapping b2
+            [15, max_value, shapely.Point(175097.673, 450912.390)],  # c2 overlapping b2, a1
+            [16, max_value, shapely.Point(174847.32, 451177.96)],  # c2 overlapping c1
+        ],
+        geometry="geometry",
+        crs=Config.CRS,
+        columns=["sample_id", "expected_suitability_value", "geometry"],
+    )
+
+    # Verify that the nodes near the sample points are equal to the expected value on the sample points.
+    joined_sample_points = points_to_sample.sjoin_nearest(nodes_gdf)
+    assert joined_sample_points["expected_suitability_value"].equals(joined_sample_points["suitability_value"])
+
+    if debug:
+        reset_geopackage(Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT)
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, ede_project_area, "pytest_project_area", overwrite=True
+        )
+        for criterion in multiple_criteria_vectors:
+            criterion_name, _, criterion_gdf = criterion
+
+            write_results_to_geopackage(
+                Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT,
+                criterion_gdf,
+                f"pytest_sum_{criterion_name}",
+                overwrite=True,
+            )
+
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, nodes_gdf, "pytest_graph_nodes", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, edges_gdf, "pytest_graph_edges", overwrite=True
+        )
+        write_results_to_geopackage(
+            Config.PATH_GEOPACKAGE_VECTOR_GRAPH_OUTPUT, points_to_sample, "pytest_points_to_sample", overwrite=True
+        )

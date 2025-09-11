@@ -99,7 +99,7 @@ def multi_criteria_vectors() -> Callable:
         criterion_b_1 = gpd.GeoDataFrame(
             data=[
                 # Overlaps criterion a 1 with a higher value
-                [20, shapely.Point([174813.28, 451113.88])],
+                [20, shapely.Point([174813.3770, 451113.8469]).buffer(2)],
                 [1000, shapely.Point([174870.46, 451051.07])],
                 [-20, shapely.Point([175013.310, 450910.294])],
                 [-1, shapely.Polygon([[175087, 450911], [175107, 450912], [175087, 450915], [175087, 450911]])],
