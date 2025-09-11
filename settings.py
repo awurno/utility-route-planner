@@ -31,8 +31,8 @@ class Config:
 
     # Multilayer network
     OSM_API_TIMEOUT_IN_SECONDS = 20
-    MAX_NODE_SUITABILITY_VALUE = 32767
-    MIN_NODE_SUITABILITY_VALUE = -32767
+    MAX_NODE_SUITABILITY_VALUE = 200
+    MIN_NODE_SUITABILITY_VALUE = -200
     HEXAGON_SIZE = 0.5
 
     # input/output paths.
